@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:star_scrapper_app/pages/Scrappers_screen.dart';
 import 'package:star_scrapper_app/pages/pages.dart';
 import 'package:star_scrapper_app/pages/search_screen.dart';
+import 'package:star_scrapper_app/pages/settings_screen.dart';
+import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
 
 void main() {
   runApp(const MyApp());
@@ -19,7 +22,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Library'),
+      home: const MyHomePage(title: 'StarsScrapper'),
     );
   }
 }
@@ -51,9 +54,22 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     
   ];
+
+  int _selectedIndex = 0;
+
+  late final List <Widget> _pages;
+
+  _MyHomePageState() {
+    _pages = [
+    HomePageScreen(libraryBooks: libraryBooks),
+    const ScrappersScreen(),
+    const SettingsScreen(),
+  ];
+  }
   
   @override
   Widget build(BuildContext context) {
+    final int safeIndex = _selectedIndex < _pages.length ? _selectedIndex : 0;
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -63,83 +79,33 @@ class _MyHomePageState extends State<MyHomePage> {
           Shadow(color: Colors.black, blurRadius: 10.0),
         ])),
       ),
-      body: Center( 
-        child: libraryBooks.isEmpty ? Card(
-          color: Colors.deepPurple.withOpacity(0.5),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              
-              children: const [
-                Icon(Icons.library_books, size: 50, color: Colors.grey),
-                Text('Your library is empty, try adding some books!', style: TextStyle(color: Colors.grey)),
-                
-              ],
-            ),
-          ),
-        ) 
-        : 
-        GridView.builder(
-          padding: const EdgeInsets.all(8.0),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: MediaQuery.of(context).size.width >= 600 ? 4 : 2,
-            mainAxisSpacing: 8.0,
-            crossAxisSpacing: 8.0,
-          ),
-          itemCount: libraryBooks.length,
-          itemBuilder: (context, index) {
-            return InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => BookDetailsScreen(
-                        bookDetails: libraryBooks[index],
-                      ),
-                    ),
-                  );
-                },
-
-                child: GridTile(
-                  footer: ClipRRect(
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(8.0),
-                      bottomRight: Radius.circular(8.0),
-                    ),
-                    child:Container(
-                      color: Colors.black.withOpacity(0.5),
-                      child: Text(
-                        libraryBooks[index]['title']!,
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20,
-                          shadows: [
-                            Shadow(
-                              color: Colors.black,
-                              offset: Offset(1, 1),
-                              blurRadius: 2,
-                            ),
-                          ],
-                        ),
-                      )
-                    ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10), // Aplica o raio de borda aqui
-                    child: Image.network(
-                      libraryBooks[index]['cover']!,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                )
-              );
-            
-          }
+      body: Center(
+          child: _pages.elementAt(safeIndex),
         ),
-      ), 
+        bottomNavigationBar: StylishBottomBar(
+          items: [
+            BottomBarItem(icon: Icon(Icons.home, color: Colors.teal), title: Text('Home'), selectedColor: Colors.teal),
+            BottomBarItem(icon: Icon(Icons.format_list_bulleted), title: Text('Scrappers')),
+            BottomBarItem(icon: Icon(Icons.settings), title: Text('settings')),
+          ],
+          option: AnimatedBarOptions(
+            opacity: 0.2,
+            inkColor: Colors.black,
+            iconSize: 30,
+            barAnimation: BarAnimation.fade,
+            iconStyle: IconStyle.animated,
+            padding: EdgeInsets.all(10),
+          ),
+          hasNotch: true,
+          notchStyle: NotchStyle.square,
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          currentIndex: _selectedIndex,
+          onTap: (index) {
+            setState(() {
+              _selectedIndex = index;
+            });
+          },
+        ),
       
       floatingActionButton: FloatingActionButton(
         onPressed: () {
