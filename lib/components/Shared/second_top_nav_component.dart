@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:star_scrapper_app/classes/tabs_state.dart';
 
-class BottomPageBar extends StatefulWidget {
+class SecondTopNav extends StatefulWidget {
   final int selectedIndex;
   final void Function(int) onTabChanged;
 
-  BottomPageBar({Key? key, required this.selectedIndex, required this.onTabChanged}) : super(key: key);
+  const SecondTopNav({Key? key, required this.selectedIndex, required this.onTabChanged}) : super(key: key);
 
   @override
-  State<BottomPageBar> createState() => _BottomPageBarState();
+  State<SecondTopNav> createState() => _SecondTopNavState();
 }
 
-class _BottomPageBarState extends State<BottomPageBar> with SingleTickerProviderStateMixin {
+class _SecondTopNavState extends State<SecondTopNav> with SingleTickerProviderStateMixin {
    TabController? _tabController;
 
   @override
@@ -25,6 +25,13 @@ class _BottomPageBarState extends State<BottomPageBar> with SingleTickerProvider
 
   void _updateTabController() {
     // Atualiza o comprimento do TabController para corresponder ao número de abas.
+    _tabController?.addListener(() {
+      widget.onTabChanged(tabsState.tabs.length);
+      tabsState.removeListener(_updateTabController);
+      tabsState.addListener(_updateTabController);
+      tabsState.setTabs(tabsState.tabs);
+      
+    });
     _tabController?.dispose();
     _tabController = TabController(length: tabsState.tabs.length, vsync: this);
     setState(() {}); // Força a reconstrução do widget para refletir as mudanças.

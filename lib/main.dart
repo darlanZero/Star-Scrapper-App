@@ -1,14 +1,19 @@
+import 'package:dynamic_tabbar/dynamic_tabbar.dart';
 import 'package:flutter/material.dart';
-import 'package:star_scrapper_app/classes/tabs_state.dart';
-import 'package:star_scrapper_app/components/Shared/bottom_page_bar.dart';
+import 'package:provider/provider.dart';
+import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/pages/Scrappers_screen.dart';
 import 'package:star_scrapper_app/pages/pages.dart';
-import 'package:star_scrapper_app/pages/search_screen.dart';
 import 'package:star_scrapper_app/pages/settings_screen.dart';
 import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => AppState(),
+      child: const MyApp()
+    )
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -24,20 +29,20 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'StarsScrapper'),
+      home: const MainScreen(title: 'Stars - A better lecture'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key, required this.title});
   final String title;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MainScreenState extends State<MainScreen> {
 
   final List<Map<String, dynamic>> libraryBooks = [
     {
@@ -57,61 +62,22 @@ class _MyHomePageState extends State<MyHomePage> {
     
   ];
 
-  int _selectedIndex = 0;
-  int _selectedTab = 0;
-
   late final List <Widget> _pages;
 
-  _MyHomePageState() {
+  _MainScreenState() {
     _pages = [
     HomePageScreen(libraryBooks: libraryBooks),
     const ScrappersScreen(),
     const SettingsScreen(),
   ];
   }
-
-  void _onPageChanged(int index) {
-    List<Widget> newTabs = [];
-
-    switch (index) {
-      case 0:
-        newTabs = const [
-          Tab(text: 'All'),
-          Tab(text: 'Fiction'),
-          Tab(text: 'Non-fiction'),
-          Tab(text: 'Fantasy'),
-          Tab(text: 'Sci-fi'),
-        ];
-        break;
-      case 1:
-        newTabs = const [
-          Tab(text: 'Scrappers'),
-          Tab(text: 'Fonts'),
-          Tab(text: 'Migrations'),
-        ];
-        break;
-      case 2:
-        newTabs = const [
-          Tab(text: 'UI'),
-          Tab(text: 'Library'),
-          Tab(text: 'Language'),
-        ];
-        break;
-    }
-
-    tabsState.setTabs(newTabs);
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
   
   @override
   Widget build(BuildContext context) {
-    final int safeIndex = _selectedIndex < _pages.length ? _selectedIndex : 0;
+    final appState = Provider.of<AppState>(context);
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        
         backgroundColor: Color.fromARGB(29, 60, 16, 180),
         title: Text(widget.title, style: const TextStyle(color: Color.fromARGB(255, 224, 224, 224), fontWeight: FontWeight.bold, shadows: <Shadow>[
           Shadow(color: Colors.black, blurRadius: 10.0),
@@ -127,17 +93,60 @@ class _MyHomePageState extends State<MyHomePage> {
 
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(50.0),
-          child: BottomPageBar(
-            selectedIndex: _selectedTab,
-            onTabChanged: _onPageChanged,
-            
+          child: Consumer<AppState>(
+            builder: (context, appState, child) {
+              return appState.tabController != null ? DynamicTabBarWidget(
+               dynamicTabs: <TabData>(
+                [
+                  TabData()
+                ]
+               ),
+                tabs: appState.currentTabs,
+                isScrollable: true,
+                indicatorWeight: 5,
+                indicatorPadding: const EdgeInsets.all(5),
+                indicatorColor: Colors.white,
+                labelColor: Colors.deepOrange,
+                unselectedLabelColor: Colors.grey,
+                onTabControllerUpdated: appState.tabController,
+                onTap: (index) {
+                  appState.setIndex(index);
+                },
+              ): 
+              SizedBox(
+                height: 0,
+                width: 0,
+              );
+            },
           ),
         ),
       ),
-      body: Center(
-          child: _pages.elementAt(safeIndex),
-        ),
+      body: Consumer<AppState>(
+        builder: (context, appState, child) => appState.tabController != null ? TabBarView(
+          children: [_pages[appState.currentIndex]],
+        ): const Center(
+            child: Scaffold(
+              backgroundColor: Colors.black,
+              body: Center(
+                child: Card.outlined(
+                  color: Colors.deepPurple,
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        CircularProgressIndicator(),
+                        Text('Loading...', style: TextStyle(color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ), 
+          ),
+      ),
         bottomNavigationBar: StylishBottomBar(
+          currentIndex: appState.currentIndex,
           items: [
             BottomBarItem(icon: Icon(Icons.home, color: Colors.teal), title: Text('Home'), selectedColor: Colors.teal),
             BottomBarItem(icon: Icon(Icons.format_list_bulleted), title: Text('Scrappers')),
@@ -155,12 +164,9 @@ class _MyHomePageState extends State<MyHomePage> {
           hasNotch: true,
           notchStyle: NotchStyle.circle,
           backgroundColor: Color.fromARGB(50, 60, 16, 180),
-          currentIndex: _selectedIndex,
           borderRadius: BorderRadius.circular(20),
           onTap: (index) {
-            setState(() {
-              _selectedIndex = index;
-            });
+            appState.setIndex(index);
           },
         ),
       
