@@ -1,8 +1,4 @@
-
-import 'package:dynamic_tabbar/dynamic_tabbar.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/pages/book_details_screen.dart';
 
 class HomePageScreen extends StatefulWidget {
@@ -17,90 +13,38 @@ class HomePageScreen extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin {
-  List<TabData> tabs = [];
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final appState = Provider.of<AppState>(context, listen: false);
-      appState.initTabController(this);
-      appState.setTabs([...tabs], this);
-    });
   }
 
-  Future<void> tabDataRenderer() async {
-    await Future.delayed(const Duration(seconds: 1), () {
-      dynamic tabsData = [
-        {
-          'title': 'All',
-          'items': [...widget.libraryBooks],
-          'index': 1,
-        },
-        {
-          'title': 'Fiction',
-          'items': [...widget.libraryBooks],
-          'index': 2,
-        },
-        {
-          'title': 'Non-fiction',
-          'items': [...widget.libraryBooks],
-          'index': 3,
-        },
-        {
-          'title': 'Fantasy',
-          'items': [...widget.libraryBooks],
-          'index': 4,
-        },
-        {
-          'title': 'Sci-fi',
-          'items': [...widget.libraryBooks],
-          'index': 5,
-        },
-      ];
-
-      for (var element in tabsData) {
-        tabs.add(TabData(
-          title: Tab(text: element['title'],),
-          content: _buildBooksGrid(element['index']),
-          index: element['index'],
-        ));
-      }
-      setState(() {});
-    });
-  }
-  
   _HomePageState({required this.libraryBooks}) : super();
   final List<Map<String, dynamic>> libraryBooks;
 
   @override
     Widget build(BuildContext context) {
-      final appState = Provider.of<AppState>(context);
-
-      if (appState.tabController == null) {
-        return const Center(
-            child: CircularProgressIndicator()
-          );
-      }
-     
-       return Column(  
-      children: [  
-        Expanded(  
-          child: TabBarView(  
-            children: [  
-              _buildBooksGrid(appState.currentIndex),  
-              const Center(child: Text('Fiction')),  
-              const Center(child: Text('Non-fiction')),  
-              const Center(child: Text('Fantasy')),  
-              const Center(child: Text('Sci-fi')),  
-            ],  
+      return Column(  
+        children: [  
+          const SizedBox(height: 16),  
+          const Text(  
+            'Your Library',  
+            style: TextStyle(  
+              color: Colors.blueGrey,  
+              fontWeight: FontWeight.bold,  
+              fontSize: 24,  
+            ),  
           ),  
-        ),  
+          const SizedBox(height: 16),  
+          Expanded(  
+            child: _buildBooksGrid(),  
+          ),  
+          const SizedBox(height: 16),  
       ],  
     );  
   }  
 
-  Widget _buildBooksGrid(int tabIndex) {  
+  Widget _buildBooksGrid() {  
     return Center(  
       child: widget.libraryBooks.isEmpty  
         ? Card(  

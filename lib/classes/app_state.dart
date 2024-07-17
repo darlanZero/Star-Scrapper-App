@@ -1,13 +1,31 @@
+import 'package:dynamic_tabbar/dynamic_tabbar.dart';
 import 'package:flutter/material.dart';  
 
-class AppState extends ChangeNotifier {  
-  List<Widget> _currentTabs = [];  
+class AppState extends ChangeNotifier {
+  int _currentIndex = 0;
+
+  int get currentIndex => _currentIndex;
+
+  void setIndex(int index) {
+    _currentIndex = index;
+    notifyListeners();
+  }
+} 
+
+class TabsState extends ChangeNotifier {  
+  List<TabData> _currentTabs = [];  
   int _currentIndex = 0;  
   TabController? _tabController;  
 
-  List<Widget> get currentTabs => _currentTabs;  
+  List<TabData> get currentTabs => _currentTabs;  
   int get currentIndex => _currentIndex;  
   TabController? get tabController => _tabController;  
+
+   set tabController(TabController? newController) {
+    _tabController = newController;
+    // Você pode adicionar qualquer lógica adicional necessária aqui,
+    // como notificar ouvintes sobre a mudança.
+  }
 
   void initTabController(TickerProvider vsync) {  
     _tabController?.dispose();  
@@ -17,7 +35,7 @@ class AppState extends ChangeNotifier {
     }  
   }  
 
-  void setTabs(List<Widget> tabs, TickerProvider vsync) {  
+  void setTabs(List<TabData> tabs, TickerProvider vsync) {  
     _currentTabs = tabs;  
     initTabController(vsync);  
     notifyListeners();  
