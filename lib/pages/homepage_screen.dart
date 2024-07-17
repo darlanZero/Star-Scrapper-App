@@ -15,7 +15,6 @@ class HomePageScreen extends StatefulWidget {
 class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin {
   late TabController _tabController;
 
-
   @override
   void initState() {
     super.initState();
@@ -36,7 +35,18 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
             Tab(text: 'Adventure'),
             Tab(text: 'Comedy'),
             Tab(text: 'Sci-Fi'),
-          ],)
+          ],
+            isScrollable: true,
+            splashBorderRadius: BorderRadius.circular(10),
+            automaticIndicatorColorAdjustment: true,
+            tabAlignment: TabAlignment.center,
+            labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+            labelStyle: TextStyle(
+              color: Colors.lightGreen,
+              fontWeight: FontWeight.bold,
+              fontSize: MediaQuery.of(context).size.width >= 600 ? 16 : 12,
+            ),
+          )
         )
       );
     });
