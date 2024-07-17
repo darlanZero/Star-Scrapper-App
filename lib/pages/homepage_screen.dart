@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/pages/book_details_screen.dart';
 
 class HomePageScreen extends StatefulWidget {
   final List<Map<String, dynamic>> libraryBooks;
-
-
   const HomePageScreen({super.key, required this.libraryBooks});
 
   @override
@@ -13,10 +13,39 @@ class HomePageScreen extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin {
+  late TabController _tabController;
+
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 8, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final tabsState = Provider.of<TabsState>(context, listen: false);
+      tabsState.setAppBarBottom(
+        PreferredSize(
+          preferredSize: Size.fromHeight(48.0), 
+          child: TabBar(
+            controller: _tabController,
+            tabs: const [
+            Tab(text: 'Action'),
+            Tab(text: 'Fantasy'),
+            Tab(text: 'Romance'),
+            Tab(text: 'Mystery'),
+            Tab(text: 'Thriller'),
+            Tab(text: 'Adventure'),
+            Tab(text: 'Comedy'),
+            Tab(text: 'Sci-Fi'),
+          ],)
+        )
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   _HomePageState({required this.libraryBooks}) : super();
@@ -24,22 +53,160 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
 
   @override
     Widget build(BuildContext context) {
-      return Column(  
-        children: [  
-          const SizedBox(height: 16),  
-          const Text(  
-            'Your Library',  
-            style: TextStyle(  
-              color: Colors.blueGrey,  
-              fontWeight: FontWeight.bold,  
-              fontSize: 24,  
-            ),  
-          ),  
-          const SizedBox(height: 16),  
-          Expanded(  
-            child: _buildBooksGrid(),  
-          ),  
-          const SizedBox(height: 16),  
+      return TabBarView(
+        controller: _tabController,  
+        children: [ 
+          Column(
+            children:[
+              const SizedBox(height: 16),  
+              const Text(  
+                'Your Library',  
+                style: TextStyle(  
+                  color: Colors.blueGrey,  
+                  fontWeight: FontWeight.bold,  
+                  fontSize: 24,  
+                ),  
+              ),  
+              const SizedBox(height: 16),  
+              Expanded(  
+                child: _buildBooksGrid(),  
+              ),  
+              const SizedBox(height: 16),  
+            ] ,
+          ),
+
+          Column(
+            children:[
+              const SizedBox(height: 16),  
+              const Text(  
+                'Action',  
+                style: TextStyle(  
+                  color: Colors.blueGrey,  
+                  fontWeight: FontWeight.bold,  
+                  fontSize: 24,  
+                ),  
+              ),  
+              const SizedBox(height: 16),  
+              Expanded(  
+                child: _buildBooksGrid(),  
+              ),  
+              const SizedBox(height: 16),  
+            ] ,
+          ),
+
+          Column(
+            children:[
+              const SizedBox(height: 16),  
+              const Text(  
+                'Fantasy',  
+                style: TextStyle(  
+                  color: Colors.blueGrey,  
+                  fontWeight: FontWeight.bold,  
+                  fontSize: 24,  
+                ),  
+              ),  
+              const SizedBox(height: 16),  
+              Expanded(  
+                child: _buildBooksGrid(),  
+              ),  
+              const SizedBox(height: 16),  
+            ] ,
+          ),
+
+          Column(
+            children:[
+              const SizedBox(height: 16),  
+              const Text(  
+                'Romance',  
+                style: TextStyle(  
+                  color: Colors.blueGrey,  
+                  fontWeight: FontWeight.bold,  
+                  fontSize: 24,  
+                ),  
+              ),  
+              const SizedBox(height: 16),  
+              Expanded(  
+                child: _buildBooksGrid(),  
+              ),  
+              const SizedBox(height: 16),  
+            ] ,
+          ),
+
+          Column(
+            children:[
+              const SizedBox(height: 16),  
+              const Text(  
+                'Mystery',  
+                style: TextStyle(  
+                  color: Colors.blueGrey,  
+                  fontWeight: FontWeight.bold,  
+                  fontSize: 24,  
+                ),  
+              ),  
+              const SizedBox(height: 16),  
+              Expanded(  
+                child: _buildBooksGrid(),  
+              ),  
+              const SizedBox(height: 16),  
+            ] ,
+          ),
+
+          Column(
+            children:[
+              const SizedBox(height: 16),  
+              const Text(  
+                'Thriller',  
+                style: TextStyle(  
+                  color: Colors.blueGrey,  
+                  fontWeight: FontWeight.bold,  
+                  fontSize: 24,  
+                ),  
+              ),  
+              const SizedBox(height: 16),  
+              Expanded(  
+                child: _buildBooksGrid(),  
+              ),  
+              const SizedBox(height: 16),  
+            ] ,
+          ),
+
+          Column(
+            children:[
+              const SizedBox(height: 16),  
+              const Text(  
+                'Adventure',  
+                style: TextStyle(  
+                  color: Colors.blueGrey,  
+                  fontWeight: FontWeight.bold,  
+                  fontSize: 24,  
+                ),  
+              ),  
+              const SizedBox(height: 16),  
+              Expanded(  
+                child: _buildBooksGrid(),  
+              ),  
+              const SizedBox(height: 16),  
+            ] ,
+          ),
+
+          Column(
+            children:[
+              const SizedBox(height: 16),  
+              const Text(  
+                'Comedy',  
+                style: TextStyle(  
+                  color: Colors.blueGrey,  
+                  fontWeight: FontWeight.bold,  
+                  fontSize: 24,  
+                ),  
+              ),  
+              const SizedBox(height: 16),  
+              Expanded(  
+                child: _buildBooksGrid(),  
+              ),  
+              const SizedBox(height: 16),  
+            ] ,
+          ),
       ],  
     );  
   }  

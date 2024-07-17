@@ -1,17 +1,54 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:star_scrapper_app/classes/app_state.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+ @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> with TickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final tabsState = Provider.of<TabsState>(context, listen: false);
+      tabsState.setAppBarBottom(
+        PreferredSize(
+          preferredSize: Size.fromHeight(48.0), 
+          child: TabBar(
+            controller: _tabController,
+            
+            tabs: const [
+            Tab(text: 'General'),
+            Tab(text: 'Account'),
+            Tab(text: 'About'),
+          ],)
+        )
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-      ),
-      body: const Center(
-        child: Text('Settings Screen functionality will be implemented soon'),
-      ),
-    );
+    return TabBarView(
+        controller: _tabController,
+        children: const [
+          Center(child: Text('General')),
+          Center(child: Text('Account')),
+          Center(child: Text('About')),
+        ]
+      );
   }
 }

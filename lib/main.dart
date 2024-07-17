@@ -80,22 +80,24 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: Colors.black,
-        appBar: AppBar(
-          backgroundColor: Color.fromARGB(29, 60, 16, 180),
-          title: Text(widget.title, style: const TextStyle(color: Color.fromARGB(255, 224, 224, 224), fontWeight: FontWeight.bold, shadows: <Shadow>[
-            Shadow(color: Colors.black, blurRadius: 10.0),
-          ])),
-          centerTitle: true,
-          elevation: 0,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(
-              bottom: Radius.circular(20),
-            ),
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Color.fromARGB(29, 60, 16, 180),
+        title: Text(widget.title, style: const TextStyle(color: Color.fromARGB(255, 224, 224, 224), fontWeight: FontWeight.bold, shadows: <Shadow>[
+          Shadow(color: Colors.black, blurRadius: 10.0),
+        ])),
+        centerTitle: true,
+        elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
           ),
-          titleTextStyle: const TextStyle(color: Colors.white, fontSize: 25.0, fontWeight: FontWeight.bold),
         ),
-        body: Center(child: _pages[Provider.of<AppState>(context).currentIndex] ), 
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 25.0, fontWeight: FontWeight.bold),
+        bottom: Provider.of<TabsState>(context).appBarBottom,
+      ),
+
+      body: Center(child: _pages[Provider.of<AppState>(context).currentIndex] ), 
 
       bottomNavigationBar: StylishBottomBar(
         items: [
