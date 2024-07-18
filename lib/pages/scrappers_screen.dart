@@ -28,7 +28,18 @@ class _ScrappersScreenState extends State<ScrappersScreen> with TickerProviderSt
             Tab(text: 'Fonts'),
             Tab(text: 'Downloads'),
             Tab(text: 'Migrate'),
-          ],)
+            ],
+            isScrollable: true,
+            splashBorderRadius: BorderRadius.circular(10),
+            automaticIndicatorColorAdjustment: true,
+            tabAlignment: TabAlignment.center,
+            labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+            labelStyle: TextStyle(
+              color: Colors.lightGreen,
+              fontWeight: FontWeight.bold,
+              fontSize: MediaQuery.of(context).size.width >= 600 ? 16 : 12,
+            ),
+          )
         )
       );
     });
