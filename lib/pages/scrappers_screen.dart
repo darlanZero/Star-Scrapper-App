@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
+import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';
 
 class ScrappersScreen extends StatefulWidget {
   const ScrappersScreen({super.key});
@@ -57,7 +58,7 @@ class _ScrappersScreenState extends State<ScrappersScreen> with TickerProviderSt
         controller: _tabController,
         children: const [
           Center(child: Text('Fonts')),
-          Center(child: Text('Downloads')),
+          Center(child: ScrapperDownloaderFonts()),
           Center(child: Text('Migrate')),
         ],
       );
