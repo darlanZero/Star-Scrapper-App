@@ -80,19 +80,17 @@ List<Fonte> InactiveFonts = [];
   var grouped = Map<String, List<Fonte>>();
 
   void updateFontLists() {
-    languageGroups.clear();
+    
 
     setState(() {
-      ActiveFonts = fonts.where((font) => font.isActive).toList();
-      InactiveFonts = fonts.where((font) => !font.isActive).toList();
-
+      grouped.clear();
       for (var font in fonts) {
         grouped.putIfAbsent(font.languagePrefix, () => []).add(font);
       }
-
-      grouped.forEach((key, value) {
-        languageGroups.add(LanguageGroup(languagePrefix: key, fonts: value));
-      },);
+      languageGroups = grouped.entries.map((entry) => LanguageGroup(
+        languagePrefix: entry.key,
+        fonts: entry.value,
+      )).toList();
     });
   }
 
@@ -103,144 +101,91 @@ List<Fonte> InactiveFonts = [];
     updateFontLists();
   }
 
-  @override
-  Widget build(BuildContext context) {
+  @override  
+  Widget build(BuildContext context) {  
+    return Card(  
+      color: Color(0xFF262335),  
+      child: ListView(  
+        padding: EdgeInsets.all(16.0),  
+        scrollDirection: Axis.vertical,  
+        physics: BouncingScrollPhysics(),  
+        children: [  
+          SizedBox(height: 10),  
+          _buildFontSection('Active Fonts', true),  
+          SizedBox(height: 10),  
+          _buildFontSection('Inactive Fonts', false),  
+        ],  
+      ),  
+    );  
+  }  
 
-    return Card(
-      color: Color(0xFF262335),
-      child: ListView(
-        padding: EdgeInsets.all(16.0),
-        scrollDirection: Axis.vertical,
-        physics: BouncingScrollPhysics(),
-        children: [
-          SizedBox(height: 10),
-          Center(
-            child: Text(
-              'Active Fonts',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.normal,
-                decoration: TextDecoration.underline,
-                fontSize: MediaQuery.of(context).size.width >= 600 ? 20 : 16,
-                decorationColor: Colors.green,
-              ),
-            ),
-          ),
-          ...grouped.entries.map((entry) => ExpansionTile(
-            initiallyExpanded: entry.key == 'All',
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+  Widget _buildFontSection(String title, bool isActive) {  
+    return Column(  
+      children: [  
+        Center(  
+          child: Text(  
+            title,  
+            textAlign: TextAlign.center,  
+            style: TextStyle(  
+              color: Colors.white,  
+              fontWeight: FontWeight.normal,  
+              decoration: TextDecoration.underline,  
+              fontSize: MediaQuery.of(context).size.width >= 600 ? 20 : 16,  
+              decorationColor: isActive ? Colors.green : Colors.red,  
+            ),  
+          ),  
+        ),  
+        ...languageGroups.map((group) => ExpansionTile(  
+          initiallyExpanded: group.languagePrefix == 'All',  
+          shape: RoundedRectangleBorder(  
+            borderRadius: BorderRadius.circular(10),  
+          ),  
+          title: Text(  
+            group.languagePrefix,  
+            style: TextStyle(  
+              color: isActive ? Colors.lightGreenAccent : Colors.red,  
+              fontWeight: FontWeight.normal,  
+              fontSize: MediaQuery.of(context).size.width >= 600 ? 20 : 16,  
+            ),  
+          ),  
+          children: group.fonts  
+              .where((font) => font.isActive == isActive)  
+              .map((font) => _buildFontTile(font, isActive))  
+              .toList(),  
+        )),  
+      ],  
+    );  
+  }  
 
-            ),
-            title: Text(
-              entry.key, 
-              style: TextStyle(
-                color: Colors.lightGreenAccent,
-                fontWeight: FontWeight.normal,
-                fontSize: MediaQuery.of(context).size.width >= 600 ? 20 : 16,
-              ),
-            ),
-            children: entry.value.map<Widget>((font) => ListTile(
-              leading: isSvgImage(font.image) ? 
-                SvgPicture.network(font.image, width: 25, height: 25) : 
-                Image.network(font.image, width: 25, height: 25),
-              title: Center(
-                child: Text(
-                font.name, 
-                style: TextStyle(
-                  color: Colors.green,
-                  shadows: const <Shadow>[
-                    Shadow(
-                      offset: Offset(1.0, 1.0),
-                      blurRadius: 3.0,
-                      color: Color.fromARGB(255, 0, 0, 0),
-                    ),
-                  ],
-                  fontSize: MediaQuery.of(context).size.width >= 600 ? 20 : 16,
-                ),
-              ),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: Icon(
-                    Icons.toggle_on,
-                    color: Colors.green,
-                  ),
-                  onPressed: () => toggleFontState(font),
-                )
-              ],
-            ),
-            )).toList(),
-          )),
-          SizedBox(height: 10),
-
-          Center(
-            child: Text(
-              'Inactive Fonts',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.normal,
-                decoration: TextDecoration.underline,
-                fontSize: MediaQuery.of(context).size.width >= 600 ? 20 : 16,
-                decorationColor: Colors.red,
-              ),
-            ),
-          ),
-          ...grouped.entries.map((entry) => ExpansionTile(
-            initiallyExpanded: entry.key == 'All',
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            title: Text(
-              entry.key,
-              style: TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.normal,
-                fontSize: MediaQuery.of(context).size.width >= 600 ? 20 : 16,
-              ),
-            ),
-            children: entry.value.map<Widget>((font) => ListTile(
-              leading: isSvgImage(font.image) ? 
-                SvgPicture.network(font.image, width: 25, height: 25) : 
-                Image.network(font.image, width: 25, height: 25),
-              title: Center(
-                child: Text(
-                font.name, 
-                style: TextStyle(
-                  color: Colors.red,
-                  decoration: TextDecoration.lineThrough,
-                  shadows: const <Shadow>[
-                    Shadow(
-                      offset: Offset(1.0, 1.0),
-                      blurRadius: 3.0,
-                      color: Color.fromARGB(255, 0, 0, 0),
-                    ),
-                  ],
-                  fontSize: MediaQuery.of(context).size.width >= 600 ? 20 : 16, 
-                ),
-              ),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: Icon(
-                    Icons.toggle_off,
-                    color: Colors.red,
-                  ),
-                  onPressed: () => toggleFontState(font),
-                )
-              ],
-            )
-            )).toList(),
-          )),
-        ],
-      ),
-    );
-
+  Widget _buildFontTile(Fonte font, bool isActive) {  
+    return ListTile(  
+      leading: isSvgImage(font.image)  
+          ? SvgPicture.network(font.image, width: 25, height: 25)  
+          : Image.network(font.image, width: 25, height: 25),  
+      title: Center(  
+        child: Text(  
+          font.name,  
+          style: TextStyle(  
+            color: isActive ? Colors.green : Colors.red,  
+            decoration: isActive ? null : TextDecoration.lineThrough,  
+            shadows: const <Shadow>[  
+              Shadow(  
+                offset: Offset(1.0, 1.0),  
+                blurRadius: 3.0,  
+                color: Color.fromARGB(255, 0, 0, 0),  
+              ),  
+            ],  
+            fontSize: MediaQuery.of(context).size.width >= 600 ? 20 : 16,  
+          ),  
+        ),  
+      ),  
+      trailing: IconButton(  
+        icon: Icon(  
+          isActive ? Icons.toggle_on : Icons.toggle_off,  
+          color: isActive ? Colors.green : Colors.red,  
+        ),  
+        onPressed: () => toggleFontState(font),  
+      ),  
+    );  
   }
 }
