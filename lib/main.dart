@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
+import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/pages/Scrappers_screen.dart';
 import 'package:star_scrapper_app/pages/pages.dart';
 import 'package:star_scrapper_app/pages/settings_screen.dart';
@@ -12,6 +13,7 @@ void main() {
     [
       ChangeNotifierProvider(create: (context) => AppState()),
       ChangeNotifierProvider(create: (context) => TabsState()),
+      ChangeNotifierProvider(create: (context) => FontProvider()),
     ], child: const MyApp()),
   );
 }

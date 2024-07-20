@@ -1,16 +1,7 @@
 # star_scrapper_app
 
-A new Flutter project.
+A Mangas/Comics scrapper app that fetches the latest chapters of a manga/comic from a website and makes it available for users to read for free. The app is build with dart and flutter, and it's actually focused on mobile android devices and desktop windows machines.
 
-## Getting Started
+This is a open source project, so feel free to contribute to it.
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Heavily inspired by [MangaDex](https://mangadex.org/) and Mihon mobile application, but with a different approach.

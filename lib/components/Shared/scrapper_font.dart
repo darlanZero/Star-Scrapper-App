@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:star_scrapper_app/classes/Scrappers/mangadex_scrapper.dart';
+import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 
 class Fonte {
   final String image;
@@ -43,16 +43,7 @@ class ScrapperDownloaderFonts extends StatefulWidget {
 }
 
 class _ScrapperDownloaderFontsState extends State<ScrapperDownloaderFonts> {
-  List<Fonte> fonts = [
-    Fonte(
-      image: 'https://mangadex.org/img/brand/mangadex-logo.svg', 
-      name: 'Mangadex', 
-      languagePrefix: 'All', 
-      flags: ['https://cdn-icons-png.flaticon.com/512/44/44386.png'],
-      isActive: false,
-      api: MangadexScrapper()
-    ),
-  ];
+  List<Fonte> fonts = FontProvider().fonts;
   List<LanguageGroup> languageGroups = [];
 
   bool isSvgImage(String url) {
@@ -104,7 +95,11 @@ List<Fonte> InactiveFonts = [];
   @override  
   Widget build(BuildContext context) {  
     return Card(  
-      color: Color(0xFF262335),  
+      color: Color(0xFF262335),
+      margin: EdgeInsets.all(8.0),
+      elevation: 4.0,
+      borderOnForeground: true,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
       child: ListView(  
         padding: EdgeInsets.all(16.0),  
         scrollDirection: Axis.vertical,  
