@@ -3,7 +3,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';  
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
-import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';  
+import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';
+import 'package:star_scrapper_app/pages/pages.dart';  
 
 class ScrapperActiveFonts extends StatefulWidget {  
   const ScrapperActiveFonts({Key? key}) : super(key: key);  
@@ -99,7 +100,15 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
         children: [  
           OutlinedButton(  
             onPressed: () {  
-              // Handle trending action  
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => FontBooksGalleryScreen(
+                    initialView: 'Popular',
+                    selectedFont: font,
+                  ),
+                ),
+              );
             },  
             child: Text(
               'Trending', 
@@ -114,7 +123,15 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
           SizedBox(width: 10),  
           OutlinedButton(  
             onPressed: () {  
-              // Handle recents action  
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => FontBooksGalleryScreen(
+                    initialView: 'Recent',
+                    selectedFont: font,
+                  ),
+                ),
+              );
             },  
             child: Text(
               'Recents',

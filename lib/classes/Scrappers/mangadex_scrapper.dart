@@ -50,18 +50,30 @@ class MangadexScrapper {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
+      final mangaDetails = data['data'][0];
+      final attributes = mangaDetails['attributes'];
+
+      final titleLanguageKey = attributes['title'].keys.first;
+      final title = attributes['title'][titleLanguageKey];
+
+      List<Map<String, String>> altTitles = [];
+      for (var altTitle in attributes['altTitles']) {
+        var altTitleLanguageKey = altTitle.keys.first;
+        var altTitleValue = altTitle[altTitleLanguageKey];
+        altTitles.add({ altTitleLanguageKey: altTitleValue});
+      }
 
       final Map<String, dynamic> details = {
-        'title': data['data']['attributes']['title'],
-        'subtitle': data['data']['attributes']['subtitle'],
-        'description': data['data']['attributes']['description'],
-        'coverImage': data['data']['attributes']['coverImage'],
-        'author': data['data']['attributes']['author'],
-        'status': data['data']['attributes']['status'],
-        'tags': data['data']['attributes']['tags'],
+        'id': mangaDetails['id'],
+        'title': title,
+        'altTitles': altTitles,
+        'description': attributes['description']['en'],
+        'coverImage': mangaDetails['relationships'].firstWhere((relation) => relation['type'] == 'cover_art', orElse: () => null)?['id'],
+        'author': mangaDetails['relationships'].firstWhere((relation) => relation['type'] == 'author', orElse: () => null)?['id'],
+        'status': attributes['status'],
+        'tags': attributes['tags'].map((tag) => tag['attributes']['name']['en']).toList(),
         'genres': data['data']['attributes']['genres'],
-        'format': data['data']['attributes']['format'],
-        'demography': data['data']['attributes']['demography'],
+        'type': mangaDetails['type'],
         'chapters': _extractChapters(data['data']['relationships']),
       };
       return details;
