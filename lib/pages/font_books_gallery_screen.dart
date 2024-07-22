@@ -216,8 +216,25 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
       context: context,  
       builder: (BuildContext context) {  
         return AlertDialog(  
-          title: const Text('Filter'),  
-          content: const Text('Filter content'),  
+          title: const Text('Filter'),
+
+          content: SingleChildScrollView(
+
+            child: Column(  
+              children: const [  
+                Text('Filter by:'),  
+                Divider(),  
+                Text('Genre'),  
+                Divider(),  
+                Text('Author'),  
+                Divider(),  
+                Text('Year'),  
+                Divider(),  
+                Text('Rating'),  
+                Divider(),  
+              ],  
+            ),  
+          ),  
           scrollable: true,  
           titleTextStyle: const TextStyle(color: Color.fromARGB(255, 224, 224, 224)),  
           contentTextStyle: const TextStyle(color: Color.fromARGB(255, 224, 224, 224)),  
