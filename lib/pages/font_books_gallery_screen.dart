@@ -135,14 +135,14 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
             ),
             itemCount: books.length,
             itemBuilder: (context, index) {
-              const String _baseUrl = 'https://mangadex.org';
+              const String baseUrl = 'https://uploads.mangadex.org/';
               var book = books[index];
               var bookId = book['id'];
               var attributes = book['attributes'];
               var titleLanguageKey = attributes['title'].keys.first;
               var title = attributes['title'][titleLanguageKey];
-              var coverId = book['relationships'].firstWhere((relation) => relation['type'] == 'cover_art', orElse: () => null)?['id'];
-              var cover = coverId != null ? '$_baseUrl/covers/$bookId/$coverId.png' : 'https://via.placeholder.com/150';
+              var coverId = book['relationships'].firstWhere((relation) => relation['type'] == 'cover_art');
+              var cover = coverId = '$baseUrl/covers/$bookId/$coverId.png';
 
               return InkWell(
                 onTap: () {
@@ -184,7 +184,10 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
                     borderRadius: BorderRadius.circular(10),
                     child: Image.network(
                       cover,
-                      fit: BoxFit.cover
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Image.network('https://via.placeholder.com/150', fit: BoxFit.cover);
+                      }
                     )
                   ),
                 ),

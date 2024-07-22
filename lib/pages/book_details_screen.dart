@@ -23,7 +23,7 @@ class BookDetailsScreen extends StatelessWidget {
                 children: <Widget>[
                   ClipRRect(
                     child: Image.network(
-                      bookDetails['cover']!,
+                      bookDetails['cover'],
                       fit: isDesktop ? BoxFit.cover : BoxFit.fill,
                       color: Colors.black.withOpacity(0.5),
                       colorBlendMode:BlendMode.darken,

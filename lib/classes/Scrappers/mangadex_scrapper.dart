@@ -68,7 +68,7 @@ class MangadexScrapper {
         'title': title,
         'altTitles': altTitles,
         'description': attributes['description']['en'],
-        'coverImage': mangaDetails['relationships'].firstWhere((relation) => relation['type'] == 'cover_art', orElse: () => null)?['id'],
+        'coverImage': mangaDetails['relationships'].firstWhere((relation) => relation['type'] == 'cover_art'),
         'author': mangaDetails['relationships'].firstWhere((relation) => relation['type'] == 'author', orElse: () => null)?['id'],
         'status': attributes['status'],
         'tags': attributes['tags'].map((tag) => tag['attributes']['name']['en']).toList(),
