@@ -44,6 +44,8 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
+
+
 class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateMixin {
 
   final List<Map<String, dynamic>> libraryBooks = [
@@ -85,11 +87,33 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Color.fromARGB(29, 60, 16, 180),
-        title: Text(widget.title, style: const TextStyle(color: Color.fromARGB(255, 224, 224, 224), fontWeight: FontWeight.bold, shadows: <Shadow>[
-          Shadow(color: Colors.black, blurRadius: 10.0),
-        ])),
-        centerTitle: true,
+        titleSpacing: 0.0,
         elevation: 0,
+        title: LayoutBuilder(
+          builder: (context, constraints) {
+            if (MediaQuery.of(context).size.width >= 600) {
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Image.asset('lib/assets/starscrapper.png', width: 150, height: 150, fit: BoxFit.fitHeight, alignment: Alignment.center),
+                  Text(widget.title, style: const TextStyle(color: Color.fromARGB(255, 224, 224, 224), fontSize: 25.0, fontWeight: FontWeight.bold, shadows: [
+                    Shadow(color: Colors.blue, offset: Offset(1.0, 1.0), blurRadius: 3.0),
+                    Shadow(color: Colors.red, offset: Offset(1.0, 1.0), blurRadius: 3.0),
+                  ])),
+                  Opacity(opacity: 0.0, child: Image.asset('lib/assets/starscrapper.png', width: 150, height: 150)),
+                ],
+              );
+            } else {
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Image.asset('lib/assets/starscrapper.png', width: 150, height: 150, fit: BoxFit.fitHeight, alignment: Alignment.center),
+                ]
+              );
+            }
+          },
+        ),
+        centerTitle: true,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
             bottom: Radius.circular(20),
@@ -103,7 +127,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
 
       bottomNavigationBar: StylishBottomBar(
         items: [
-          BottomBarItem(icon: Icon(Icons.home, color: Colors.teal), title: Text('Home'), selectedColor: Colors.teal),
+          BottomBarItem(icon: Icon(Icons.home, color: Colors.teal), title: Text('Library'), selectedColor: Colors.teal),
           BottomBarItem(icon: Icon(Icons.format_list_bulleted), title: Text('Scrappers')),
           BottomBarItem(icon: Icon(Icons.settings), title: Text('settings')),
         ],
