@@ -3,46 +3,95 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-class MangadexScrapper {
-  final String _baseUrl = 'https://api.mangadex.org';
+import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 
-  Future<dynamic> getAll(String filter) async {
-    String url;
-    switch (filter.toLowerCase()) {
-      case 'recent':
-        url = '$_baseUrl/manga?order[updatedAt]=desc';
-        break;
+  class MangadexScrapper extends Scrapper {
+    final String _baseUrl = 'https://api.mangadex.org';
 
-      case 'popular':
-        url = '$_baseUrl/manga?order[relevance]=desc';
-        break;
+    @override
+    Future<List<dynamic>> getAll(String filter) async {  
+    String url;  
+    switch (filter.toLowerCase()) {  
+      case 'recent':  
+        url = '$_baseUrl/manga?order[updatedAt]=desc&includes[]=cover_art&limit=60';  
+        break;  
+      case 'popular':  
+        url = '$_baseUrl/manga?order[relevance]=desc&includes[]=cover_art&limit=60';  
+        break;  
+      case 'first':   
+        url = '$_baseUrl/manga?order[updatedAt]=asc&includes[]=cover_art&limit=60';  
+        break;  
+      case 'a-z':  
+        url = '$_baseUrl/manga?order[title]=asc&includes[]=cover_art&limit=60';  
+        break;  
+      case 'z-a':  
+        url = '$_baseUrl/manga?order[title]=desc&includes[]=cover_art&limit=60';  
+        break;  
+      default:  
+        throw Exception('Invalid filter');  
+    }  
 
-      case 'first': 
-        url = '$_baseUrl/manga?order[updatedAt]=asc';
-        break;
-
-      case 'A-Z':
-        url = '$_baseUrl/manga?order[title]=asc';
-        break;
-
-      case 'Z-A':
-        url = '$_baseUrl/manga?order[title]=desc';
-        break;
-      default:
-        throw Exception('Invalid filter');
-    }
-
-    final response = await http.get(Uri.parse(url));
+    final response = await http.get(Uri.parse(url), headers: {  
+      'Content-Type': 'application/json',  
+      'Accept': 'application/json',  
+    });  
     
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Failed to load data');
-    }
+    if (response.statusCode == 200) {  
+      final data = jsonDecode(response.body);  
+      if (data['result'] == 'ok') {  
+        final List<dynamic> mangaList = data['data'];  
+        final mangaDetails = mangaList.map((manga) {  
+          final attributes = manga['attributes'];  
+          final titleLanguageKey = attributes['title'].keys.first;  
+          final title = attributes['title'][titleLanguageKey];  
+          final coverArt = manga['relationships'].firstWhere(  
+            (relation) => relation['type'] == 'cover_art',  
+            orElse: () => {'id': null, 'attributes': {'fileName': null}},  
+          );  
+          return {  
+            'id': manga['id'],  
+            'title': title,  
+            'coverArt': {  
+              'id': coverArt['id'],  
+              'fileName': coverArt['attributes']['fileName'],  
+            },  
+            'author': manga['relationships'].firstWhere(  
+              (relation) => relation['type'] == 'author',  
+              orElse: () => {'id': null},  
+            )['id'],  
+            'status': attributes['status'],  
+            'tags': attributes['tags'].map((tag) => tag['attributes']['name']['en']).toList(),  
+            'type': manga['type'],  
+          };  
+        }).toList();  
+        return mangaDetails;  
+      } else {  
+        throw Exception('API returned an error: ${data['result']}');  
+      }  
+    } else {  
+      throw Exception('Failed to load data');  
+    }  
   }
 
+  String getTitle(dynamic bookDetails) {
+    return bookDetails['title'] ?? 'No title';
+  }
+
+  String getCoverImageUrl(dynamic bookDetails) {  
+    String coverFileName = bookDetails['coverArt']['fileName'] ?? '';  
+    String mangaId = bookDetails['id'];  
+    return coverFileName.isNotEmpty  
+        ? 'https://uploads.mangadex.org/covers/$mangaId/$coverFileName'  
+        : 'https://via.placeholder.com/150';  
+  }  
+
+  String getBookId(dynamic bookDetails) {  
+    return bookDetails['id'];  
+  }    
+
+  @override
   Future<dynamic> getBookDetails(String mangaID) async {
-    final url = '$_baseUrl/manga/$mangaID/feed';
+    final url = '$_baseUrl/manga/$mangaID?includes[]=cover_art';
     final response = await http.get(Uri.parse(url), headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -68,7 +117,11 @@ class MangadexScrapper {
         'title': title,
         'altTitles': altTitles,
         'description': attributes['description']['en'],
-        'coverImage': mangaDetails['relationships'].firstWhere((relation) => relation['type'] == 'cover_art'),
+        'coverArt': {
+          ...mangaDetails['relationships'].firstWhere((relation) => relation['type'] == 'cover_art'),
+          'relationships': mangaDetails['relationships']
+          .firstWhere((relation) => relation['type'] == 'cover_art')['attributes']['fileName'],
+        },
         'author': mangaDetails['relationships'].firstWhere((relation) => relation['type'] == 'author', orElse: () => null)?['id'],
         'status': attributes['status'],
         'tags': attributes['tags'].map((tag) => tag['attributes']['name']['en']).toList(),
@@ -93,6 +146,7 @@ class MangadexScrapper {
     }).toList();
   }
 
+  @override
   Future<void> getChapter(String chapterID) async {
     final url = '$_baseUrl/at-home/server/$chapterID';
     final response = await http.get(Uri.parse(url), headers: {
@@ -132,6 +186,7 @@ class MangadexScrapper {
     }
   }
 
+  @override
   Future<dynamic> searchTitle(String title) async {
     final response = await http.get(Uri.parse('$_baseUrl/manga?title=$title'));
     

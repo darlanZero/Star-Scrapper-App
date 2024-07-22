@@ -21,6 +21,7 @@ class BookDetailsScreen extends StatelessWidget {
               background: Stack(
                 fit: StackFit.expand,
                 children: <Widget>[
+                                                                                                                                                                                                                                                                                                                                                                      
                   ClipRRect(
                     child: Image.network(
                       bookDetails['cover'],
