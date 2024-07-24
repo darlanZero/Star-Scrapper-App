@@ -99,11 +99,21 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      final mangaDetails = data['data'][0];
+      final mangaDetails = data['data'];
       final attributes = mangaDetails['attributes'];
 
       final titleLanguageKey = attributes['title'].keys.first;
       final title = attributes['title'][titleLanguageKey];
+
+      final coverArt = mangaDetails['relationships'].firstWhere((relation) => relation['type'] == 'cover_art', orElse: () => {'id': null, 'attributes': {'fileName': null}}); 
+
+      String getCoverImageUrl() {
+      String coverFileName = coverArt['attributes']['fileName'] ?? '';  
+      String mangaId = mangaDetails['id'];  
+      return coverFileName.isNotEmpty  
+          ? 'https://uploads.mangadex.org/covers/$mangaId/$coverFileName'  
+          : 'https://via.placeholder.com/150';  
+    }
 
       List<Map<String, String>> altTitles = [];
       for (var altTitle in attributes['altTitles']) {
@@ -118,10 +128,10 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
         'altTitles': altTitles,
         'description': attributes['description']['en'],
         'coverArt': {
-          ...mangaDetails['relationships'].firstWhere((relation) => relation['type'] == 'cover_art'),
-          'relationships': mangaDetails['relationships']
-          .firstWhere((relation) => relation['type'] == 'cover_art')['attributes']['fileName'],
+          'id': coverArt['id'],
+          'fileName': coverArt['attributes']['fileName'],
         },
+        'coverImageUrl': getCoverImageUrl(),
         'author': mangaDetails['relationships'].firstWhere((relation) => relation['type'] == 'author', orElse: () => null)?['id'],
         'status': attributes['status'],
         'tags': attributes['tags'].map((tag) => tag['attributes']['name']['en']).toList(),

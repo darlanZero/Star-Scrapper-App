@@ -1,15 +1,53 @@
 import 'package:flutter/material.dart';
 
-class BookDetailsScreen extends StatelessWidget {
+class BookDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> bookDetails;
-  const BookDetailsScreen({super.key, required this.bookDetails});
+  final Function getChapter;
+  const BookDetailsScreen({
+    Key? key, 
+    required this.bookDetails,
+    required this.getChapter,
+  }): super(key: key);
 
+  @override
+  _BookDetailsScreenState createState() => _BookDetailsScreenState();
+}
+
+class _BookDetailsScreenState extends State<BookDetailsScreen> {
+  bool _isChapterReversed = false;
+
+  void _toogleChapterOrder() {
+    setState(() {
+      _isChapterReversed = !_isChapterReversed;
+    });
+  }
+  
   @override
   Widget build(BuildContext context) {
     bool isDesktop = MediaQuery.of(context).size.width > 600;
+    
+
     return Scaffold(
       backgroundColor: Colors.black,
-      body: CustomScrollView(
+      body: _ReactiveDetailsBook(isDesktop),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _toogleChapterOrder,
+        child: const Icon(Icons.swap_vert),
+      ),
+    );
+  }
+
+  Widget _ReactiveDetailsBook(bool isDesktop) {
+    
+    List<dynamic> chapters = List.from(widget.bookDetails['chapters'] ?? []);
+
+    if (_isChapterReversed) {
+      chapters = chapters.reversed.toList();
+    }
+
+    String imageUrl = widget.bookDetails['coverImageUrl'] ?? 'https://via.placeholder.com/150';
+
+    return CustomScrollView(
         slivers: <Widget>[
           SliverAppBar(
             iconTheme: const IconThemeData(color: Colors.blueGrey, size: 30.0, shadows: <Shadow>[
@@ -24,7 +62,7 @@ class BookDetailsScreen extends StatelessWidget {
                                                                                                                                                                                                                                                                                                                                                                       
                   ClipRRect(
                     child: Image.network(
-                      bookDetails['cover'],
+                      imageUrl,
                       fit: isDesktop ? BoxFit.cover : BoxFit.fill,
                       color: Colors.black.withOpacity(0.5),
                       colorBlendMode:BlendMode.darken,
@@ -52,7 +90,7 @@ class BookDetailsScreen extends StatelessWidget {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: Image.network(
-                          bookDetails['cover']!,
+                          imageUrl,
                           width: isDesktop ? 200 : 100,
                           height: isDesktop ? 300 : 200,
                           fit: BoxFit.cover,
@@ -67,7 +105,7 @@ class BookDetailsScreen extends StatelessWidget {
                       width: 300,
                       child: SingleChildScrollView(
                         child: Text(
-                          bookDetails['description'] ?? 'No description Available',
+                          widget.bookDetails['description'] ?? 'No description Available',
                           style: const TextStyle(
                             fontSize: 16.0,
                             color: Colors.white
@@ -98,7 +136,7 @@ class BookDetailsScreen extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
                                     Text(
-                                      bookDetails['title']!,
+                                      widget.bookDetails['title'] ?? 'No title available',
                                       style: const TextStyle(
                                         fontSize: 24.0,
                                         fontWeight: FontWeight.bold,
@@ -123,7 +161,7 @@ class BookDetailsScreen extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                bookDetails['title']!,
+                                widget.bookDetails['title'] ?? 'No title available',
                                 style: const TextStyle(
                                   fontSize: 24.0,
                                   fontWeight: FontWeight.bold,
@@ -132,7 +170,7 @@ class BookDetailsScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                bookDetails['description'] ?? 'No description available',
+                                widget.bookDetails['description'] ?? 'No description available',
                                 style: const TextStyle(
                                   fontSize: 16.0,
                                   color: Colors.grey
@@ -144,14 +182,33 @@ class BookDetailsScreen extends StatelessWidget {
                       }
                     },
                   );
-                }
-                return null;
+                } 
+                final chapter = chapters[index - 1];
+                return ListTile(
+                  title: Text(
+                    '${chapter['chapter']}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16.0,
+                      fontWeight: FontWeight.bold,
+                    )
+                  ),
+                  subtitle: Text(
+                    chapter['title'] ?? 'No title available',
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 14.0,
+                    )
+                  ),
+                  onTap: () {
+                    widget.getChapter(chapter['id']);
+                  }
+                );
               },
-              childCount: 1,
+              childCount: chapters.length + 1,
             )
           )
         ],
-      )
-    );
+      );
   }
 }

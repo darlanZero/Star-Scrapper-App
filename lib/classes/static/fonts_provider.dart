@@ -17,7 +17,9 @@ class FontProvider with ChangeNotifier {
     // Add more fonts here  
   ];  
 
-  List<Fonte> get fonts => _fonts;  
+  List<Fonte> get fonts => _fonts;
+
+  get selectedFont => null;  
 
   void toggleFontState(Fonte font) {  
     font.isActive = !font.isActive;  

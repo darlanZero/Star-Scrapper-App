@@ -39,6 +39,7 @@ class MyApp extends StatelessWidget {
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key, required this.title});
   final String title;
+  
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -48,38 +49,30 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateMixin {
 
-  final List<Map<String, dynamic>> libraryBooks = [
-    {
-      'title': 'Naruto',
-      'cover': 'https://m.media-amazon.com/images/I/91xUwI2UEVL._AC_SY741_.jpg',
-      'language': 'English',
-      'author': 'Masashi Kishimoto',
-      'tags': ['Action', 'Fantasy'],
-    },
-    {
-      'title': 'Solo Leveling',
-      'cover': 'https://m.media-amazon.com/images/I/61FsD3uf6gL._SY445_SX342_.jpg',
-      'language': 'English',
-      'author': 'Hiroshi Horikoshi',
-      'tags': ['Action', 'Fantasy'],
-    }
-    
-  ];
+  final List<Map<String, dynamic>> libraryBooks = [];
 
   late final List <Widget> _pages;
-
-  _MainScreenState() {
-    _pages = [
-    HomePageScreen(libraryBooks: libraryBooks),
-    const ScrappersScreen(),
-    const SettingsScreen(),
-  ];
-  }
+  late final Function getchapter;
 
   @override
   void initState() {
     super.initState();
+    final fontProvider = Provider.of<FontProvider>(context, listen: false);
+    getchapter = fontProvider.selectedFont?.api.getChapter ?? _dummyGetChapter;
+    _pages = [
+      HomePageScreen(
+        libraryBooks: libraryBooks,
+        getchapter: getchapter
+      ),
+      const ScrappersScreen(),
+      const SettingsScreen(),
+    ];
   }
+
+  Future<Map<String, dynamic>> _dummyGetChapter(String chapterId) async {  
+    // Implement a dummy function or throw an error if no font is selected  
+    throw Exception('No font selected');  
+  } 
   
   @override
   Widget build(BuildContext context) {

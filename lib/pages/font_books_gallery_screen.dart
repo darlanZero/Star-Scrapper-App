@@ -201,6 +201,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
         MaterialPageRoute(  
           builder: (context) => BookDetailsScreen(  
             bookDetails: bookDetails,  
+            getChapter: widget.selectedFont.api.getChapter,
           ),  
         ),  
       );  

@@ -5,7 +5,12 @@ import 'package:star_scrapper_app/pages/book_details_screen.dart';
 
 class HomePageScreen extends StatefulWidget {
   final List<Map<String, dynamic>> libraryBooks;
-  const HomePageScreen({super.key, required this.libraryBooks});
+  final Function getchapter;
+  const HomePageScreen({
+    super.key, 
+    required this.libraryBooks,
+    required this.getchapter
+  });
 
   @override
   State<HomePageScreen> createState() =>  _HomePageState(libraryBooks: []);
@@ -252,7 +257,8 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
                     context,  
                     MaterialPageRoute(  
                       builder: (context) => BookDetailsScreen(  
-                        bookDetails: widget.libraryBooks[index],  
+                        bookDetails: widget.libraryBooks[index],
+                        getChapter: widget.getchapter,  
                       ),  
                     ),  
                   );  
