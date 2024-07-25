@@ -13,7 +13,7 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
     String url;  
     switch (filter.toLowerCase()) {  
       case 'recent':  
-        url = '$_baseUrl/manga?order[updatedAt]=desc&includes[]=cover_art&limit=60';  
+        url = '$_baseUrl/manga?order[latestUploadedChapter]=desc&includes[]=cover_art&limit=60';  
         break;  
       case 'popular':  
         url = '$_baseUrl/manga?order[relevance]=desc&includes[]=cover_art&limit=60';  
@@ -122,6 +122,36 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
         altTitles.add({ altTitleLanguageKey: altTitleValue});
       }
 
+      final chaptersFeedUrl = '$_baseUrl/manga/$mangaID/feed?order[volume]=desc&order[chapter]=desc&includes[]=scanlation_group&includes[]=user';
+
+      final chaptersResponse = await http.get(Uri.parse(chaptersFeedUrl), headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      });
+
+      List<dynamic> chapters = [];
+      if (chaptersResponse.statusCode == 200) {
+        final chaptersData = jsonDecode(chaptersResponse.body);
+        chapters = chaptersData['data'].map((chapter) {
+          final chapterAttributes = chapter['attributes'];
+          return {
+            'id': chapter['id'],
+            'title': chapterAttributes['title'],
+            'chapter': chapterAttributes['chapter'],
+            'volume': chapterAttributes['volume'],
+            'language': chapterAttributes['language'],
+            'pages': chapterAttributes['pages'],
+            'translatedLanguage': chapterAttributes['translatedLanguage'],
+            'uploader': chapterAttributes['uploader'],
+            'publishedAt': chapterAttributes['publishAt'],
+            'createdAt': chapterAttributes['createdAt'],
+            'updatedAt': chapterAttributes['updatedAt'],
+          };
+        }).toList();
+      } else {
+        throw Exception('Failed to load chapters');
+      }
+
       final Map<String, dynamic> details = {
         'id': mangaDetails['id'],
         'title': title,
@@ -137,23 +167,12 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
         'tags': attributes['tags'].map((tag) => tag['attributes']['name']['en']).toList(),
         'genres': data['data']['attributes']['genres'],
         'type': mangaDetails['type'],
-        'chapters': _extractChapters(data['data']['relationships']),
+        'chapters': chapters,
       };
       return details;
     } else {
       throw Exception('Failed to load data');
     }
-  }
-
-  List<dynamic> _extractChapters(List<dynamic> relationships) {
-    return relationships.where((relation) => relation['type'] == 'chapter').map((chapter) {
-      return {
-        'title': chapter['attributes']['title'],
-        'chapter': chapter['attributes']['chapter'],
-        'volume': chapter['attributes']['volume'],
-        'language': chapter['attributes']['language'],
-      };
-    }).toList();
   }
 
   @override

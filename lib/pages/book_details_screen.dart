@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class BookDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> bookDetails;
@@ -113,6 +114,30 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                         ),
                       ),
                     ),
+                  ),
+                  Positioned(
+                    bottom: 16.0,
+                    left: 16.0,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          widget.bookDetails['author'] ?? 'No author available',
+                          style: const TextStyle(
+                            fontSize: 8.0,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey
+                          ),
+                        ),
+                        Text(
+                          widget.bookDetails['artist'] ?? 'No artist available',
+                          style: const TextStyle(
+                            fontSize: 8.0,
+                            color: Colors.grey
+                          ),
+                        )
+                      ]
+                    ),
                   )
                 ],
               ),
@@ -185,20 +210,61 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                 } 
                 final chapter = chapters[index - 1];
                 return ListTile(
-                  title: Text(
-                    '${chapter['chapter']}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16.0,
-                      fontWeight: FontWeight.bold,
-                    )
+                  title: 
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Chapter ${chapter['chapter']}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16.0,
+                          fontWeight: FontWeight.bold
+                        ),
+                      ),
+                      Text(
+                        'Volume: ' + _FormatVolume(chapter['volume']),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16.0,
+                        ),
+                      ),
+
+                      Text(
+                        '${chapter['translatedLanguage']}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16.0,
+                        ),
+                      )
+                    ],
                   ),
-                  subtitle: Text(
-                    chapter['title'] ?? 'No title available',
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 14.0,
-                    )
+                  subtitle: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${chapter['pages']} pages',
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 14.0,
+                        ),
+                      ),
+                      Text(
+                        chapter['uploader'] ?? 'No uploader',
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 14.0,
+                        ),
+                      ),
+
+                      Text(
+                        _formatDate(chapter['publishedAt']),
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 14.0,
+                        ),
+                      )
+                    ],
                   ),
                   onTap: () {
                     widget.getChapter(chapter['id']);
@@ -210,5 +276,30 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           )
         ],
       );
+  }
+  String _formatDate(String? date) {
+    if (date == null) {
+      return 'No date';
+    }
+
+    try {
+      final DateTime parsedDate = DateTime.parse(date);
+      return DateFormat('dd MMM yyyy').format(parsedDate);
+    } catch (e) {
+      return 'Invalid date';
+    }
+  }
+
+  String _FormatVolume (String? volume) {
+    if (volume == null) {
+      return 'No volume';
+    }
+
+    try {
+      final int parsedVolume = int.parse(volume);
+      return parsedVolume.toString();
+    } catch (e) {
+      return 'Invalid volume';
+    }
   }
 }
