@@ -91,7 +91,7 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 
   @override
   Future<dynamic> getBookDetails(String mangaID) async {
-    final url = '$_baseUrl/manga/$mangaID?includes[]=cover_art';
+    final url = '$_baseUrl/manga/$mangaID?includes[]=cover_art&includes[]=author&includes[]=artist';
     final response = await http.get(Uri.parse(url), headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -105,7 +105,11 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
       final titleLanguageKey = attributes['title'].keys.first;
       final title = attributes['title'][titleLanguageKey];
 
-      final coverArt = mangaDetails['relationships'].firstWhere((relation) => relation['type'] == 'cover_art', orElse: () => {'id': null, 'attributes': {'fileName': null}}); 
+      final coverArt = mangaDetails['relationships'].firstWhere((relation) => relation['type'] == 'cover_art', orElse: () => {'id': null, 'attributes': {'fileName': null}});
+
+      final author = mangaDetails['relationships'].firstWhere((relation) => relation['type'] == 'author', orElse: () => {'id': null}); 
+
+      final artist = mangaDetails['relationships'].firstWhere((relation) => relation['type'] == 'artist', orElse: () => {'id': null});
 
       String getCoverImageUrl() {
       String coverFileName = coverArt['attributes']['fileName'] ?? '';  
@@ -122,35 +126,47 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
         altTitles.add({ altTitleLanguageKey: altTitleValue});
       }
 
-      final chaptersFeedUrl = '$_baseUrl/manga/$mangaID/feed?order[volume]=desc&order[chapter]=desc&includes[]=scanlation_group&includes[]=user';
-
-      final chaptersResponse = await http.get(Uri.parse(chaptersFeedUrl), headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      });
 
       List<dynamic> chapters = [];
-      if (chaptersResponse.statusCode == 200) {
-        final chaptersData = jsonDecode(chaptersResponse.body);
-        chapters = chaptersData['data'].map((chapter) {
-          final chapterAttributes = chapter['attributes'];
-          return {
-            'id': chapter['id'],
-            'title': chapterAttributes['title'],
-            'chapter': chapterAttributes['chapter'],
-            'volume': chapterAttributes['volume'],
-            'language': chapterAttributes['language'],
-            'pages': chapterAttributes['pages'],
-            'translatedLanguage': chapterAttributes['translatedLanguage'],
-            'uploader': chapterAttributes['uploader'],
-            'publishedAt': chapterAttributes['publishAt'],
-            'createdAt': chapterAttributes['createdAt'],
-            'updatedAt': chapterAttributes['updatedAt'],
-          };
-        }).toList();
-      } else {
-        throw Exception('Failed to load chapters');
+      int offset = 0;
+      bool hasMoreChapters = true;
+
+      while (hasMoreChapters) {
+        final chaptersFeedUrl = '$_baseUrl/manga/$mangaID/feed?order[volume]=desc&order[chapter]=desc&includes[]=scanlation_group&includes[]=user&limit=100&offset=$offset';
+
+        final chaptersResponse = await http.get(Uri.parse(chaptersFeedUrl), headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        });
+
+
+        if (chaptersResponse.statusCode == 200) {
+          final chaptersData = jsonDecode(chaptersResponse.body);
+          final List<dynamic> fetchedChapters = chaptersData['data'].map((chapter) {
+            final chapterAttributes = chapter['attributes'];
+            return {
+              'id': chapter['id'],
+              'title': chapterAttributes['title'],
+              'chapter': chapterAttributes['chapter'],
+              'volume': chapterAttributes['volume'],
+              'language': chapterAttributes['language'],
+              'pages': chapterAttributes['pages'],
+              'translatedLanguage': chapterAttributes['translatedLanguage'],
+              'uploader': chapterAttributes['uploader'],
+              'publishedAt': chapterAttributes['publishAt'],
+              'createdAt': chapterAttributes['createdAt'],
+              'updatedAt': chapterAttributes['updatedAt'],
+            };
+          }).toList();
+
+          chapters.addAll(fetchedChapters);
+          offset += 100;
+          hasMoreChapters = fetchedChapters.length == 100;
+        } else {
+          throw Exception('Failed to load chapters');
+        }
       }
+
 
       final Map<String, dynamic> details = {
         'id': mangaDetails['id'],
@@ -162,7 +178,15 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
           'fileName': coverArt['attributes']['fileName'],
         },
         'coverImageUrl': getCoverImageUrl(),
-        'author': mangaDetails['relationships'].firstWhere((relation) => relation['type'] == 'author', orElse: () => null)?['id'],
+        'mangaUrl': 'https://mangadex.org/manga/$mangaID',
+        'author': {
+          'id': author['id'],
+          'name': author['attributes']['name'],
+        },
+        'artist': {
+          'id': artist['id'],
+          'name': artist['attributes']['name'],
+        },
         'status': attributes['status'],
         'tags': attributes['tags'].map((tag) => tag['attributes']['name']['en']).toList(),
         'genres': data['data']['attributes']['genres'],

@@ -1,3 +1,4 @@
+import 'package:desktop_webview_window/desktop_webview_window.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
@@ -7,7 +8,12 @@ import 'package:star_scrapper_app/pages/pages.dart';
 import 'package:star_scrapper_app/pages/settings_screen.dart';
 import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
 
-void main() {
+void main(List<String> args) {
+  if (runWebViewTitleBarWidget(args)) {
+    return;
+  }
+  WidgetsFlutterBinding.ensureInitialized();
+
   runApp(
     MultiProvider(providers: 
     [
