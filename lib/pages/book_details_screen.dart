@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;  
+import 'package:webview_flutter/webview_flutter.dart' as flutter_webview;  
+import 'package:webview_windows/webview_windows.dart' as webview_windows;
 
 class BookDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> bookDetails;
@@ -18,6 +21,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   bool _isChapterReversed = false;
   String _selectedLanguagePrefix = '';
   bool isFavorited = false;
+  bool _showWebView = false;
 
   void _toogleChapterOrder() {
     setState(() {
@@ -38,7 +42,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: _ReactiveDetailsBook(isDesktop),
+      body: _showWebView ? _buildWebView(context) : _ReactiveDetailsBook(isDesktop),
       floatingActionButton: FloatingActionButton(
         onPressed: _toogleChapterOrder,
         child: const Icon(Icons.swap_vert),
@@ -178,7 +182,9 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
             IconButton(
               icon: const Icon(Icons.open_in_browser),
               onPressed: () {
-                
+                setState(() {
+                  _showWebView = !_showWebView;
+                });
               },
             )
           ],
@@ -330,6 +336,62 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
       );
     }).toList();
   }
+
+  Widget _buildWebView(BuildContext context) {
+    final String url = widget.bookDetails['mangaUrl'] ?? 'https://www.google.com'; 
+    if (kIsWeb) {
+      return Center(child: Text('Web view not supported on this platform.'),);
+    } else if (defaultTargetPlatform == TargetPlatform.android) {
+      final controller = flutter_webview.WebViewController();
+      controller.setJavaScriptMode(flutter_webview.JavaScriptMode.unrestricted);
+      controller.setBackgroundColor(const Color(0x00000000));
+      controller.setNavigationDelegate(
+        flutter_webview.NavigationDelegate(
+          onProgress: (int progress) {
+            // Update loading bar
+
+          },
+          onPageStarted: (String url) {},
+          onPageFinished: (String url) {},
+          onWebResourceError: (flutter_webview.WebResourceError error) {},
+          onNavigationRequest: (flutter_webview.NavigationRequest request) {
+            return flutter_webview.NavigationDecision.navigate;
+          },
+        )
+      );
+      controller.loadRequest(Uri.parse(url));
+
+      return flutter_webview.WebViewWidget(
+        controller: controller,
+      );
+    } else if (defaultTargetPlatform == TargetPlatform.windows) {
+      return FutureBuilder<webview_windows.WebviewController>(
+        future: _initializeWebviewController(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            final controller = snapshot.data!;
+            controller.loadUrl(url);
+
+            return webview_windows.Webview(
+              controller
+            );
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          } else {
+            return const Center(child: CircularProgressIndicator());
+          }
+        }
+      );
+    } else {
+      return Center(child: Text('Platform not supported.'),);
+    }
+  }
+}
+
+Future<webview_windows.WebviewController> _initializeWebviewController() async {
+  final controller = webview_windows.WebviewController();
+  await controller.initialize();
+  return controller;
 }
 
 String _formatDate(String? date) {
