@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;  
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
+import 'package:url_launcher/url_launcher.dart';  
 import 'package:webview_flutter/webview_flutter.dart' as flutter_webview;  
 import 'package:webview_windows/webview_windows.dart' as webview_windows;
 
@@ -338,7 +339,9 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   }
 
   Widget _buildWebView(BuildContext context) {
-    final String url = widget.bookDetails['mangaUrl'] ?? 'https://www.google.com'; 
+    final String url = widget.bookDetails['mangaUrl'] ?? 'https://www.google.com';
+    Widget webViewContent;
+
     if (kIsWeb) {
       return Center(child: Text('Web view not supported on this platform.'),);
     } else if (defaultTargetPlatform == TargetPlatform.android) {
@@ -361,11 +364,11 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
       );
       controller.loadRequest(Uri.parse(url));
 
-      return flutter_webview.WebViewWidget(
+      webViewContent = flutter_webview.WebViewWidget(
         controller: controller,
       );
     } else if (defaultTargetPlatform == TargetPlatform.windows) {
-      return FutureBuilder<webview_windows.WebviewController>(
+      webViewContent = FutureBuilder<webview_windows.WebviewController>(
         future: _initializeWebviewController(),
         builder: (context, snapshot) {
           if (snapshot.hasData) {
@@ -383,8 +386,39 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         }
       );
     } else {
-      return Center(child: Text('Platform not supported.'),);
+      webViewContent = Center(child: Text('Platform not supported.'),);
     }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.bookDetails['title']),
+        backgroundColor: Color.fromARGB(29, 60, 16, 180),
+        elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            setState(() {
+              _showWebView = false;
+            });
+          },
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.open_in_new),
+            onPressed: () {
+              launchUrl(Uri.parse(url));
+            },
+          ),
+        ],
+      ),
+    
+      body: webViewContent,
+    );
   }
 }
 
