@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, kDebugMode;
+import 'package:star_scrapper_app/pages/chapter_book_screen.dart';
 import 'package:url_launcher/url_launcher.dart';  
 import 'package:webview_flutter/webview_flutter.dart' as flutter_webview;  
 import 'package:webview_windows/webview_windows.dart' as webview_windows;
 
 class BookDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> bookDetails;
-  final Function getChapter;
+  final Future<Map<String, dynamic>> Function(String) getChapter;
   const BookDetailsScreen({
     Key? key, 
     required this.bookDetails,
@@ -307,8 +308,36 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     )
                   ],
                 ),
-                onTap: () {
-                  widget.getChapter(chapter['id']);
+                onTap: () async {
+                  try {
+                    final chapterData = await widget.getChapter(chapter['id']);
+                    Navigator.push(
+                      context, 
+                      MaterialPageRoute(
+                        builder: (context) => ChapterBookScreen(
+                          bookTitle: widget.bookDetails['title'],
+                          chapterId: chapterData['chapterID'],
+                          chapterTitle: chapter['chapter'],
+                          getNextChapter: (String id) => widget.getChapter(id),
+                          getPreviousChapter: (String id) => widget.getChapter(id),
+                          chapterImages: chapterData['imagePaths'],
+                        ),
+                      )
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to load chapter: $e'),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                      )
+                    );
+
+                    if (kDebugMode) {
+                      print('Failed to load chapter: $e');
+                      print(widget.getChapter(chapter['id']));
+                    }
+                  }
                 }
               );
             },

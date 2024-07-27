@@ -5,7 +5,7 @@ import 'package:star_scrapper_app/pages/book_details_screen.dart';
 
 class HomePageScreen extends StatefulWidget {
   final List<Map<String, dynamic>> libraryBooks;
-  final Function getchapter;
+  final Future<Map<String, dynamic>> Function(String) getchapter;
   const HomePageScreen({
     super.key, 
     required this.libraryBooks,

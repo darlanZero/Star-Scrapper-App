@@ -58,7 +58,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   final List<Map<String, dynamic>> libraryBooks = [];
 
   late final List <Widget> _pages;
-  late final Function getchapter;
+  late final Future<Map<String, dynamic>> Function(String) getchapter;
 
   @override
   void initState() {
