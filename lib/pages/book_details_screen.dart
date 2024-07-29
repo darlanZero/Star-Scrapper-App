@@ -318,9 +318,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                           bookTitle: widget.bookDetails['title'],
                           chapterId: chapterData['chapterID'],
                           chapterTitle: chapter['chapter'],
-                          getNextChapter: (String id) => widget.getChapter(id),
-                          getPreviousChapter: (String id) => widget.getChapter(id),
-                          chapterImages: chapterData['imagePaths'],
+                          fetchChapterImages: widget.getChapter,
                         ),
                       )
                     );
