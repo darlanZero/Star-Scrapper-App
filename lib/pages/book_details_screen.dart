@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, kDebugMode;
+import 'package:provider/provider.dart';
+import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/pages/chapter_book_screen.dart';
 import 'package:url_launcher/url_launcher.dart';  
 import 'package:webview_flutter/webview_flutter.dart' as flutter_webview;  
@@ -22,8 +24,8 @@ class BookDetailsScreen extends StatefulWidget {
 class _BookDetailsScreenState extends State<BookDetailsScreen> {
   bool _isChapterReversed = false;
   String _selectedLanguagePrefix = '';
-  bool isFavorited = false;
   bool _showWebView = false;
+  bool _isLoadingChapter = false;
 
   void _toogleChapterOrder() {
     setState(() {
@@ -168,15 +170,18 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
             ),
           ),
           actions: [
-            IconButton(
-              icon: Icon(
-                isFavorited ? Icons.favorite : Icons.favorite_border,
-                color: Colors.red,
-              ),
-              onPressed: () {
-                setState(() {
-                  isFavorited = !isFavorited;
-                });
+            Consumer<FontProvider>(
+              builder: (context, favoritedBooksState, child) {
+                final isFavorited = favoritedBooksState.isFavorited(widget.bookDetails);
+                return IconButton(
+                  icon: Icon(
+                    isFavorited ? Icons.favorite : Icons.favorite_border,
+                    color: Colors.red,
+                  ),
+                  onPressed: () {
+                    favoritedBooksState.toggleFavorite(widget.bookDetails);
+                  }
+                );
               },
             ),
 
@@ -309,8 +314,28 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   ],
                 ),
                 onTap: () async {
+                  setState(() {
+                    _isLoadingChapter = true;
+                  });
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: const [
+                          Text('Loading chapter...'),
+                          SizedBox(width: 10),
+                          CircularProgressIndicator(),
+                        ]
+                      ),
+                      duration: const Duration(minutes: 5),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+                    )
+                  );
+
                   try {
                     final chapterData = await widget.getChapter(chapter['id']);
+
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
                     Navigator.push(
                       context, 
                       MaterialPageRoute(
@@ -323,11 +348,14 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                       )
                     );
                   } catch (e) {
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Failed to load chapter: $e'),
                         backgroundColor: Colors.red,
                         behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
                       )
                     );
 
@@ -335,6 +363,10 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                       print('Failed to load chapter: $e');
                       print(widget.getChapter(chapter['id']));
                     }
+                  } finally {
+                    setState(() {
+                      _isLoadingChapter = false;
+                    });
                   }
                 }
               );

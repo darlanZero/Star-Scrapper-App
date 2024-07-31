@@ -46,25 +46,22 @@ class MainScreen extends StatefulWidget {
   const MainScreen({super.key, required this.title});
   final String title;
   
-
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
-
-
 
 class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateMixin {
 
   final List<Map<String, dynamic>> libraryBooks = [];
 
-  late final List <Widget> _pages;
-  late final Future<Map<String, dynamic>> Function(String) getchapter;
+  late final List<Widget> _pages;
+  late Future<Map<String, dynamic>> Function(String) getchapter;
 
   @override
   void initState() {
     super.initState();
-    final fontProvider = Provider.of<FontProvider>(context, listen: false);
-    getchapter = fontProvider.selectedFont?.api.getChapter ?? _dummyGetChapter;
+     final fontProvider = Provider.of<FontProvider>(context, listen: false);
+    getchapter = fontProvider.selectedFontApi.getChapter ?? _dummyGetChapter;
     _pages = [
       HomePageScreen(
         libraryBooks: libraryBooks,
@@ -75,9 +72,11 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     ];
   }
 
+  
+
   Future<Map<String, dynamic>> _dummyGetChapter(String chapterId) async {  
     // Implement a dummy function or throw an error if no font is selected  
-    throw Exception('No font selected');  
+    throw Exception('No font selected');
   } 
   
   @override
@@ -122,7 +121,9 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         bottom: Provider.of<TabsState>(context).appBarBottom,
       ),
 
-      body: Center(child: _pages[Provider.of<AppState>(context).currentIndex] ), 
+      body: Center(
+        child: _pages[Provider.of<AppState>(context).currentIndex],
+      ), 
 
       bottomNavigationBar: StylishBottomBar(
         items: [
@@ -158,7 +159,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         },
         tooltip: 'Search for mangas',
         child: const Icon(Icons.search),
-      )
+      ),
     );
   }
 }

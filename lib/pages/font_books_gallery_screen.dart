@@ -191,11 +191,28 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   } 
 
   void _navigateToBookDetails(String bookId) async {    
+
+    final loadingSnackBar = SnackBar(
+      content: Row(
+        children: const [
+          Text('Loading book details...'),
+          SizedBox(width: 10),
+          CircularProgressIndicator(),
+        ]
+      ),
+      duration: const Duration(minutes: 1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(loadingSnackBar);
+
     try {  
       final bookDetails = await widget.selectedFont.api.getBookDetails(bookId);  
       if (kDebugMode) {
         print(bookDetails);
-      }  
+      }
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
       Navigator.push(  
         context,  
         MaterialPageRoute(  
@@ -206,8 +223,15 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
         ),  
       );  
     } catch (e) {  
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
       ScaffoldMessenger.of(context).showSnackBar(  
-        SnackBar(content: Text('Failed to load book details: $e')),  
+        SnackBar(content: Text('Failed to load book details: $e'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+          
       );  
     }  
   }  

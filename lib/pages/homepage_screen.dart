@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
+import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/pages/book_details_screen.dart';
 
 class HomePageScreen extends StatefulWidget {
@@ -226,80 +227,85 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
     );  
   }  
 
-  Widget _buildBooksGrid() {  
-    return Center(  
-      child: widget.libraryBooks.isEmpty  
-        ? Card(  
-            color: Colors.deepPurple.withOpacity(0.5),  
-            child: Padding(  
-              padding: const EdgeInsets.all(16.0),  
-              child: Column(  
-                mainAxisSize: MainAxisSize.min,  
-                children: const [  
-                  Icon(Icons.library_books, size: 50, color: Colors.grey),  
-                  Text('Your library is empty, try adding some books!', style: TextStyle(color: Colors.grey)),  
-                ],  
-              ),  
-            ),  
-          )  
-        : GridView.builder(  
-            padding: const EdgeInsets.all(8.0),  
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(  
-              crossAxisCount: MediaQuery.of(context).size.width >= 600 ? 4 : 2,  
-              mainAxisSpacing: 8.0,  
-              crossAxisSpacing: 8.0,  
-            ),  
-            itemCount: widget.libraryBooks.length,  
-            itemBuilder: (context, index) {  
-              return InkWell(  
-                onTap: () {  
-                  Navigator.push(  
-                    context,  
-                    MaterialPageRoute(  
-                      builder: (context) => BookDetailsScreen(  
-                        bookDetails: widget.libraryBooks[index],
-                        getChapter: widget.getchapter,  
-                      ),  
-                    ),  
-                  );  
-                },  
-                child: GridTile(  
-                  footer: ClipRRect(  
-                    borderRadius: BorderRadius.only(  
-                      bottomLeft: Radius.circular(8.0),  
-                      bottomRight: Radius.circular(8.0),  
-                    ),  
-                    child: Container(  
-                      color: Colors.black.withOpacity(0.5),  
-                      child: Text(  
-                        widget.libraryBooks[index]['title']!,  
-                        style: const TextStyle(  
-                          color: Colors.grey,  
-                          fontWeight: FontWeight.bold,  
-                          fontSize: 20,  
-                          shadows: [  
-                            Shadow(  
-                              color: Colors.black,  
-                              offset: Offset(1, 1),  
-                              blurRadius: 2,  
-                            ),  
-                          ],  
-                        ),  
-                      ),  
-                    ),  
-                  ),  
-                  child: ClipRRect(  
-                    borderRadius: BorderRadius.circular(10),  
-                    child: Image.network(  
-                      widget.libraryBooks[index]['cover'] ?? 'https://via.placeholder.com/150',  
-                      fit: BoxFit.cover,  
-                    ),  
-                  ),  
-                ),  
-              );  
-            },  
-          ),  
-    );  
+  Widget _buildBooksGrid() {
+    return Consumer<FontProvider>(
+      builder: (context, favoritedBooksState, child) {
+        final favoritedBooks = favoritedBooksState.favoritedBooks;
+        return Center(
+          child: favoritedBooks.isEmpty
+            ? Card(
+                color: Colors.deepPurple.withOpacity(0.5),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(Icons.library_books, size: 50, color: Colors.grey),
+                      Text('Your library is empty, try adding some books!', style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              )
+            : GridView.builder(
+                padding: const EdgeInsets.all(8.0),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: MediaQuery.of(context).size.width >= 600 ? 4 : 2,
+                  mainAxisSpacing: 8.0,
+                  crossAxisSpacing: 8.0,
+                ),
+                itemCount: favoritedBooks.length,
+                itemBuilder: (context, index) {
+                  return InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => BookDetailsScreen(
+                            bookDetails: favoritedBooks[index],
+                            getChapter: widget.getchapter,
+                          ),
+                        ),
+                      );
+                    },
+                    child: GridTile(
+                      footer: ClipRRect(
+                        borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(8.0),
+                          bottomRight: Radius.circular(8.0),
+                        ),
+                        child: Container(
+                          color: Colors.black.withOpacity(0.5),
+                          child: Text(
+                            favoritedBooks[index]['title']!,
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black,
+                                  offset: Offset(1, 1),
+                                  blurRadius: 2,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          favoritedBooks[index]['coverImageUrl'] ?? 'https://via.placeholder.com/150',
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+        );
+      },
+    );
   }   
 
 }
