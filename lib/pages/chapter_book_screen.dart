@@ -1,17 +1,22 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart' as flutter_webview;  
+import 'package:webview_windows/webview_windows.dart' as webview_windows;
 
 class ChapterBookScreen extends StatefulWidget {
   final String bookTitle;
   final String chapterId;
   final String chapterTitle;
+  final String chapterWebViewUrl;
 
   final Future<Map<String, dynamic>> Function(String) fetchChapterImages; // Function to fetch chapter images
 
@@ -21,6 +26,7 @@ class ChapterBookScreen extends StatefulWidget {
     required this.chapterId,
     required this.chapterTitle,
     required this.fetchChapterImages,
+    this.chapterWebViewUrl = '',
   });
 
   @override
@@ -33,10 +39,12 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   bool _isPaginatedView = false;
   List<double> _pageHeights = [];
   List<String> _chapterImages = [];
+  bool _showWebView = false;
 
   late PageController? _pageController;
   late ScrollController _scrollController;
   late FontProvider _fontProvider;
+  late String _chapterWebViewUrl;
 
   @override
   void initState() {
@@ -67,6 +75,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
     final chapterData = await widget.fetchChapterImages(widget.chapterId);
     setState(() {
       _chapterImages = List<String>.from(chapterData['imagePaths']);
+      _chapterWebViewUrl = chapterData['chapterWebviewUrl'];
     });
   }
 
@@ -185,6 +194,91 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
     );  
   }
 
+  Widget _buildWebView(BuildContext context) {
+    final String url = _chapterWebViewUrl ?? 'https://www.google.com';
+
+    Widget webViewContent;
+
+    if (kIsWeb) {
+      return Center(child: Text('Web view not supported on this platform.'),);
+    } else if (defaultTargetPlatform == TargetPlatform.android) {
+      final controller = flutter_webview.WebViewController();
+      controller.setJavaScriptMode(flutter_webview.JavaScriptMode.unrestricted);
+      controller.setBackgroundColor(const Color(0x00000000));
+      controller.setNavigationDelegate(
+        flutter_webview.NavigationDelegate(
+          onProgress: (int progress) {
+            // Update loading bar
+          },
+          onPageStarted: (String url) {},
+          onPageFinished: (String url) {},
+          onWebResourceError: (flutter_webview.WebResourceError error) {},
+          onNavigationRequest: (flutter_webview.NavigationRequest request) {
+            return flutter_webview.NavigationDecision.navigate;
+          },
+        )
+      );
+
+      controller.loadRequest(Uri.parse(url));
+
+      webViewContent = flutter_webview.WebViewWidget(
+        controller: controller,
+      );
+    } else if (defaultTargetPlatform == TargetPlatform.windows) {
+      webViewContent = FutureBuilder<webview_windows.WebviewController>(
+        future: _initializeWebviewController(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            final controller = snapshot.data!;
+            controller.loadUrl(url);
+            return webview_windows.Webview(controller);
+          } else if (snapshot.hasError) {
+            return Text('Error: ${snapshot.error}');
+          } else {
+            return const CircularProgressIndicator();
+          }
+        }
+      );
+    } else {
+      webViewContent = const Text('Unsupported platform');
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.chapterTitle),
+        backgroundColor: Color.fromARGB(178, 60, 16, 180),
+        elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            _showWebView = false;
+          },
+        ),
+
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.open_in_new_rounded, color: Colors.white),
+            onPressed: () {
+              launchUrl(Uri.parse(url));
+            },
+          ),
+        ],
+      ),
+      body: webViewContent,
+    );
+  }
+
+  Future<webview_windows.WebviewController> _initializeWebviewController() async {
+    final controller = webview_windows.WebviewController();
+    await controller.initialize();
+    return controller;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -203,7 +297,11 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
         actions: [  
           IconButton(  
             icon: Icon(Icons.open_in_new_rounded),  
-            onPressed: () => {},  
+            onPressed: () => {
+              setState(() {
+                _showWebView = !_showWebView;
+              })
+            },  
             style: IconButton.styleFrom(  
               backgroundColor: Colors.deepPurple.withOpacity(0.5),  
               highlightColor: Colors.white,  
@@ -216,7 +314,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
           )  
         ],  
       ): null,
-      body: GestureDetector(
+      body: _showWebView ? _buildWebView(context) : GestureDetector(
         
         onTap: () {
           setState(() {
@@ -311,6 +409,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                               chapterId: nextChapterData['chapterID'],
                               chapterTitle: widget.chapterTitle,
                               fetchChapterImages: widget.fetchChapterImages,
+                              chapterWebViewUrl: nextChapterData['chapterWebviewUrl'],
                             ),
                           ),
                         );

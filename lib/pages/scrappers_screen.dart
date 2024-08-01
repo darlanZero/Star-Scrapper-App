@@ -17,7 +17,7 @@ class _ScrappersScreenState extends State<ScrappersScreen> with TickerProviderSt
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final tabsState = Provider.of<TabsState>(context, listen: false);
       tabsState.setAppBarBottom(
@@ -29,6 +29,7 @@ class _ScrappersScreenState extends State<ScrappersScreen> with TickerProviderSt
             tabs: const [
             Tab(text: 'Fonts'),
             Tab(text: 'Downloads'),
+            Tab(text: 'History'),
             Tab(text: 'Migrate'),
             ],
             isScrollable: true,
@@ -60,6 +61,7 @@ class _ScrappersScreenState extends State<ScrappersScreen> with TickerProviderSt
         children: const [
           Center(child: ScrapperActiveFonts()),
           Center(child: ScrapperDownloaderFonts()),
+          Center(child: Text('History')),
           Center(child: Text('Migrate')),
         ],
       );

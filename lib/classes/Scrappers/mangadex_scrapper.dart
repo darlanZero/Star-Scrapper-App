@@ -201,53 +201,54 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 
   @override
   Future<Map<String, dynamic>> getChapter(String chapterID) async {  
-  final url = '$_baseUrl/at-home/server/$chapterID';  
-  final response = await http.get(Uri.parse(url), headers: {  
-    'Content-Type': 'application/json',  
-    'Accept': 'application/json',  
-  });  
+    final url = '$_baseUrl/at-home/server/$chapterID';  
+    final response = await http.get(Uri.parse(url), headers: {  
+      'Content-Type': 'application/json',  
+      'Accept': 'application/json',  
+    });  
 
-  if (response.statusCode == 200) {  
-    final data = jsonDecode(response.body);  
-    if (data['result'] == 'ok') {  
-      final baseUrl = data['baseUrl'] as String;  
-      final chapterHash = data['chapter']['hash'] as String;  
-      final List<String> imageFileNames = List<String>.from(data['chapter']['data']);  
+    if (response.statusCode == 200) {  
+      final data = jsonDecode(response.body);  
+      if (data['result'] == 'ok') {  
+        final baseUrl = data['baseUrl'] as String;  
+        final chapterHash = data['chapter']['hash'] as String;  
+        final List<String> imageFileNames = List<String>.from(data['chapter']['data']);  
 
-      // Obter o diretório de documentos do aplicativo  
-      final appDocDir = await getApplicationDocumentsDirectory();  
-      final String tempMangaDir = path.join(appDocDir.path, 'temp', chapterID);  
-      final String tempChapterDir = path.join(tempMangaDir, chapterHash);  
+        // Obter o diretório de documentos do aplicativo  
+        final appDocDir = await getApplicationDocumentsDirectory();  
+        final String tempMangaDir = path.join(appDocDir.path, 'temp', chapterID);  
+        final String tempChapterDir = path.join(tempMangaDir, chapterHash);  
 
-      await Directory(tempChapterDir).create(recursive: true);  
+        await Directory(tempChapterDir).create(recursive: true);  
 
-      List<String> imagePaths = [];  
-      for (String filename in imageFileNames) {  
-        final imageUrl = '$baseUrl/data/$chapterHash/$filename';  
-        final imagePath = path.join(tempChapterDir, filename);  
+        List<String> imagePaths = [];  
+        for (String filename in imageFileNames) {  
+          final imageUrl = '$baseUrl/data/$chapterHash/$filename';  
+          final imagePath = path.join(tempChapterDir, filename);  
 
-        final imageResponse = await http.get(Uri.parse(imageUrl));  
-        if (imageResponse.statusCode == 200) {  
-          final file = File(imagePath);  
-          await file.writeAsBytes(imageResponse.bodyBytes);  
-          // Use o caminho do arquivo diretamente  
-          imagePaths.add(file.path);  
-        } else {  
-          print('Failed to download image: $filename');  
+          final imageResponse = await http.get(Uri.parse(imageUrl));  
+          if (imageResponse.statusCode == 200) {  
+            final file = File(imagePath);  
+            await file.writeAsBytes(imageResponse.bodyBytes);  
+            // Use o caminho do arquivo diretamente  
+            imagePaths.add(file.path);  
+          } else {  
+            print('Failed to download image: $filename');  
+          }  
         }  
-      }  
 
-      return {  
-        'chapterID': chapterID,  
-        'imagePaths': imagePaths,  
-      };  
+        return {  
+          'chapterID': chapterID,  
+          'imagePaths': imagePaths,
+          'chapterWebviewUrl': 'https://mangadex.org/chapter/$chapterID',  
+        };  
+      } else {  
+        throw Exception('Failed to load chapter details: ${data['result']}');  
+      }  
     } else {  
-      throw Exception('Failed to load chapter details: ${data['result']}');  
+      throw Exception('Failed to load data: ${response.statusCode}');  
     }  
-  } else {  
-    throw Exception('Failed to load data: ${response.statusCode}');  
   }  
-}  
 
   @override
   Future<dynamic> searchTitle(String title) async {
