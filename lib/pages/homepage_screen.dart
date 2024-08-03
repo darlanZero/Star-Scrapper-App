@@ -20,37 +20,28 @@ class HomePageScreen extends StatefulWidget {
 
 class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin {
   late TabController _tabController;
+  late TabsState _tabsState;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 8, vsync: this);
+    final tabsState = Provider.of<TabsState>(context, listen: false);
+    _tabController = TabController(length: tabsState.libraryTabs.length, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final tabsState = Provider.of<TabsState>(context, listen: false);
+      tabsState.addListener(_updateLibraryTabs);
+
       tabsState.setAppBarBottom(
         PreferredSize(
-          preferredSize: Size.fromHeight(48.0), 
-          child: TabBar(
-            controller: _tabController,
-            tabs: const [
-            Tab(text: 'Action'),
-            Tab(text: 'Fantasy'),
-            Tab(text: 'Romance'),
-            Tab(text: 'Mystery'),
-            Tab(text: 'Thriller'),
-            Tab(text: 'Adventure'),
-            Tab(text: 'Comedy'),
-            Tab(text: 'Sci-Fi'),
-          ],
-            isScrollable: true,
-            splashBorderRadius: BorderRadius.circular(10),
-            automaticIndicatorColorAdjustment: true,
-            tabAlignment: TabAlignment.center,
-            labelPadding: const EdgeInsets.symmetric(horizontal: 16),
-            labelStyle: TextStyle(
+          preferredSize: Size.fromHeight(10.0), 
+          child: Text(
+            'Library',
+            style: TextStyle(
               color: Colors.lightGreen,
+              fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
               fontWeight: FontWeight.bold,
-              fontSize: MediaQuery.of(context).size.width >= 600 ? 16 : 12,
+              shadows: <Shadow>[
+                Shadow(color: Colors.black, blurRadius: 10.0),
+              ],
             ),
           )
         )
@@ -59,7 +50,23 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _tabsState = Provider.of<TabsState>(context, listen: false);
+    _tabsState.addListener(_updateLibraryTabs);
+  }
+
+  void _updateLibraryTabs() {
+    if (mounted) {
+      setState(() {
+        _tabController = TabController(length: _tabsState.libraryTabs.length, vsync: this);
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    _tabsState.removeListener(_updateLibraryTabs);
     _tabController.dispose();
     super.dispose();
   }
@@ -68,164 +75,63 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
   final List<Map<String, dynamic>> libraryBooks;
 
   @override
-    Widget build(BuildContext context) {
-      return TabBarView(
-        controller: _tabController,  
-        children: [ 
-          Column(
-            children:[
-              const SizedBox(height: 16),  
-              const Text(  
-                'Your Library',  
-                style: TextStyle(  
-                  color: Colors.blueGrey,  
-                  fontWeight: FontWeight.bold,  
-                  fontSize: 24,  
-                ),  
-              ),  
-              const SizedBox(height: 16),  
-              Expanded(  
-                child: _buildBooksGrid(),  
-              ),  
-              const SizedBox(height: 16),  
-            ] ,
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Color.fromARGB(29, 60, 16, 180),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
           ),
-
-          Column(
-            children:[
-              const SizedBox(height: 16),  
-              const Text(  
-                'Action',  
-                style: TextStyle(  
-                  color: Colors.blueGrey,  
-                  fontWeight: FontWeight.bold,  
-                  fontSize: 24,  
-                ),  
-              ),  
-              const SizedBox(height: 16),  
-              Expanded(  
-                child: _buildBooksGrid(),  
-              ),  
-              const SizedBox(height: 16),  
-            ] ,
+        ),
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(10.0),
+          child: Consumer<TabsState>(
+            builder: (context, tabsState, child) {
+              return TabBar(
+                controller: _tabController,
+                tabs: tabsState.libraryTabs.map((tabName) => Tab(text: tabName)).toList(),
+                isScrollable: true,
+                splashBorderRadius: BorderRadius.circular(10),
+                automaticIndicatorColorAdjustment: true,
+                tabAlignment: TabAlignment.center,
+                labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+                labelStyle: TextStyle(
+                  color: Colors.lightGreen,
+                  fontWeight: FontWeight.bold,
+                  fontSize: MediaQuery.of(context).size.width >= 600 ? 16 : 12,
+                ),
+              );
+            },
           ),
-
-          Column(
-            children:[
-              const SizedBox(height: 16),  
-              const Text(  
-                'Fantasy',  
-                style: TextStyle(  
-                  color: Colors.blueGrey,  
-                  fontWeight: FontWeight.bold,  
-                  fontSize: 24,  
-                ),  
-              ),  
-              const SizedBox(height: 16),  
-              Expanded(  
-                child: _buildBooksGrid(),  
-              ),  
-              const SizedBox(height: 16),  
-            ] ,
-          ),
-
-          Column(
-            children:[
-              const SizedBox(height: 16),  
-              const Text(  
-                'Romance',  
-                style: TextStyle(  
-                  color: Colors.blueGrey,  
-                  fontWeight: FontWeight.bold,  
-                  fontSize: 24,  
-                ),  
-              ),  
-              const SizedBox(height: 16),  
-              Expanded(  
-                child: _buildBooksGrid(),  
-              ),  
-              const SizedBox(height: 16),  
-            ] ,
-          ),
-
-          Column(
-            children:[
-              const SizedBox(height: 16),  
-              const Text(  
-                'Mystery',  
-                style: TextStyle(  
-                  color: Colors.blueGrey,  
-                  fontWeight: FontWeight.bold,  
-                  fontSize: 24,  
-                ),  
-              ),  
-              const SizedBox(height: 16),  
-              Expanded(  
-                child: _buildBooksGrid(),  
-              ),  
-              const SizedBox(height: 16),  
-            ] ,
-          ),
-
-          Column(
-            children:[
-              const SizedBox(height: 16),  
-              const Text(  
-                'Thriller',  
-                style: TextStyle(  
-                  color: Colors.blueGrey,  
-                  fontWeight: FontWeight.bold,  
-                  fontSize: 24,  
-                ),  
-              ),  
-              const SizedBox(height: 16),  
-              Expanded(  
-                child: _buildBooksGrid(),  
-              ),  
-              const SizedBox(height: 16),  
-            ] ,
-          ),
-
-          Column(
-            children:[
-              const SizedBox(height: 16),  
-              const Text(  
-                'Adventure',  
-                style: TextStyle(  
-                  color: Colors.blueGrey,  
-                  fontWeight: FontWeight.bold,  
-                  fontSize: 24,  
-                ),  
-              ),  
-              const SizedBox(height: 16),  
-              Expanded(  
-                child: _buildBooksGrid(),  
-              ),  
-              const SizedBox(height: 16),  
-            ] ,
-          ),
-
-          Column(
-            children:[
-              const SizedBox(height: 16),  
-              const Text(  
-                'Comedy',  
-                style: TextStyle(  
-                  color: Colors.blueGrey,  
-                  fontWeight: FontWeight.bold,  
-                  fontSize: 24,  
-                ),  
-              ),  
-              const SizedBox(height: 16),  
-              Expanded(  
-                child: _buildBooksGrid(),  
-              ),  
-              const SizedBox(height: 16),  
-            ] ,
-          ),
-      ],  
-    );  
-  }  
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: _tabsState.libraryTabs.map((tabName) {
+          return Column(
+            children: [
+              const SizedBox(height: 20),
+              Text(
+                tabName, 
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white
+                )
+              ),
+              const SizedBox(height: 20),
+              Expanded(
+                child: _buildBooksGrid(),
+              ),
+              const SizedBox(height: 20),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
 
   Widget _buildBooksGrid() {
     return Consumer<FontProvider>(
@@ -306,6 +212,5 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
         );
       },
     );
-  }   
-
+  }
 }

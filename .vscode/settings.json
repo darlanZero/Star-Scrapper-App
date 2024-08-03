@@ -59,5 +59,6 @@
   "C_Cpp_Runner.msvcSecureNoWarnings": false,
   "C_Cpp.errorSquiggles": "disabled",
   "cmake.configureOnOpen": true,
-  "cmake.sourceDirectory": "C:/Users/anime/OneDrive/Scipts/2024/Pessoal/Projetos/StarsScrapperApp/star_scrapper_app/windows/runner"
+  "cmake.sourceDirectory": "C:/Users/anime/OneDrive/Scipts/2024/Pessoal/Projetos/StarsScrapperApp/star_scrapper_app/windows/runner",
+  "java.configuration.updateBuildConfiguration": "interactive"
 }

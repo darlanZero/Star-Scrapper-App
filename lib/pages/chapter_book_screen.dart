@@ -358,7 +358,10 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
             controller: _scrollController,
             itemCount: _chapterImages.length,
             itemBuilder: (context, index) {
-              return Image.file(File(_chapterImages[index]));
+              return Image.file(
+                File(_chapterImages[index]),
+                fit: BoxFit.contain,
+              );
             },
           ),
         ),

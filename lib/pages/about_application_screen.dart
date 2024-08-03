@@ -1,8 +1,11 @@
 import 'dart:convert';
-
+import 'dart:io' show Platform;
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:star_scrapper_app/components/UI/about_application_card_component.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 class AboutApplicationScreen extends StatelessWidget {
   const AboutApplicationScreen({Key? key}) : super(key: key);
@@ -13,13 +16,32 @@ class AboutApplicationScreen extends StatelessWidget {
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        if (data.isNotEmpty) {
-          final latestRelease = data[0];
-          final versionName = latestRelease['name'];
-          final downloadUrl = latestRelease['assets'][0]['browser_download_url'];
+        final List<dynamic> releases = jsonDecode(response.body);
+        if (releases.isNotEmpty) {
+          final latestRelease = releases[0];
+          final versionName = latestRelease['tag_name'];
+          final assets = latestRelease['assets'] as List;
 
-          _showUpdateDialog(context, versionName, downloadUrl);
+          PackageInfo packageInfo = await PackageInfo.fromPlatform();
+          String currentVersionName = packageInfo.version;
+
+          if (versionName != currentVersionName) {
+            String? downloadUrl;
+            if (Platform.isAndroid) {
+              downloadUrl = assets.firstWhere((asset) => asset['name'].endsWith('.apk'), orElse: () => null)?['browser_download_url'];
+            } else if (Platform.isWindows) {
+              downloadUrl = assets.firstWhere((asset) => asset['name'].endsWith('.exe'), orElse: () => null)?['browser_download_url'];
+            }
+
+            if (downloadUrl != null) {
+              _showUpdateDialog(context, versionName, downloadUrl);
+            } else {
+              _showNoSuitableDownloadDialog(context);
+            }
+          } else {
+            _showNoUpdateDialog(context);
+          }
+
         } else {
           print('Failed to fetch updates. Status code: ${response.statusCode}');
         }
@@ -44,11 +66,53 @@ class AboutApplicationScreen extends StatelessWidget {
               child: const Text('Later'),
             ),
             TextButton(
-              onPressed: () {
-                http.get(Uri.parse(downloadUrl));
+              onPressed: () async {
+                if (await canLaunchUrl(Uri.parse(downloadUrl))) {
+                  await launchUrl(Uri.parse(downloadUrl));
+                }
                 Navigator.of(context).pop();
               },
               child: const Text('Update now'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showNoUpdateDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('No updates available'),
+          content: const Text('You are using the latest version of the app.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showNoSuitableDownloadDialog (BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('No suitable download found'),
+          content: const Text('No suitable download found for the current platform.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
             ),
           ],
         );
@@ -95,6 +159,45 @@ class AboutApplicationScreen extends StatelessWidget {
             ),
 
             aboutApplicationCardComponent(),
+            SizedBox(height: 20),
+
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Center(
+                  child: Text(
+                    'Our Socials',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontFamily: 'Roboto',
+                    ),
+                  ),
+                ),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: Icon(FontAwesomeIcons.github),
+                      color: Colors.blue,
+                      onPressed: () {
+                        launchUrl(Uri.parse('https://github.com/darlanZero/Star-Scrapper-App'));
+                      },
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.link_rounded),
+                      color: Colors.purple,
+                      onPressed: () {
+                        launchUrl(Uri.parse('https://star-scrapper.com'));
+                      },
+                    ),
+                  ]
+                ),
+              ],
+            ),
+
+
             SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
