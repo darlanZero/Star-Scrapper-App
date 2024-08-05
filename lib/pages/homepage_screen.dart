@@ -76,10 +76,11 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context);
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Color.fromARGB(29, 60, 16, 180),
+        backgroundColor: theme.selectedTheme.appBarTheme.backgroundColor,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
             bottom: Radius.circular(20),

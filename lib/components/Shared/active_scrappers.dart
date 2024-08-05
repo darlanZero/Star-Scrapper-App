@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';  
 import 'package:provider/provider.dart';  
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';
 import 'package:star_scrapper_app/pages/pages.dart';  
@@ -155,7 +156,8 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
   }  
 
   @override  
-  Widget build(BuildContext context) {  
+  Widget build(BuildContext context) {
+
     return Consumer<FontProvider>(  
       builder: (context, fontProvider, child) {  
         return ListView(  

@@ -3,6 +3,8 @@ import 'dart:io' show Platform;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/components/UI/about_application_card_component.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
@@ -142,8 +144,9 @@ class AboutApplicationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context);
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -151,7 +154,7 @@ class AboutApplicationScreen extends StatelessWidget {
             Text(
               'About StarsScrapper', 
               style: TextStyle(
-                color: Colors.white,
+                color: theme.selectedTheme.textTheme.titleSmall?.color,
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
                 fontFamily: 'Roboto',

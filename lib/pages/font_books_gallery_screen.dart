@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';  
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:star_scrapper_app/classes/app_state.dart';  
 import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';  
 import 'package:star_scrapper_app/pages/book_details_screen.dart';  
 
@@ -40,12 +42,13 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   }
 
   @override  
-  Widget build(BuildContext context) {  
+  Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context);  
     return Scaffold(  
-      backgroundColor: Colors.black,  
+      backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,  
       appBar: AppBar(  
-        backgroundColor: Color.fromARGB(29, 60, 16, 180),  
-        title: Text(widget.selectedFont.name, style: TextStyle(color: Color.fromARGB(255, 224, 224, 224), fontWeight: FontWeight.bold, shadows: <Shadow>[  
+        backgroundColor: theme.selectedTheme.appBarTheme.backgroundColor,  
+        title: Text(widget.selectedFont.name, style: TextStyle(color: theme.selectedTheme.textTheme.titleMedium?.color, fontWeight: FontWeight.bold, shadows: <Shadow>[  
           Shadow(color: Colors.black, blurRadius: 10.0),  
         ])),  
         iconTheme: const IconThemeData(color: Color.fromARGB(255, 224, 224, 224)),  
@@ -62,8 +65,8 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
             child: Row(  
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,  
               children: [  
-                _buildButton('Popular', Icons.trending_up_outlined),  
-                _buildButton('Recent', Icons.new_releases_outlined),  
+                _buildButton('Popular', Icons.trending_up_outlined, theme),  
+                _buildButton('Recent', Icons.new_releases_outlined, theme),  
                 OutlinedButton(  
                   onPressed: () {  
                     _showFilterPopup();  
@@ -74,11 +77,11 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
                     ),  
                     
                   ),  
-                  child: const Row(crossAxisAlignment: CrossAxisAlignment.center,  
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.center,  
                     mainAxisAlignment: MainAxisAlignment.center,  
                     mainAxisSize: MainAxisSize.min,children: [  
-                    Icon(Icons.filter_list, color: Color.fromARGB(255, 224, 224, 224),),  
-                    Text('filter', style: TextStyle(color: Color.fromARGB(255, 224, 224, 224)),)  
+                    Icon(Icons.filter_list, color: theme.selectedTheme.textTheme.displayMedium?.color,),  
+                    Text('filter', style: TextStyle(color: theme.selectedTheme.textTheme.displayMedium?.color),)  
                     ],  
                   ),  
                 ),  
@@ -91,7 +94,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     );  
   }  
 
-  Widget _buildButton(String text, IconData icon) {  
+  Widget _buildButton(String text, IconData icon, ThemeProvider theme) {  
     bool isSelected = currentView.toLowerCase() == text.toLowerCase();  
     return OutlinedButton(  
       onPressed: () {  
@@ -107,8 +110,8 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
         backgroundColor: isSelected ? Colors.deepPurple.withOpacity(0.3) : Colors.transparent,  
       ),  
       child: Row(children: [  
-        Icon(icon, color: Color.fromARGB(255, 224, 224, 224),),  
-        Text(text, style: TextStyle(color: Color.fromARGB(255, 224, 224, 224)),)  
+        Icon(icon, color: theme.selectedTheme.textTheme.displayMedium?.color,),  
+        Text(text, style: TextStyle(color: theme.selectedTheme.textTheme.displayMedium?.color,),)  
       ],),  
     );  
   }  

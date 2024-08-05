@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, kDebugMode;
 import 'package:provider/provider.dart';
+import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/pages/chapter_book_screen.dart';
 import 'package:url_launcher/url_launcher.dart';  
@@ -41,12 +42,13 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context);
     bool isDesktop = MediaQuery.of(context).size.width > 600;
     
 
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: _showWebView ? _buildWebView(context) : _ReactiveDetailsBook(isDesktop),
+      backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
+      body: _showWebView ? _buildWebView(context) : _ReactiveDetailsBook(isDesktop, theme),
       floatingActionButton: FloatingActionButton(
         onPressed: _toogleChapterOrder,
         child: const Icon(Icons.swap_vert),
@@ -54,7 +56,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     );
   }
 
-  Widget _ReactiveDetailsBook(bool isDesktop) {
+  Widget _ReactiveDetailsBook(bool isDesktop, ThemeProvider theme) {
     
     List<dynamic> chapters = List.from(widget.bookDetails['chapters'] ?? []);
 
@@ -204,10 +206,10 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
               children: [
                 Text(
                   widget.bookDetails['title'] ?? 'No title available',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 24.0,
                     fontWeight: FontWeight.bold,
-                    color: Color.fromARGB(255, 17, 82, 19),
+                    color: theme.selectedTheme.textTheme.titleMedium?.color,
                     shadows: <Shadow>[
                       Shadow(color: Color.fromARGB(255, 87, 25, 25), blurRadius: 2.0),
                       Shadow(color: Color.fromARGB(255, 0, 0, 0), blurRadius: 2.0),
@@ -219,18 +221,18 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                 if (!isDesktop)
                   Text(
                     widget.bookDetails['description'] ?? 'No description Available',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16.0,
-                      color: Colors.grey
+                      color: theme.selectedTheme.textTheme.displayMedium?.color
                     ),
                   ),
 
                 Text(
-                  'Capítulos',
-                  style: const TextStyle(
+                  'Chapters',
+                  style: TextStyle(
                     fontSize: 20.0,
                     fontWeight: FontWeight.bold,
-                    color: Colors.grey
+                    color: theme.selectedTheme.textTheme.displayMedium?.color
                   ),
                 ), 
                 const SizedBox(height: 8.0),
@@ -263,24 +265,24 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   children: [
                     Text(
                       'Chapter ${chapter['chapter']}',
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: theme.selectedTheme.textTheme.titleSmall?.color,
                         fontSize: 16.0,
                         fontWeight: FontWeight.bold
                       ),
                     ),
                     Text(
                       'Volume: ' + _FormatVolume(chapter['volume']),
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: theme.selectedTheme.textTheme.titleSmall?.color,
                         fontSize: 16.0,
                       ),
                     ),
 
                     Text(
                       '${chapter['translatedLanguage']}',
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: theme.selectedTheme.textTheme.titleSmall?.color,
                         fontSize: 16.0,
                       ),
                     )
@@ -291,23 +293,23 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   children: [
                     Text(
                       '${chapter['pages']} pages',
-                      style: const TextStyle(
-                        color: Colors.grey,
+                      style: TextStyle(
+                        color: theme.selectedTheme.textTheme.displayMedium?.color,
                         fontSize: 14.0,
                       ),
                     ),
                     Text(
                       chapter['uploader'] ?? 'No uploader',
-                      style: const TextStyle(
-                        color: Colors.grey,
+                      style: TextStyle(
+                        color: theme.selectedTheme.textTheme.displayMedium?.color,
                         fontSize: 14.0,
                       ),
                     ),
 
                     Text(
                       _formatDate(chapter['publishedAt']),
-                      style: const TextStyle(
-                        color: Colors.grey,
+                      style: TextStyle(
+                        color: theme.selectedTheme.textTheme.displayMedium?.color,
                         fontSize: 14.0,
                       ),
                     )

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/library_tabs_settings_screen.dart';
 
 class LibrarySettingsScreen extends StatefulWidget {
@@ -11,10 +13,11 @@ class LibrarySettingsScreen extends StatefulWidget {
 class _LibrarySettingsScreenState extends State<LibrarySettingsScreen> {
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context);
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Color.fromARGB(29, 60, 16, 180),
+        backgroundColor: theme.selectedTheme.appBarTheme.backgroundColor,
         title: Text(
           'Library Settings',
           style: TextStyle(
@@ -43,7 +46,7 @@ class _LibrarySettingsScreenState extends State<LibrarySettingsScreen> {
       ),
 
       body: Container(
-        color: Colors.black,
+        color: theme.selectedTheme.scaffoldBackgroundColor,
         child: ListView(
           children: [
             Padding(

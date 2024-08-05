@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';  
+import 'package:flutter/material.dart';
+import 'package:star_scrapper_app/classes/config/themes.dart';  
 
 class AppState extends ChangeNotifier {
   int _currentIndex = 0;
@@ -48,6 +49,16 @@ class TabsState extends ChangeNotifier  {
     _appBarBottom = newBottom;  
     notifyListeners();  
   }
-
  
+}
+
+class ThemeProvider extends ChangeNotifier {
+  ThemeData _selectedTheme = Appthemes.purpleForest;
+
+  ThemeData get selectedTheme => _selectedTheme;
+
+  void setSelectedTheme(ThemeData theme) {
+    _selectedTheme = theme;
+    notifyListeners();
+  }
 }

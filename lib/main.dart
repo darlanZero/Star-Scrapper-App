@@ -17,6 +17,7 @@ void main(List<String> args) {
   runApp(
     MultiProvider(providers: 
     [
+      ChangeNotifierProvider(create: (context) => ThemeProvider()),
       ChangeNotifierProvider(create: (context) => AppState()),
       ChangeNotifierProvider(create: (context) => TabsState()),
       ChangeNotifierProvider(create: (context) => FontProvider()),
@@ -30,13 +31,10 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context);
     return MaterialApp(
       title: 'Stars - A better lecture',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple.shade800),
-        primarySwatch: Colors.blue,
-        useMaterial3: true,
-      ),
+      theme: theme.selectedTheme,
       home: const MainScreen(title: 'Stars - A better lecture'),
     );
   }
@@ -81,10 +79,11 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context);
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Color.fromARGB(29, 60, 16, 180),
+        backgroundColor: theme.selectedTheme.appBarTheme.backgroundColor,
         titleSpacing: 0.0,
         elevation: 0,
         title: LayoutBuilder(
@@ -146,7 +145,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         ),
         hasNotch: true,
         notchStyle: NotchStyle.circle,
-        backgroundColor: Color.fromARGB(50, 60, 16, 180),
+        backgroundColor: theme.selectedTheme.bottomNavigationBarTheme.backgroundColor,
         borderRadius: BorderRadius.circular(20),
       ),
     

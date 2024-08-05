@@ -1,5 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:star_scrapper_app/classes/app_state.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -13,10 +15,11 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context);
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
       appBar: AppBar(
-          backgroundColor: Color.fromARGB(29, 60, 16, 180),
+          backgroundColor: theme.selectedTheme.appBarTheme.backgroundColor,
           title: const Text('Search', style: TextStyle(color: Color.fromARGB(255, 224, 224, 224), fontWeight: FontWeight.bold, shadows: <Shadow>[
             Shadow(color: Colors.black, blurRadius: 10.0),
           ])),
