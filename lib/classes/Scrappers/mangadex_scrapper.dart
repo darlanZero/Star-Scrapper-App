@@ -12,7 +12,8 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 
     @override
     Future<List<dynamic>> getAll(String filter) async {  
-    String url;  
+      _currentPage = 0;
+      _allResults.clear();
     return await _fetchResults(filter);
   }
 
@@ -29,6 +30,9 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
         break;
       case 'popular':
         url = '$_baseUrl/manga?order[relevance]=desc&includes[]=cover_art&limit=60&offset=${_currentPage * 60}';
+        break;
+      case 'trending':
+        url = '$_baseUrl/manga?order[rating]=desc&includes[]=cover_art&limit=60&offset=${_currentPage * 60}';
         break;
       case 'first':
         url = '$_baseUrl/manga?order[updatedAt]=asc&includes[]=cover_art&limit=60&offset=${_currentPage * 60}';

@@ -105,14 +105,14 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
                 context,
                 MaterialPageRoute(
                   builder: (context) => FontBooksGalleryScreen(
-                    initialView: 'Popular',
+                    initialView: 'popular',
                     selectedFont: font,
                   ),
                 ),
               );
             },  
             child: Text(
-              'Trending', 
+              'Popular', 
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: MediaQuery.of(context).size.width >= 600 ? 16 : 12,
@@ -128,14 +128,14 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
                 context,
                 MaterialPageRoute(
                   builder: (context) => FontBooksGalleryScreen(
-                    initialView: 'Recent',
+                    initialView: 'recent',
                     selectedFont: font,
                   ),
                 ),
               );
             },  
             child: Text(
-              'Recents',
+              'Recent',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: MediaQuery.of(context).size.width >= 600 ? 16 : 12, 

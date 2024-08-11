@@ -20,11 +20,17 @@ class FontBooksGalleryScreen extends StatefulWidget {
 
 class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {  
   late String currentView;  
-  late Future<List<dynamic>> _bookFuture;  
+  late Future<List<dynamic>> _bookFuture;
+  late ScrollController _scrollController;
+  bool _isLoadingMore = false; 
+  List<dynamic> allBooksData = [];  
+
 
   @override  
   void initState() {  
     super.initState();  
+    _scrollController = ScrollController();  
+    _scrollController.addListener(_onScroll);  
     currentView = widget.initialView;  
     _loadBooks();  
   }  
@@ -33,14 +39,43 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     setState(() {  
       _bookFuture = _fetchBooks();  
     });  
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent && !_isLoadingMore) {
+      _loadMoreBooks();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }  
 
   Future<List<dynamic>> _fetchBooks() async {  
     final api = widget.selectedFont.api;  
-    var allBooksData = await api.getAll(currentView);
-    return allBooksData;
+    var booksData = await api.getAll(currentView);
+    setState(() {
+      allBooksData = booksData;
+    });
+
+    return booksData;
   }
 
+  Future<void> _loadMoreBooks() async {
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    final api = widget.selectedFont.api;
+    var moreBooksData = await api.loadMore(currentView);
+
+    setState(() {
+      _isLoadingMore = false;
+      allBooksData = List.from(allBooksData)..addAll(moreBooksData);
+    });
+  }
   @override  
   Widget build(BuildContext context) {
     final theme = Provider.of<ThemeProvider>(context);  
@@ -53,7 +88,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
         ])),  
         iconTheme: const IconThemeData(color: Color.fromARGB(255, 224, 224, 224)),  
         centerTitle: true,  
-        elevation: 0,  
+        
         shape: const RoundedRectangleBorder(  
           borderRadius: BorderRadius.vertical(  
             bottom: Radius.circular(20),  
@@ -129,68 +164,77 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
         } else {  
           List<dynamic> books = snapshot.data!;  
 
-          return GridView.builder(  
-            padding: const EdgeInsets.all(8.0),  
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(  
-              crossAxisCount: MediaQuery.of(context).size.width >= 600 ? 4 : 2,  
-              mainAxisSpacing: 8.0,  
-              crossAxisSpacing: 8.0,  
-            ),  
-            itemCount: books.length,  
-            itemBuilder: (context, index) {  
-              return _buildBookTile(books[index]);  
-            },  
+           return NotificationListener<ScrollNotification>(
+            onNotification: (ScrollNotification scrollInfo) {
+              if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent && !_isLoadingMore) {
+                _loadMoreBooks();
+              }
+              return false;
+            },
+            child: GridView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(8.0),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: MediaQuery.of(context).size.width >= 600 ? 4 : 2,
+                mainAxisSpacing: 8.0,
+                crossAxisSpacing: 8.0,
+              ),
+              itemCount: books.length,
+              itemBuilder: (context, index) {
+                return _buildBookTile(books[index]);
+              },
+            ),
           );  
         }  
       },  
     );  
   }  
 
-  Widget _buildBookTile(dynamic bookDetails) {  
-    String title = widget.selectedFont.api.getTitle(bookDetails);  
-    String imageUrl = widget.selectedFont.api.getCoverImageUrl(bookDetails);  
-    String mangaId = widget.selectedFont.api.getBookId(bookDetails);  
- 
+  Widget _buildBookTile(dynamic bookDetails) {
+    String title = widget.selectedFont.api.getTitle(bookDetails);
+    String imageUrl = widget.selectedFont.api.getCoverImageUrl(bookDetails);
+    String mangaId = widget.selectedFont.api.getBookId(bookDetails);
+
     if (kDebugMode) {
       print('image URL: $imageUrl');
     }
-    return InkWell(  
-      onTap: () {  
-        _navigateToBookDetails(mangaId); 
-      },  
-      child: GridTile(  
-        footer: ClipRRect(  
-          borderRadius: BorderRadius.only(  
-            bottomLeft: Radius.circular(8.0),  
-            bottomRight: Radius.circular(8.0),  
-          ),  
-          child: Container(  
-            color: Colors.black.withOpacity(0.5),  
-            padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),  
-            child: Text(  
-              title,  
-              style: const TextStyle(  
-                color: Colors.white,  
-                fontWeight: FontWeight.bold,  
-                fontSize: 14,  
-              ),  
-              maxLines: 2,  
-              overflow: TextOverflow.ellipsis,  
-            ),  
-          ),  
-        ),  
-        child: ClipRRect(  
-          borderRadius: BorderRadius.circular(10),  
-          child: Image.network(  
-            imageUrl,  
-            fit: BoxFit.cover,  
-            errorBuilder: (context, error, stackTrace) {  
-              return Image.network('https://via.placeholder.com/150', fit: BoxFit.cover);  
-            },  
-          ),  
-        ),  
-      ),  
-    );  
+    return InkWell(
+      onTap: () {
+        _navigateToBookDetails(mangaId);
+      },
+      child: GridTile(
+        footer: ClipRRect(
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(8.0),
+            bottomRight: Radius.circular(8.0),
+          ),
+          child: Container(
+            color: Colors.black.withOpacity(0.5),
+            padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Image.network('https://via.placeholder.com/150', fit: BoxFit.cover);
+            },
+          ),
+        ),
+      ),
+    );
   } 
 
   void _navigateToBookDetails(String bookId) async {    
