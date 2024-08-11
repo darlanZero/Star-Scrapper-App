@@ -15,7 +15,6 @@ class HomePageScreen extends StatefulWidget {
 
   @override
   State<HomePageScreen> createState() =>  _HomePageState(libraryBooks: []);
-
 }
 
 class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin {
@@ -29,7 +28,6 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
     _tabController = TabController(length: tabsState.libraryTabs.length, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       tabsState.addListener(_updateLibraryTabs);
-
       tabsState.setAppBarBottom(
         PreferredSize(
           preferredSize: Size.fromHeight(10.0), 
@@ -90,46 +88,64 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
           preferredSize: Size.fromHeight(10.0),
           child: Consumer<TabsState>(
             builder: (context, tabsState, child) {
-              return TabBar(
-                controller: _tabController,
-                tabs: tabsState.libraryTabs.map((tabName) => Tab(text: tabName)).toList(),
-                isScrollable: true,
-                splashBorderRadius: BorderRadius.circular(10),
-                automaticIndicatorColorAdjustment: true,
-                tabAlignment: TabAlignment.center,
-                labelPadding: const EdgeInsets.symmetric(horizontal: 16),
-                labelStyle: TextStyle(
-                  color: Colors.lightGreen,
-                  fontWeight: FontWeight.bold,
-                  fontSize: MediaQuery.of(context).size.width >= 600 ? 16 : 12,
-                ),
+              return FutureBuilder<void>(
+                future: tabsState.tabsLoaded,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return CircularProgressIndicator();
+                  } else {
+                    return TabBar(
+                      controller: _tabController,
+                      tabs: tabsState.libraryTabs.map((tabName) => Tab(text: tabName)).toList(),
+                      isScrollable: true,
+                      splashBorderRadius: BorderRadius.circular(10),
+                      automaticIndicatorColorAdjustment: true,
+                      tabAlignment: TabAlignment.center,
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+                      labelStyle: TextStyle(
+                        color: Colors.lightGreen,
+                        fontWeight: FontWeight.bold,
+                        fontSize: MediaQuery.of(context).size.width >= 600 ? 16 : 12,
+                      ),
+                    );
+                  }
+                },
               );
             },
           ),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: _tabsState.libraryTabs.map((tabName) {
-          return Column(
-            children: [
-              const SizedBox(height: 20),
-              Text(
-                tabName, 
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white
-                )
-              ),
-              const SizedBox(height: 20),
-              Expanded(
-                child: _buildBooksGrid(),
-              ),
-              const SizedBox(height: 20),
-            ],
-          );
-        }).toList(),
+      body: FutureBuilder<void>(
+        future: _tabsState.tabsLoaded,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          } else {
+            return TabBarView(
+              controller: _tabController,
+              children: _tabsState.libraryTabs.map((tabName) {
+                return Column(
+                  children: [
+                    const SizedBox(height: 20),
+                    Text(
+                      tabName, 
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: theme.selectedTheme.textTheme.titleSmall?.color
+                      )
+                    ),
+                    const SizedBox(height: 20),
+                    Expanded(
+                      child: _buildBooksGrid(),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                );
+              }).toList(),
+            );
+          }
+        },
       ),
     );
   }

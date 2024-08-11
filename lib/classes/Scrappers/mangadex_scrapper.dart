@@ -7,70 +7,83 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 
   class MangadexScrapper extends Scrapper {
     final String _baseUrl = 'https://api.mangadex.org';
+    int _currentPage = 0;
+    List<dynamic> _allResults = [];
 
     @override
     Future<List<dynamic>> getAll(String filter) async {  
     String url;  
-    switch (filter.toLowerCase()) {  
-      case 'recent':  
-        url = '$_baseUrl/manga?order[latestUploadedChapter]=desc&includes[]=cover_art&limit=60';  
-        break;  
-      case 'popular':  
-        url = '$_baseUrl/manga?order[relevance]=desc&includes[]=cover_art&limit=60';  
-        break;  
-      case 'first':   
-        url = '$_baseUrl/manga?order[updatedAt]=asc&includes[]=cover_art&limit=60';  
-        break;  
-      case 'a-z':  
-        url = '$_baseUrl/manga?order[title]=asc&includes[]=cover_art&limit=60';  
-        break;  
-      case 'z-a':  
-        url = '$_baseUrl/manga?order[title]=desc&includes[]=cover_art&limit=60';  
-        break;  
-      default:  
-        throw Exception('Invalid filter');  
-    }  
+    return await _fetchResults(filter);
+  }
 
-    final response = await http.get(Uri.parse(url), headers: {  
-      'Content-Type': 'application/json',  
-      'Accept': 'application/json',  
-    });  
-    
-    if (response.statusCode == 200) {  
-      final data = jsonDecode(response.body);  
-      if (data['result'] == 'ok') {  
-        final List<dynamic> mangaList = data['data'];  
-        final mangaDetails = mangaList.map((manga) {  
-          final attributes = manga['attributes'];  
-          final titleLanguageKey = attributes['title'].keys.first;  
-          final title = attributes['title'][titleLanguageKey];  
-          final coverArt = manga['relationships'].firstWhere(  
-            (relation) => relation['type'] == 'cover_art',  
-            orElse: () => {'id': null, 'attributes': {'fileName': null}},  
-          );  
-          return {  
-            'id': manga['id'],  
-            'title': title,  
-            'coverArt': {  
-              'id': coverArt['id'],  
-              'fileName': coverArt['attributes']['fileName'],  
-            },  
-            'author': manga['relationships'].firstWhere(  
-              (relation) => relation['type'] == 'author',  
-              orElse: () => {'id': null},  
-            )['id'],  
-            'status': attributes['status'],  
-            'tags': attributes['tags'].map((tag) => tag['attributes']['name']['en']).toList(),  
-            'type': manga['type'],  
-          };  
-        }).toList();  
-        return mangaDetails;  
-      } else {  
-        throw Exception('API returned an error: ${data['result']}');  
-      }  
-    } else {  
-      throw Exception('Failed to load data');  
-    }  
+  Future<List<dynamic>> loadMore(String filter) async {
+    _currentPage++;
+    return await _fetchResults(filter);
+  }
+
+  Future<List<dynamic>> _fetchResults(String filter) async {
+    String url;
+    switch (filter.toLowerCase()) {
+      case 'recent':
+        url = '$_baseUrl/manga?order[latestUploadedChapter]=desc&includes[]=cover_art&limit=60&offset=${_currentPage * 60}';
+        break;
+      case 'popular':
+        url = '$_baseUrl/manga?order[relevance]=desc&includes[]=cover_art&limit=60&offset=${_currentPage * 60}';
+        break;
+      case 'first':
+        url = '$_baseUrl/manga?order[updatedAt]=asc&includes[]=cover_art&limit=60&offset=${_currentPage * 60}';
+        break;
+      case 'a-z':
+        url = '$_baseUrl/manga?order[title]=asc&includes[]=cover_art&limit=60&offset=${_currentPage * 60}';
+        break;
+      case 'z-a':
+        url = '$_baseUrl/manga?order[title]=desc&includes[]=cover_art&limit=60&offset=${_currentPage * 60}';
+        break;
+      default:
+        throw Exception('Invalid filter');
+    }
+
+    final response = await http.get(Uri.parse(url), headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    });
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['result'] == 'ok') {
+        final List<dynamic> mangaList = data['data'];
+        final mangaDetails = mangaList.map((manga) {
+          final attributes = manga['attributes'];
+          final titleLanguageKey = attributes['title'].keys.first;
+          final title = attributes['title'][titleLanguageKey];
+          final coverArt = manga['relationships'].firstWhere(
+                (relation) => relation['type'] == 'cover_art',
+            orElse: () => {'id': null, 'attributes': {'fileName': null}},
+          );
+          return {
+            'id': manga['id'],
+            'title': title,
+            'coverArt': {
+              'id': coverArt['id'],
+              'fileName': coverArt['attributes']['fileName'],
+            },
+            'author': manga['relationships'].firstWhere(
+                  (relation) => relation['type'] == 'author',
+              orElse: () => {'id': null},
+            )['id'],
+            'status': attributes['status'],
+            'tags': attributes['tags'].map((tag) => tag['attributes']['name']['en']).toList(),
+            'type': manga['type'],
+          };
+        }).toList();
+        _allResults.addAll(mangaDetails);
+        return _allResults;
+      } else {
+        throw Exception('API returned an error: ${data['result']}');
+      }
+    } else {
+      throw Exception('Failed to load data');
+    }
   }
 
   String getTitle(dynamic bookDetails) {

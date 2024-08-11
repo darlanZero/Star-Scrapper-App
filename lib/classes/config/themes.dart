@@ -142,4 +142,36 @@ class Appthemes {
       titleSmall: TextStyle(color: Color.fromARGB(255, 4, 68, 163)),
     )
   );
+
+  static ThemeData getThemeByName(String themeName) {
+    switch (themeName) {
+      case 'purpleForest':
+        return purpleForest;
+      case 'deepOcean':
+        return deepOcean;
+      case 'redRiver':
+        return redRiver;
+      case 'grayCity':
+        return grayCity;
+      case 'heavensDay':
+        return heavensDay;
+      case 'sunsLight':
+        return sunsLight;
+      case 'frozenLake':
+        return frozenLake;
+      default:
+        return purpleForest; // Default case
+    }
+  }
+
+  static String getThemeName(ThemeData theme) {
+    if (theme == purpleForest) return 'purpleForest';
+    if (theme == deepOcean) return 'deepOcean';
+    if (theme == redRiver) return 'redRiver';
+    if (theme == grayCity) return 'grayCity';
+    if (theme == heavensDay) return 'heavensDay';
+    if (theme == sunsLight) return 'sunsLight';
+    if (theme == frozenLake) return 'frozenLake';
+    return 'purpleForest'; // Default case
+  }
 }

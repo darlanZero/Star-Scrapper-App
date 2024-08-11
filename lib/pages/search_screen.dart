@@ -20,10 +20,10 @@ class _SearchScreenState extends State<SearchScreen> {
       backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
       appBar: AppBar(
           backgroundColor: theme.selectedTheme.appBarTheme.backgroundColor,
-          title: const Text('Search', style: TextStyle(color: Color.fromARGB(255, 224, 224, 224), fontWeight: FontWeight.bold, shadows: <Shadow>[
+          title: Text('Search', style: TextStyle(color: theme.selectedTheme.textTheme.titleLarge?.color, fontWeight: FontWeight.bold, shadows: <Shadow>[
             Shadow(color: Colors.black, blurRadius: 10.0),
           ])),
-          iconTheme: const IconThemeData(color: Color.fromARGB(255, 224, 224, 224)),
+          iconTheme: IconThemeData(color: theme.selectedTheme.textTheme.titleMedium?.color),
           centerTitle: true,
           elevation: 0,
           shape: const RoundedRectangleBorder(
@@ -44,7 +44,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 labelText: 'Search for items',
                 prefixIcon: Icon(Icons.search),
               ),
-              style: TextStyle(color: Color.fromARGB(255, 241, 219, 219)),
+              style: TextStyle(color: theme.selectedTheme.textTheme.displayMedium?.color),
               controller: _searchController,
             ),
           ),
@@ -53,7 +53,7 @@ class _SearchScreenState extends State<SearchScreen> {
               itemCount: 10,
               itemBuilder: (conxtext, index) {
                 return ListTile(
-                  title: Text('Item $index', style: TextStyle(color: Color.fromARGB(255, 241, 219, 219))),
+                  title: Text('Item $index', style: TextStyle(color: theme.selectedTheme.textTheme.displaySmall?.color)),
                 );
               }
             )
