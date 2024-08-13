@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
-import 'package:star_scrapper_app/pages/book_details_screen.dart';
+import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.dart';
 
 class HomePageScreen extends StatefulWidget {
   final List<Map<String, dynamic>> libraryBooks;
@@ -20,6 +20,7 @@ class HomePageScreen extends StatefulWidget {
 class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin {
   late TabController _tabController;
   late TabsState _tabsState;
+  late FontProvider _favoritedBooksState;
 
   @override
   void initState() {
@@ -51,7 +52,9 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
   void didChangeDependencies() {
     super.didChangeDependencies();
     _tabsState = Provider.of<TabsState>(context, listen: false);
+    _favoritedBooksState = Provider.of<FontProvider>(context, listen: false);
     _tabsState.addListener(_updateLibraryTabs);
+    _favoritedBooksState.addListener(_updateLibraryTabs);
   }
 
   void _updateLibraryTabs() {
@@ -137,7 +140,7 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
                     ),
                     const SizedBox(height: 20),
                     Expanded(
-                      child: _buildBooksGrid(),
+                      child: _buildBooksGrid(tabName),
                     ),
                     const SizedBox(height: 20),
                   ],
@@ -150,12 +153,12 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildBooksGrid() {
+  Widget _buildBooksGrid(String tabName) {
     return Consumer<FontProvider>(
-      builder: (context, favoritedBooksState, child) {
-        final favoritedBooks = favoritedBooksState.favoritedBooks;
+      builder: (context, fontProvider, child) {
+        final booksInTab = fontProvider.getBooksInTab(tabName, context);
         return Center(
-          child: favoritedBooks.isEmpty
+          child: booksInTab.isEmpty
             ? Card(
                 color: Colors.deepPurple.withOpacity(0.5),
                 child: Padding(
@@ -176,7 +179,7 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
                   mainAxisSpacing: 8.0,
                   crossAxisSpacing: 8.0,
                 ),
-                itemCount: favoritedBooks.length,
+                itemCount: booksInTab.length,
                 itemBuilder: (context, index) {
                   return InkWell(
                     onTap: () {
@@ -184,7 +187,7 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
                         context,
                         MaterialPageRoute(
                           builder: (context) => BookDetailsScreen(
-                            bookDetails: favoritedBooks[index],
+                            bookDetails: booksInTab[index],
                             getChapter: widget.getchapter,
                           ),
                         ),
@@ -199,9 +202,9 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
                         child: Container(
                           color: Colors.black.withOpacity(0.5),
                           child: Text(
-                            favoritedBooks[index]['title']!,
+                            booksInTab[index]['title']!,
                             style: const TextStyle(
-                              color: Colors.grey,
+                              color: Colors.white70,
                               fontWeight: FontWeight.bold,
                               fontSize: 20,
                               shadows: [
@@ -218,7 +221,7 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: Image.network(
-                          favoritedBooks[index]['coverImageUrl'] ?? 'https://via.placeholder.com/150',
+                          booksInTab[index]['coverImageUrl'] ?? 'https://via.placeholder.com/150',
                           fit: BoxFit.cover,
                         ),
                       ),

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
-import 'package:star_scrapper_app/pages/about_application_screen.dart';
-import 'package:star_scrapper_app/pages/general_settings_screen.dart';
+import 'package:star_scrapper_app/pages/settings_pages/about_application_screen.dart';
+import 'package:star_scrapper_app/pages/settings_pages/general_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:star_scrapper_app/classes/config/themes.dart';  
+import 'package:star_scrapper_app/classes/config/themes.dart';
+import 'package:star_scrapper_app/classes/static/fonts_provider.dart';  
 
 class AppState extends ChangeNotifier {
   int _currentIndex = 0;
@@ -14,7 +15,9 @@ class AppState extends ChangeNotifier {
 } 
 
 class TabsState extends ChangeNotifier  {  
-  PreferredSizeWidget? _appBarBottom;    
+  PreferredSizeWidget? _appBarBottom;
+  
+  late BuildContext context;    
   PreferredSizeWidget? get appBarBottom => _appBarBottom;
 
   TabsState() {
@@ -28,14 +31,27 @@ class TabsState extends ChangeNotifier  {
   late Future<void> _tabsLoaded;
   Future<void> get tabsLoaded => _tabsLoaded;
 
+  String _defaultTab = 'Reading';
+  String get defaultTab => _defaultTab;
+
+  void setDefaultTab(String tabName) {
+    if (_libraryTabs.contains(tabName)) {
+      _defaultTab = tabName;
+    } else {
+      _defaultTab =_libraryTabs.isNotEmpty ? _libraryTabs.first : 'Reading';
+    }
+    notifyListeners();
+  }
+
   void addLibraryTab(String tabName) {
     _libraryTabs.add(tabName);
     _saveLibraryTabs();
     notifyListeners();
   }
 
-  void removeLibraryTab(int index) {
-    _libraryTabs.removeAt(index);
+  void removeLibraryTab(int index, FontProvider fontProvider) {
+    String removedTab = _libraryTabs.removeAt(index);
+    _remapItemsFromRemovedTab(removedTab, fontProvider);
     _saveLibraryTabs();
     notifyListeners();
   }
@@ -60,12 +76,18 @@ class TabsState extends ChangeNotifier  {
     final prefs = await SharedPreferences.getInstance();
     final libraryTabs = prefs.getStringList('libraryTabs') ?? ['Reading'];
     _libraryTabs = libraryTabs;
+    _defaultTab = _libraryTabs.contains('Reading') ? 'Reading' : _libraryTabs.first;
     notifyListeners();
   }
 
   void _saveLibraryTabs() async {
     final prefs = await SharedPreferences.getInstance();
     prefs.setStringList('libraryTabs', _libraryTabs);
+  }
+
+  //book itens
+  void _remapItemsFromRemovedTab(String removedTab, FontProvider fontProvider) {
+    fontProvider.remapBooksFromRemovedTab(removedTab, defaultTab);
   }
 
   //general tabs

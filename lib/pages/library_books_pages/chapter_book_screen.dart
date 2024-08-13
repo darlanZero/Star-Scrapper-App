@@ -43,6 +43,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
 
   late PageController? _pageController;
   late ScrollController _scrollController;
+  // ignore: unused_field
   late FontProvider _fontProvider;
   late String _chapterWebViewUrl;
 

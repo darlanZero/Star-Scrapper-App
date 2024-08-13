@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/config/themes.dart';
 import 'package:star_scrapper_app/components/UI/theme_preview_widgets.dart';
-import 'package:star_scrapper_app/pages/settings_pages/library_settings_screen.dart';
+import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/library_settings_screen.dart';
 
 class GeneralSettingsScreen extends StatefulWidget {
   const GeneralSettingsScreen({super.key});
@@ -27,7 +27,7 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
             style: TextStyle(
               fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18, 
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: theme.selectedTheme.textTheme.titleLarge?.color,
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -48,7 +48,7 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
                     children: [
                       Icon(
                         Icons.library_books,
-                        color: Colors.white,
+                        color: theme.selectedTheme.textTheme.displayMedium?.color,
                         size: MediaQuery.of(context).size.width >= 600 ? 30 : 20,
                       ),
                       SizedBox(width: 10),
@@ -56,8 +56,8 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
                         'Library',
                         style: TextStyle(
                           fontSize: MediaQuery.of(context).size.width >= 600 ? 16 : 12, 
-                          fontWeight: FontWeight.normal,
-                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          color: theme.selectedTheme.textTheme.displayMedium?.color,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -80,7 +80,7 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
                   style: TextStyle(
                     fontSize: MediaQuery.of(context).size.width >= 600 ? 22 : 14, 
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: theme.selectedTheme.textTheme.titleSmall?.color,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),

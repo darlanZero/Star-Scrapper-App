@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';  
 import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';  
-import 'package:star_scrapper_app/pages/book_details_screen.dart';  
+import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.dart';  
 
 class FontBooksGalleryScreen extends StatefulWidget {  
   final String initialView;  

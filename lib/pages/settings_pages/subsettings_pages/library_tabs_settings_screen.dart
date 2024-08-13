@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
+import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 
 class LibraryTabsSettingsScreen extends StatefulWidget {
   const LibraryTabsSettingsScreen({super.key});
@@ -23,7 +24,7 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
         title: Text(
           "Library Tabs Settings",
           style: TextStyle(
-            color: Color.fromARGB(255, 224, 224, 224),
+            color: theme.selectedTheme.textTheme.titleLarge?.color,
             fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
             fontWeight: FontWeight.bold,
           )
@@ -44,11 +45,12 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
             Navigator.pop(context);
           },
         ),
-        iconTheme: const IconThemeData(color: Color.fromARGB(255, 224, 224, 224)),
+        iconTheme: IconThemeData(color: theme.selectedTheme.textTheme.titleMedium?.color),
       ),
 
       body: Consumer<TabsState>(
         builder: (context, tabsState, child) {
+          final fontProvider = Provider.of<FontProvider>(context, listen: false);
           return Column(
             children: [
               Expanded(
@@ -64,7 +66,7 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
                         title: Text(
                           tabsState.libraryTabs[index],
                           style: TextStyle(
-                            color: Color.fromARGB(255, 224, 224, 224),
+                            color: theme.selectedTheme.textTheme.displayLarge?.color,
                             fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
                             fontWeight: FontWeight.bold,
                           )
@@ -72,7 +74,7 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
                         trailing: IconButton(
                           icon: Icon(Icons.delete),
                           onPressed: () {
-                            tabsState.removeLibraryTab(index);
+                            tabsState.removeLibraryTab(index,fontProvider);
                           },
                         ),
                         onTap: () async {
@@ -96,7 +98,7 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
                         decoration:  InputDecoration(
                           hintText: 'Add new tab name',
                           hintStyle: TextStyle(
-                            color: Color.fromARGB(255, 224, 224, 224),
+                            color: theme.selectedTheme.textTheme.displayLarge?.color,
                           ),
                           filled: true,
                           fillColor: Colors.grey[800],
@@ -105,7 +107,7 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
                           ),
                         ),
                         style: TextStyle(
-                          color: Color.fromARGB(255, 224, 224, 224),
+                          color: theme.selectedTheme.textTheme.displayLarge?.color,
                         ),
                       ),
                     ),

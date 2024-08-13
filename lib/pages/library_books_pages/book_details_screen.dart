@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, kDe
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
-import 'package:star_scrapper_app/pages/chapter_book_screen.dart';
+import 'package:star_scrapper_app/pages/library_books_pages/chapter_book_screen.dart';
 import 'package:url_launcher/url_launcher.dart';  
 import 'package:webview_flutter/webview_flutter.dart' as flutter_webview;  
 import 'package:webview_windows/webview_windows.dart' as webview_windows;
@@ -26,6 +26,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   bool _isChapterReversed = false;
   String _selectedLanguagePrefix = '';
   bool _showWebView = false;
+  // ignore: unused_field
   bool _isLoadingChapter = false;
 
   void _toogleChapterOrder() {
@@ -181,7 +182,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     color: Colors.red,
                   ),
                   onPressed: () {
-                    favoritedBooksState.toggleFavorite(widget.bookDetails);
+                    favoritedBooksState.toggleFavorite(widget.bookDetails, context);
                   }
                 );
               },
