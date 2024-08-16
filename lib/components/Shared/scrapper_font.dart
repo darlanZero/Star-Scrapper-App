@@ -10,6 +10,7 @@ class Fonte {
   List<String> flags;
   final api;
   bool isActive = false;
+  bool isRRated = false;
 
   Fonte({
     required this.image,
@@ -18,6 +19,7 @@ class Fonte {
     required this.flags,
     required this.api,
     this.isActive = false,
+    this.isRRated = false,
   });
 
   void toggleActive() {
@@ -174,12 +176,21 @@ List<Fonte> InactiveFonts = [];
           ),  
         ),  
       ),  
-      trailing: IconButton(  
-        icon: Icon(  
-          isActive ? Icons.toggle_on : Icons.toggle_off,  
-          color: isActive ? Colors.green : Colors.red,  
-        ),  
-        onPressed: () => toggleFontState(font),  
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            font.isRRated ? Icons.remove_red_eye : Icons.remove_red_eye_outlined,
+            color: font.isRRated ? Colors.red : Colors.green,
+          ),
+          IconButton(  
+            icon: Icon(  
+              isActive ? Icons.toggle_on : Icons.toggle_off,  
+              color: isActive ? Colors.green : Colors.red,  
+            ),  
+            onPressed: () => toggleFontState(font),  
+          ),
+        ],
       ),  
     );  
   }

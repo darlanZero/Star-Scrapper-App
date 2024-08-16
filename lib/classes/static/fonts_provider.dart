@@ -15,7 +15,8 @@ class FontProvider with ChangeNotifier {
       languagePrefix: 'All',
       flags: ['https://cdn-icons-png.flaticon.com/512/44/44386.png'],
       isActive: false,
-      api: MangadexScrapper()
+      api: MangadexScrapper(),
+      isRRated: true,
     ),
     // Add more fonts here
   ];
