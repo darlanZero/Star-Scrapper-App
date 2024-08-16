@@ -19,7 +19,7 @@ void main(List<String> args) {
     [
       ChangeNotifierProvider(create: (context) => ThemeProvider()),
       ChangeNotifierProvider(create: (context) => AppState()),
-      ChangeNotifierProvider(create: (context) => TabsState()),
+      ChangeNotifierProvider(create: (_) => TabsState(_)),
       ChangeNotifierProvider(create: (context) => FontProvider()),
     ], child: const MyApp()),
   );

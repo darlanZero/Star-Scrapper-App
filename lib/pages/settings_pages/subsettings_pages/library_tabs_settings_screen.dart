@@ -80,7 +80,7 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
                         onTap: () async {
                           final newName = await _showRenameDialog(context, tabsState.libraryTabs[index]);
                           if (newName != null) {
-                            tabsState.renameLibraryTab(index, newName);
+                            tabsState.renameLibraryTab(index, newName, fontProvider);
                           }
                         },
                       )

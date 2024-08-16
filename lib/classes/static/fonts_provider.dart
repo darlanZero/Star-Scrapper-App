@@ -1,4 +1,3 @@
-// font_provider.dart
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -6,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/classes/Scrappers/mangadex_scrapper.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
-import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';// Importar AppState
+import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';
 
 class FontProvider with ChangeNotifier {
   List<Fonte> _fonts = [
@@ -22,11 +21,6 @@ class FontProvider with ChangeNotifier {
   ];
 
   List<Map<String, dynamic>> _favoritedBooks = [];
-
-  BuildContext tabsContext(BuildContext context) {
-
-    return Provider.of<TabsState>(context, listen: false).context = context;
-  }
 
   FontProvider() {
     _loadFonts();
@@ -48,15 +42,15 @@ class FontProvider with ChangeNotifier {
   }
 
   void toggleFavorite(Map<String, dynamic> book, BuildContext context) {  
-  final isFavorited = _favoritedBooks.contains(book);  
-  if (isFavorited) {  
-    _favoritedBooks.remove(book);  
-  } else {  
-    addBookToTab('Reading', book, context);  
-  }  
-  _saveFavoritedBooks();  
-  notifyListeners();  
-}
+    final isFavorited = _favoritedBooks.contains(book);  
+    if (isFavorited) {  
+      _favoritedBooks.remove(book);  
+    } else {  
+      addBookToTab('Reading', book, context);  
+    }  
+    _saveFavoritedBooks();  
+    notifyListeners();  
+  }
 
   bool isFavorited(Map<String, dynamic> book) {
     return _favoritedBooks.contains(book);
@@ -102,7 +96,7 @@ class FontProvider with ChangeNotifier {
 
   // Books tabs
   List<Map<String, dynamic>> getBooksInTab(String tabName, BuildContext context) {  
-    final tabsState = Provider.of<TabsState>(tabsContext(context), listen: false);  
+    final tabsState = Provider.of<TabsState>(context, listen: false);  
     if (tabsState.libraryTabs.contains(tabName)) {  
       return _favoritedBooks.where((book) => book['tab'] == tabName).toList();  
     }  
@@ -110,7 +104,7 @@ class FontProvider with ChangeNotifier {
   }
 
   void addBookToTab(String tabName, Map<String, dynamic> book, BuildContext context) {  
-    final tabsState = Provider.of<TabsState>(tabsContext(context), listen: false);  
+    final tabsState = Provider.of<TabsState>(context, listen: false);  
     if (tabsState.libraryTabs.contains('Reading')) {  
       book['tab'] = 'Reading';  
     } else if (tabsState.libraryTabs.isNotEmpty) {  
@@ -127,8 +121,18 @@ class FontProvider with ChangeNotifier {
     notifyListeners();  
   }
 
+  void renameTabBooks(String oldName, String newName, BuildContext context) {
+    for (var book in _favoritedBooks) {
+      if (book['tab'] == oldName) {
+        book['tab'] = newName;
+      }
+    }
+    _saveFavoritedBooks();
+    notifyListeners();
+  }
+
   void removeBookFromTab(String tabName, Map<String, dynamic> book, BuildContext context) {
-    final tabsState = Provider.of<TabsState>(tabsContext(context), listen: false);
+    final tabsState = Provider.of<TabsState>(context, listen: false);
     
     if (tabName == 'Reading' || tabsState.libraryTabs.contains(tabName)) {
       _favoritedBooks.remove(book);

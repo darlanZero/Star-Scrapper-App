@@ -20,7 +20,7 @@ class TabsState extends ChangeNotifier  {
   late BuildContext context;    
   PreferredSizeWidget? get appBarBottom => _appBarBottom;
 
-  TabsState() {
+  TabsState(this.context) {
     _tabsLoaded = _loadLibraryTabs();
   }
 
@@ -56,8 +56,10 @@ class TabsState extends ChangeNotifier  {
     notifyListeners();
   }
 
-  void renameLibraryTab(int index, String newName) {
+  void renameLibraryTab(int index, String newName, FontProvider fontProvider) {
+    String oldName = _libraryTabs[index];
     _libraryTabs[index] = newName;
+    fontProvider.renameTabBooks(oldName, newName, context);
     _saveLibraryTabs();
     notifyListeners();
   }
