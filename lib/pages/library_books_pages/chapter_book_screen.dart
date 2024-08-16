@@ -18,7 +18,7 @@ class ChapterBookScreen extends StatefulWidget {
   final String chapterTitle;
   final String chapterWebViewUrl;
 
-  final Future<Map<String, dynamic>> Function(String) fetchChapterImages; // Function to fetch chapter images
+  final Stream<Map<String, dynamic>> Function(String) fetchChapterImages; // Function to fetch chapter images
 
   const ChapterBookScreen({
     super.key,
@@ -39,6 +39,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   bool _isPaginatedView = false;
   List<double> _pageHeights = [];
   List<String> _chapterImages = [];
+  StreamSubscription<Map<String, dynamic>>? _chapterImagesSubscription;
   bool _showWebView = false;
 
   late PageController? _pageController;
@@ -50,6 +51,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   @override
   void initState() {
     super.initState();
+    _chapterWebViewUrl = widget.chapterWebViewUrl;
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
     _fontProvider = Provider.of<FontProvider>(context, listen: false);
     _scrollController = ScrollController();
@@ -73,10 +75,15 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   }
 
   Future<void> _loadChapterImages() async {
-    final chapterData = await widget.fetchChapterImages(widget.chapterId);
-    setState(() {
-      _chapterImages = List<String>.from(chapterData['imagePaths']);
-      _chapterWebViewUrl = chapterData['chapterWebviewUrl'];
+    _chapterImagesSubscription = widget.fetchChapterImages(widget.chapterId).listen((imageData) {
+      if (imageData['type'] == 'image') {
+        setState(() {
+          _chapterImages.add(imageData['imagePath']);
+        });
+      } else if (imageData['type'] == 'info') {
+        _chapterWebViewUrl = imageData['chapterWebviewUrl'];
+      }
+    
     });
   }
 
@@ -103,6 +110,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   void dispose() {
     _scrollController.dispose();
     _pageController?.dispose();
+    _chapterImagesSubscription?.cancel();
     super.dispose();
   }
 
@@ -402,25 +410,27 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                   IconButton(
                     icon: Icon(Icons.arrow_forward_ios_rounded),
                     onPressed: () async {
-                      final nextChapterData =
-                          await widget.fetchChapterImages(widget.chapterId);
-                      if (nextChapterData.isNotEmpty) {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ChapterBookScreen(
-                              bookTitle: widget.bookTitle,
-                              chapterId: nextChapterData['chapterID'],
-                              chapterTitle: widget.chapterTitle,
-                              fetchChapterImages: widget.fetchChapterImages,
-                              chapterWebViewUrl: nextChapterData['chapterWebviewUrl'],
-                            ),
-                          ),
-                        );
-                      } else {
+                      final nextChapterStream = widget.fetchChapterImages(widget.chapterId);
+                      bool hasNextChapter = false;
+                          
+                     await for (var nextChapterData in nextChapterStream) {
+                        if (nextChapterData.isNotEmpty) {
+                          hasNextChapter = true;
+                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => ChapterBookScreen(
+                            bookTitle: widget.bookTitle,
+                            chapterId: nextChapterData['chapterID'],
+                            chapterTitle: nextChapterData['title'],
+                            fetchChapterImages: widget.fetchChapterImages,
+                            chapterWebViewUrl: nextChapterData['chapterWebviewUrl'],
+                          )));
+                          break;
+                        }
+                      }
+
+                      if (!hasNextChapter) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('No more chapters available'),
+                          SnackBar(
+                            content: Text('No more chapters available.'),
                           ),
                         );
                       }

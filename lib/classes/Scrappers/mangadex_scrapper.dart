@@ -217,7 +217,7 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
   }
 
   @override
-  Future<Map<String, dynamic>> getChapter(String chapterID) async {  
+  Stream<Map<String, String>> getChapter(String chapterID) async* {  
     final url = '$_baseUrl/at-home/server/$chapterID';  
     final response = await http.get(Uri.parse(url), headers: {  
       'Content-Type': 'application/json',  
@@ -238,7 +238,6 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 
         await Directory(tempChapterDir).create(recursive: true);  
 
-        List<String> imagePaths = [];  
         for (String filename in imageFileNames) {  
           final imageUrl = '$baseUrl/data/$chapterHash/$filename';  
           final imagePath = path.join(tempChapterDir, filename);  
@@ -248,17 +247,13 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
             final file = File(imagePath);  
             await file.writeAsBytes(imageResponse.bodyBytes);  
             // Use o caminho do arquivo diretamente  
-            imagePaths.add(file.path);  
+            yield {'type':'image','imagePath': file.path, 'chapterID': chapterID, 'chapterWebviewUrl': 'https://mangadex.org/chapter/$chapterID', 'title': 'Chapter $chapterID'};
           } else {  
             print('Failed to download image: $filename');  
           }  
         }  
 
-        return {  
-          'chapterID': chapterID,  
-          'imagePaths': imagePaths,
-          'chapterWebviewUrl': 'https://mangadex.org/chapter/$chapterID',  
-        };  
+        ;
       } else {  
         throw Exception('Failed to load chapter details: ${data['result']}');  
       }  

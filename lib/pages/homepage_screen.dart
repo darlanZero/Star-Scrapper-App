@@ -6,7 +6,7 @@ import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.
 
 class HomePageScreen extends StatefulWidget {
   final List<Map<String, dynamic>> libraryBooks;
-  final Future<Map<String, dynamic>> Function(String) getchapter;
+  final  Stream<Map<String, dynamic>> Function(String) getchapter;
   const HomePageScreen({
     super.key, 
     required this.libraryBooks,

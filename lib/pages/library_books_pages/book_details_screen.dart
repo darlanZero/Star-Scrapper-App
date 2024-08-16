@@ -11,7 +11,7 @@ import 'package:webview_windows/webview_windows.dart' as webview_windows;
 
 class BookDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> bookDetails;
-  final Future<Map<String, dynamic>> Function(String) getChapter;
+  final Stream<Map<String, dynamic>> Function(String) getChapter;
   const BookDetailsScreen({
     Key? key, 
     required this.bookDetails,
@@ -183,6 +183,9 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   ),
                   onPressed: () {
                     favoritedBooksState.toggleFavorite(widget.bookDetails, context);
+                    setState(() {
+                      
+                    });
                   }
                 );
               },
@@ -336,20 +339,17 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   );
 
                   try {
-                    final chapterData = await widget.getChapter(chapter['id']);
-
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    Navigator.push(
-                      context, 
-                      MaterialPageRoute(
-                        builder: (context) => ChapterBookScreen(
-                          bookTitle: widget.bookDetails['title'],
-                          chapterId: chapterData['chapterID'],
-                          chapterTitle: chapter['chapter'],
-                          fetchChapterImages: widget.getChapter,
-                        ),
-                      )
-                    );
+                    await for (final chapterData in widget.getChapter(chapter['id'])) {
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => ChapterBookScreen(
+                        bookTitle: widget.bookDetails['title'],
+                        chapterId: chapterData['chapterID'],
+                        chapterTitle: chapter['title'],
+                        fetchChapterImages: widget.getChapter,
+                        chapterWebViewUrl: chapterData['chapterWebviewUrl'],
+                      )));
+                      break;
+                    }
                   } catch (e) {
                     ScaffoldMessenger.of(context).hideCurrentSnackBar();
                     ScaffoldMessenger.of(context).showSnackBar(

@@ -1,7 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:star_scrapper_app/classes/app_state.dart';  
+import 'package:star_scrapper_app/classes/app_state.dart';
+import 'package:star_scrapper_app/classes/static/fonts_provider.dart';  
 import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';  
 import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.dart';  
 
@@ -78,7 +79,8 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   }
   @override  
   Widget build(BuildContext context) {
-    final theme = Provider.of<ThemeProvider>(context);  
+    final theme = Provider.of<ThemeProvider>(context);
+    
     return Scaffold(  
       backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,  
       appBar: AppBar(  
@@ -125,7 +127,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
           )  
         ),  
       ),  
-      body: _dynamicBooksGrid(),  
+      body: _dynamicBooksGrid(theme),  
     );  
   }  
 
@@ -151,7 +153,8 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     );  
   }  
 
-   Widget _dynamicBooksGrid() {  
+   Widget _dynamicBooksGrid(ThemeProvider theme) {
+    final fontProvider = Provider.of<FontProvider>(context, listen: false);  
     return FutureBuilder<List<dynamic>>(  
       future: _bookFuture,  
       builder: (context, snapshot) {  
@@ -162,7 +165,8 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {  
           return const Center(child: Text('No data available'));  
         } else {  
-          List<dynamic> books = snapshot.data!;  
+          List<dynamic> books = snapshot.data!;
+            
 
            return NotificationListener<ScrollNotification>(
             onNotification: (ScrollNotification scrollInfo) {
@@ -181,7 +185,8 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
               ),
               itemCount: books.length,
               itemBuilder: (context, index) {
-                return _buildBookTile(books[index]);
+                final isFavorited = fontProvider.isFavorited(books[index]);
+                return _buildBookTile(books[index], theme, isFavorited);
               },
             ),
           );  
@@ -190,10 +195,12 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     );  
   }  
 
-  Widget _buildBookTile(dynamic bookDetails) {
+  Widget _buildBookTile(dynamic bookDetails, ThemeProvider theme, bool isFavorited) {
     String title = widget.selectedFont.api.getTitle(bookDetails);
     String imageUrl = widget.selectedFont.api.getCoverImageUrl(bookDetails);
     String mangaId = widget.selectedFont.api.getBookId(bookDetails);
+    final fontProvider = Provider.of<FontProvider>(context, listen: false);
+    bool isBookFavorited = fontProvider.isFavorited(bookDetails);
 
     if (kDebugMode) {
       print('image URL: $imageUrl');
@@ -202,38 +209,61 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
       onTap: () {
         _navigateToBookDetails(mangaId);
       },
-      child: GridTile(
-        footer: ClipRRect(
-          borderRadius: BorderRadius.only(
-            bottomLeft: Radius.circular(8.0),
-            bottomRight: Radius.circular(8.0),
-          ),
-          child: Container(
-            color: Colors.black.withOpacity(0.5),
-            padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10.0),
+          border: isBookFavorited ? Border.all(color: theme.selectedTheme.primaryColor.withAlpha(150), width: 2.0) : null,
+        ),
+        child: GridTile(
+          footer: ClipRRect(
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(8.0),
+              bottomRight: Radius.circular(8.0),
+            ),
+            child: Container(
+              color: Colors.black.withOpacity(0.5),
+              padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Image.network(
-            imageUrl,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return Image.network('https://via.placeholder.com/150', fit: BoxFit.cover);
-            },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child:Stack(
+              children: [
+                Image.network(
+
+                  imageUrl,
+                  color: isBookFavorited ? Colors.black.withOpacity(0.5) : null,
+                  colorBlendMode: isBookFavorited ? BlendMode.srcOver : BlendMode.dstATop,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Image.network('https://via.placeholder.com/150', fit: BoxFit.cover);
+                  },
+                  width: MediaQuery.of(context).size.width,
+                  height: MediaQuery.of(context).size.width,
+                ),
+                if (isBookFavorited) 
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: const Icon(Icons.favorite, color: Colors.red, size: 24,),
+                  )
+                
+              ],
+            ) 
           ),
         ),
-      ),
+      ), 
     );
   } 
 
@@ -268,7 +298,11 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
             getChapter: widget.selectedFont.api.getChapter,
           ),  
         ),  
-      );  
+      ).then((_) {
+        setState(() {
+          
+        });
+      });  
     } catch (e) {  
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 

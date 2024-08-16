@@ -42,7 +42,8 @@ class FontProvider with ChangeNotifier {
   }
 
   void toggleFavorite(Map<String, dynamic> book, BuildContext context) {  
-    final isFavorited = _favoritedBooks.contains(book);  
+    final index = _favoritedBooks.indexWhere((favorited) => favorited['id'] == book['id']);  
+    final isFavorited = index != -1;  
     if (isFavorited) {  
       _favoritedBooks.remove(book);  
     } else {  
@@ -53,7 +54,7 @@ class FontProvider with ChangeNotifier {
   }
 
   bool isFavorited(Map<String, dynamic> book) {
-    return _favoritedBooks.contains(book);
+    return _favoritedBooks.any((favorited) => favorited['id'] == book['id']);
   }
 
   List<Fonte> get activeFonts => _fonts.where((font) => font.isActive).toList();
