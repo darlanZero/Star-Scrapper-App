@@ -71,7 +71,11 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         retrieveLastChapter: retrieveLastChapter,
         retrieveNextChapter: retrieveNextChapter
       ),
-      const ScrappersScreen(),
+      ScrappersScreen(
+        getChapter: getchapter,
+        retrieveLastChapter: retrieveLastChapter,
+        retrieveNextChapter: retrieveNextChapter
+      ),
       const SettingsScreen(),
     ];
   }
