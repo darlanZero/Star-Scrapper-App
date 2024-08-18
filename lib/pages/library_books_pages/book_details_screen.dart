@@ -84,6 +84,46 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
     String imageUrl = widget.bookDetails['coverImageUrl'] ?? 'https://via.placeholder.com/150';
 
+    void _showMoveBookDialog(BuildContext context) {
+      final fontProvider = Provider.of<FontProvider>(context, listen: false);
+      final tabsState = Provider.of<TabsState>(context, listen: false);
+      final currentTab = widget.bookDetails['tab'] ?? tabsState.defaultTab;
+
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Move Book'),
+            content: SingleChildScrollView(
+              child: ListBody(
+                children: tabsState.libraryTabs.map((libraryTab) {
+                  return RadioListTile<String>(
+                    title: Text(libraryTab),
+                    value: libraryTab,
+                    groupValue: currentTab,
+                    onChanged: (String? value) {
+                      if (value != null && value != currentTab) {
+                        fontProvider.moveBookInTab(currentTab, value, widget.bookDetails, context);
+                        Navigator.of(context).pop();
+                      }
+                    }
+                  );
+                }).toList()
+              )
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Cancel'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        }
+      );
+    }
+
     return CustomScrollView(
       slivers: <Widget>[
         SliverAppBar(
@@ -251,7 +291,31 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   _showWebView = !_showWebView;
                 });
               },
-            )
+            ),
+
+            const SizedBox(width: 16.0),
+
+            PopupMenuButton(
+              onSelected: (String value) {
+                if (value == 'Move Book From Tab') {
+                  _showMoveBookDialog(context);
+                }
+              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                const PopupMenuItem<String>(
+                  value: 'Rename Book',
+                  child: Text('Rename book', ),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'Migrate Book',
+                  child: Text('Migrate book', ),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'Move Book From Tab',
+                  child: Text('Move book from tab', ),
+                ),
+              ]
+            ),
           ],
         ),
         SliverToBoxAdapter(
