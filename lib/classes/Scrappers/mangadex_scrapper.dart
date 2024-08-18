@@ -216,7 +216,7 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
   }
 
   @override
-  Stream<Map<String, String>> getChapter(String chapterID) async* {  
+  Stream<Map<String, dynamic>> getChapter(String chapterID, String mangaID) async* {  
     final url = '$_baseUrl/at-home/server/$chapterID';  
     final response = await http.get(Uri.parse(url), headers: {  
       'Content-Type': 'application/json',  
@@ -260,6 +260,49 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
       throw Exception('Failed to load data: ${response.statusCode}');  
     }  
   }  
+
+  Future<String?> _findAdjacentChapterId(String currentChapterId, String mangaId, bool isNext) async {
+    final bookDetails = await getBookDetails(mangaId);
+    final chapters = bookDetails['chapters'] as List<dynamic>;
+
+    chapters.sort((a,b) => (double.parse(a['chapter'] ?? '0')).compareTo((double.parse(b['chapter'] ?? '0'))));
+
+    final currentChapterIndex = chapters.indexWhere((chapter) => chapter['id'] == currentChapterId);
+    if (currentChapterIndex == -1) return null;
+
+    final currentChapter = chapters[currentChapterIndex];
+    final currentlanguage = currentChapter['translatedLanguage'];
+
+    int step = isNext ? 1 : -1;
+    int index = currentChapterIndex + step;
+
+    while (index >= 0 && index < chapters.length) {
+      if (chapters[index]['translatedLanguage'] == currentlanguage) {
+        return chapters[index]['id'];
+      }
+      index += step;
+    }
+
+    return null;
+  }
+
+  Stream<Map<String, dynamic>> _retrieveLastChapter(String currentChapterId, String mangaId) async* {
+    final lastChapterId = await _findAdjacentChapterId(currentChapterId, mangaId, false);
+    if (lastChapterId != null) {
+      yield* getChapter(lastChapterId, mangaId);
+    } else {
+      yield {'error': 'No previous chapters available.'};
+    }
+  }
+
+  Stream<Map<String, dynamic>> _retrieveNextChapter(String currentChapterId, String mangaId) async* {
+    final nextChapterId = await _findAdjacentChapterId(currentChapterId, mangaId, true);
+    if (nextChapterId != null) {
+      yield* getChapter(nextChapterId, mangaId);
+    } else {
+      yield {'error': 'No next chapters available.'};
+    }
+  }
 
   @override
   Future<dynamic> searchTitle(String title) async {

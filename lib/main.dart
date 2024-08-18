@@ -53,17 +53,23 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   final List<Map<String, dynamic>> libraryBooks = [];
 
   late final List<Widget> _pages;
-  late  Stream<Map<String, dynamic>> Function(String) getchapter;
+  late Stream<Map<String, dynamic>> Function(String, String) getchapter;
+  late final Stream<Map<String, dynamic>> Function(String, String) retrieveLastChapter;  
+  late final Stream<Map<String, dynamic>> Function(String, String) retrieveNextChapter;
 
   @override
   void initState() {
     super.initState();
      final fontProvider = Provider.of<FontProvider>(context, listen: false);
     getchapter = fontProvider.selectedFontApi.getChapter ?? _dummyGetChapter;
+    retrieveLastChapter = fontProvider.selectedFontApi._retrieveLastChapter ?? _dummyGetChapter;
+    retrieveNextChapter = fontProvider.selectedFontApi._retrieveNextChapter ?? _dummyGetChapter;
     _pages = [
       HomePageScreen(
         libraryBooks: libraryBooks,
-        getchapter: getchapter
+        getchapter: getchapter,
+        retrieveLastChapter: retrieveLastChapter,
+        retrieveNextChapter: retrieveNextChapter
       ),
       const ScrappersScreen(),
       const SettingsScreen(),

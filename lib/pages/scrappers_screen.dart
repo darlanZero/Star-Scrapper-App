@@ -5,7 +5,10 @@ import 'package:star_scrapper_app/components/Shared/active_scrappers.dart';
 import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';
 
 class ScrappersScreen extends StatefulWidget {
-  const ScrappersScreen({super.key});
+  final Stream<Map<String, dynamic>> Function(String, String) getChapter;  
+  final Stream<Map<String, dynamic>> Function(String, String) retrieveLastChapter;  
+  final Stream<Map<String, dynamic>> Function(String, String) retrieveNextChapter;
+  const ScrappersScreen({super.key, required this.getChapter, required this.retrieveLastChapter, required this.retrieveNextChapter});
 
   @override
   State<ScrappersScreen> createState() => _ScrappersScreenState();
@@ -58,8 +61,12 @@ class _ScrappersScreenState extends State<ScrappersScreen> with TickerProviderSt
   Widget build(BuildContext context) {
        return TabBarView(
         controller: _tabController,
-        children: const [
-          Center(child: ScrapperActiveFonts()),
+        children: [
+          Center(child: ScrapperActiveFonts(
+            getChapter: widget.getChapter,
+            retrieveLastChapter: widget.retrieveLastChapter,
+            retrieveNextChapter: widget.retrieveNextChapter
+          )),
           Center(child: ScrapperDownloaderFonts()),
           Center(child: Text('History')),
           Center(child: Text('Migrate')),

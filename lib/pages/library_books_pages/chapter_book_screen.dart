@@ -17,17 +17,22 @@ class ChapterBookScreen extends StatefulWidget {
   final String chapterId;
   final String? chapterTitle;
   final String? chapterNumber;
+  final Stream<Map<String, dynamic>> Function(String, String) getChapter;  
+  final Stream<Map<String, dynamic>> Function(String, String) retrieveLastChapter;  
+  final Stream<Map<String, dynamic>> Function(String, String) retrieveNextChapter;
+  final String mangaID;
   final String chapterWebViewUrl;
-
-  final Stream<Map<String, dynamic>> Function(String) fetchChapterImages; // Function to fetch chapter images
 
   const ChapterBookScreen({
     super.key,
     required this.bookTitle,
     required this.chapterId,
+    required this.getChapter,
+    required this.retrieveLastChapter,
+    required this.retrieveNextChapter,
     this.chapterTitle,
+    required this.mangaID,
     this.chapterNumber,
-    required this.fetchChapterImages,
     this.chapterWebViewUrl = '',
   });
 
@@ -77,16 +82,37 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   }
 
   Future<void> _loadChapterImages() async {
-    _chapterImagesSubscription = widget.fetchChapterImages(widget.chapterId).listen((imageData) {
-      if (imageData['type'] == 'image') {
-        setState(() {
-          _chapterImages.add(imageData['imagePath']);
-        });
-      } else if (imageData['type'] == 'info') {
-        _chapterWebViewUrl = imageData['chapterWebviewUrl'];
-      }
-    
-    });
+    if (widget.getChapter != null) {
+      _chapterImagesSubscription = widget.getChapter(widget.chapterId, widget.mangaID).listen((imageData) {
+        if (imageData['type'] == 'image') {
+          setState(() {
+            _chapterImages.add(imageData['imagePath']);
+          });
+        } else if (imageData['type'] == 'info') {
+          _chapterWebViewUrl = imageData['chapterWebviewUrl'];
+        }
+      });
+    } else if (widget.retrieveLastChapter != null) {
+      _chapterImagesSubscription = widget.retrieveLastChapter!(widget.chapterId, widget.mangaID).listen((imageData) {
+        if (imageData['type'] == 'image') {
+          setState(() {
+            _chapterImages.add(imageData['imagePath']);
+          });
+        } else if (imageData['type'] == 'info') {
+          _chapterWebViewUrl = imageData['chapterWebviewUrl'];
+        }
+      });
+    } else if (widget.retrieveNextChapter != null) {
+      _chapterImagesSubscription = widget.retrieveNextChapter!(widget.chapterId, widget.mangaID).listen((imageData) {
+        if (imageData['type'] == 'image') {
+          setState(() {
+            _chapterImages.add(imageData['imagePath']);
+          });
+        } else if (imageData['type'] == 'info') {
+          _chapterWebViewUrl = imageData['chapterWebviewUrl'];
+        }
+      });
+    }
   }
 
   Future<void> _calculatePageHeights() async {
@@ -397,8 +423,36 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                 children: [
                   IconButton(
                     icon: Icon(Icons.auto_mode_rounded),
-                    onPressed: () =>
-                        widget.fetchChapterImages(widget.chapterId), // Use function to get previous chapter
+                    onPressed: () async {
+                      final previousChapterStream = widget.retrieveLastChapter(widget.chapterId, widget.mangaID);
+                      bool hasPreviousChapter = false;
+                          
+                     await for (var previousChapterData in previousChapterStream) {
+                        if (previousChapterData['type'] == 'image') {
+                          hasPreviousChapter = true;
+                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => ChapterBookScreen(
+                            bookTitle: widget.bookTitle,
+                            chapterId: previousChapterData['chapterID'],
+                            mangaID: widget.mangaID,
+                            chapterTitle: previousChapterData['title'],
+                            chapterNumber: previousChapterData['chapter'],
+                            getChapter: widget.getChapter,
+                            retrieveLastChapter: widget.retrieveLastChapter,
+                            retrieveNextChapter: widget.retrieveNextChapter,
+                            chapterWebViewUrl: previousChapterData['chapterWebviewUrl'],
+                          )));
+                          break;
+                        } else if (previousChapterData['type'] == 'error') {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(previousChapterData['message']),
+                            ),
+                          );
+                          break;
+                        }
+                      }
+                    }
+                      
                   ),
                   Text(
                     '${_currentPage + 1}/${_chapterImages.length}',
@@ -416,30 +470,32 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                   IconButton(
                     icon: Icon(Icons.arrow_forward_ios_rounded),
                     onPressed: () async {
-                      final nextChapterStream = widget.fetchChapterImages(widget.chapterId);
+                      final nextChapterStream = widget.retrieveNextChapter(widget.chapterId, widget.mangaID);
                       bool hasNextChapter = false;
                           
                      await for (var nextChapterData in nextChapterStream) {
-                        if (nextChapterData.isNotEmpty) {
+                        if (nextChapterData['type'] == 'image') {
                           hasNextChapter = true;
                           Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => ChapterBookScreen(
                             bookTitle: widget.bookTitle,
                             chapterId: nextChapterData['chapterID'],
+                            mangaID: widget.mangaID,
                             chapterTitle: nextChapterData['title'],
                             chapterNumber: nextChapterData['chapter'],
-                            fetchChapterImages: widget.fetchChapterImages,
+                            getChapter: widget.getChapter,
+                            retrieveLastChapter: widget.retrieveLastChapter,
+                            retrieveNextChapter: widget.retrieveNextChapter,
                             chapterWebViewUrl: nextChapterData['chapterWebviewUrl'],
                           )));
                           break;
+                        } else if (nextChapterData['type'] == 'error') {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(nextChapterData['message']),
+                            ),
+                          );
+                          break;
                         }
-                      }
-
-                      if (!hasNextChapter) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('No more chapters available.'),
-                          ),
-                        );
                       }
                     },
                   ),

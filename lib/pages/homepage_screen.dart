@@ -6,11 +6,16 @@ import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.
 
 class HomePageScreen extends StatefulWidget {
   final List<Map<String, dynamic>> libraryBooks;
-  final  Stream<Map<String, dynamic>> Function(String) getchapter;
+  final  Stream<Map<String, dynamic>> Function(String, String) getchapter; 
+  final Stream<Map<String, dynamic>> Function(String, String) retrieveLastChapter;  
+  final Stream<Map<String, dynamic>> Function(String, String) retrieveNextChapter;
   const HomePageScreen({
     super.key, 
     required this.libraryBooks,
-    required this.getchapter
+    required this.getchapter,
+    required this.retrieveLastChapter,
+    required this.retrieveNextChapter,
+
   });
 
   @override
@@ -189,6 +194,8 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
                           builder: (context) => BookDetailsScreen(
                             bookDetails: booksInTab[index],
                             getChapter: widget.getchapter,
+                            retrieveLastChapter: widget.retrieveLastChapter,
+                            retrieveNextChapter: widget.retrieveNextChapter,
                           ),
                         ),
                       );

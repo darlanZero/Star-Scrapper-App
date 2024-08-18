@@ -11,10 +11,14 @@ import 'package:webview_windows/webview_windows.dart' as webview_windows;
 
 class BookDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> bookDetails;
-  final Stream<Map<String, dynamic>> Function(String) getChapter;
+  final Stream<Map<String, dynamic>> Function(String, String) getChapter;
+  final Stream<Map<String, dynamic>> Function(String, String) retrieveLastChapter;  
+  final Stream<Map<String, dynamic>> Function(String, String) retrieveNextChapter;
   const BookDetailsScreen({
     Key? key, 
     required this.bookDetails,
+    required this.retrieveLastChapter,
+    required this.retrieveNextChapter,
     required this.getChapter,
   }): super(key: key);
 
@@ -506,14 +510,17 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   );
 
                   try {
-                    await for (final chapterData in widget.getChapter(chapter['id'])) {
+                    await for (final chapterData in widget.getChapter(chapter['id'], widget.bookDetails['id'])) {
                       ScaffoldMessenger.of(context).hideCurrentSnackBar();
                       Navigator.push(context, MaterialPageRoute(builder: (context) => ChapterBookScreen(
                         bookTitle: widget.bookDetails['title'],
                         chapterId: chapterData['chapterID'],
                         chapterTitle: chapter['title'],
+                        mangaID: widget.bookDetails['id'],
                         chapterNumber: chapter['chapter'],
-                        fetchChapterImages: widget.getChapter,
+                        getChapter: widget.getChapter,
+                        retrieveLastChapter: widget.retrieveLastChapter,
+                        retrieveNextChapter: widget.retrieveNextChapter,
                         chapterWebViewUrl: chapterData['chapterWebviewUrl'],
                       )));
                       break;
@@ -532,7 +539,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
                     if (kDebugMode) {
                       print('Failed to load chapter: $e');
-                      print(widget.getChapter(chapter['id']));
+                      print(widget.getChapter(chapter['id'], widget.bookDetails['id']));
                     }
                   } finally {
                     setState(() {

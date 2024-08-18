@@ -8,11 +8,17 @@ import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.
 
 class FontBooksGalleryScreen extends StatefulWidget {  
   final String initialView;  
-  final Fonte selectedFont;  
+  final Fonte selectedFont;
+  final Stream<Map<String, dynamic>> Function(String, String) getChapter;  
+  final Stream<Map<String, dynamic>> Function(String, String) retrieveLastChapter;  
+  final Stream<Map<String, dynamic>> Function(String, String) retrieveNextChapter;  
   const FontBooksGalleryScreen({  
       Key? key,  
       required this.initialView,  
-      required this.selectedFont  
+      required this.selectedFont,
+      required this.getChapter,
+      required this.retrieveLastChapter,
+      required this.retrieveNextChapter,  
   }) : super(key: key);  
 
   @override  
@@ -296,6 +302,8 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
           builder: (context) => BookDetailsScreen(  
             bookDetails: bookDetails,  
             getChapter: widget.selectedFont.api.getChapter,
+            retrieveLastChapter: widget.retrieveLastChapter,
+            retrieveNextChapter: widget.retrieveNextChapter,
           ),  
         ),  
       ).then((_) {

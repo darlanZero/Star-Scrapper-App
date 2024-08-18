@@ -7,8 +7,11 @@ import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';
 import 'package:star_scrapper_app/pages/pages.dart';  
 
-class ScrapperActiveFonts extends StatefulWidget {  
-  const ScrapperActiveFonts({Key? key}) : super(key: key);  
+class ScrapperActiveFonts extends StatefulWidget { 
+  final Stream<Map<String, dynamic>> Function(String, String) getChapter;  
+  final Stream<Map<String, dynamic>> Function(String, String) retrieveLastChapter;  
+  final Stream<Map<String, dynamic>> Function(String, String) retrieveNextChapter; 
+  const ScrapperActiveFonts({Key? key, required this.getChapter, required this.retrieveLastChapter, required this.retrieveNextChapter}) : super(key: key);  
 
   @override  
   State<ScrapperActiveFonts> createState() => _ScrapperActiveFontsState();  
@@ -107,6 +110,9 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
                   builder: (context) => FontBooksGalleryScreen(
                     initialView: 'popular',
                     selectedFont: font,
+                    getChapter: widget.getChapter,
+                    retrieveLastChapter: widget.retrieveLastChapter,
+                    retrieveNextChapter: widget.retrieveNextChapter,
                   ),
                 ),
               );
@@ -130,6 +136,9 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
                   builder: (context) => FontBooksGalleryScreen(
                     initialView: 'recent',
                     selectedFont: font,
+                    getChapter: widget.getChapter,
+                    retrieveLastChapter: widget.retrieveLastChapter,
+                    retrieveNextChapter: widget.retrieveNextChapter,
                   ),
                 ),
               );
