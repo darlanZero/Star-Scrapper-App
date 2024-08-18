@@ -27,6 +27,7 @@ class FontProvider with ChangeNotifier {
   FontProvider() {
     _loadFonts();
     _loadFavoritedBooks();
+    loadSelectedChapterId();
     notifyListeners();
   }
 
