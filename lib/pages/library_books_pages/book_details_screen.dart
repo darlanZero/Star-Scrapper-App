@@ -159,13 +159,13 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   child: Wrap(
                     spacing: 8.0,
                     runSpacing: 8.0,
-                    alignment: WrapAlignment.start,
-                    crossAxisAlignment: WrapCrossAlignment.start,
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     verticalDirection: VerticalDirection.down,
                     direction: Axis.horizontal,
                     children: widget.bookDetails['tags']
                       .map<Widget>((tag) => Chip(
-                        label: Text(tag, style: const TextStyle(color: Colors.white),),
+                        label: Text(tag, style: TextStyle(color: theme.selectedTheme.textTheme.displayMedium?.color),),
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
                         padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
@@ -311,7 +311,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     spacing: 8.0,
                     children: widget.bookDetails['tags'].map<Widget>((tag) {
                       return Chip(
-                        label: Text(tag, style: const TextStyle(color: Colors.white),),
+                        label: Text(tag, style: TextStyle(color: theme.selectedTheme.textTheme.displayMedium?.color),),
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
                         padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
@@ -319,7 +319,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                         elevation: 2.0,
                         surfaceTintColor: Colors.transparent,
                         shape: const StadiumBorder(),
-                        labelStyle: const TextStyle(color: Colors.white),
+                        labelStyle: TextStyle(color: theme.selectedTheme.textTheme.displayMedium?.color),
                         side: const BorderSide(color: Colors.transparent),
                       );
                     }).toList(),
