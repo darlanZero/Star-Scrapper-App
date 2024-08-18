@@ -22,6 +22,7 @@ class FontProvider with ChangeNotifier {
   ];
 
   List<Map<String, dynamic>> _favoritedBooks = [];
+  String? _selectedChapterId;
 
   FontProvider() {
     _loadFonts();
@@ -35,6 +36,8 @@ class FontProvider with ChangeNotifier {
   Fonte get selectedFont => _fonts.firstWhere((font) => font.isActive, orElse: () => _fonts.first);
 
   dynamic get selectedFontApi => selectedFont.api;
+
+  String? get selectedChapterId => _selectedChapterId;
 
   void toggleFontState(Fonte font) {
     font.isActive = !font.isActive;
@@ -94,6 +97,19 @@ class FontProvider with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final favoritedBooks = _favoritedBooks.map((book) => jsonEncode(book)).toList();
     prefs.setStringList('favoritedBooks', favoritedBooks);
+  }
+
+  Future<void> loadSelectedChapterId() async {
+    final prefs = await SharedPreferences.getInstance();
+    _selectedChapterId = prefs.getString('selectedChapterId');
+    notifyListeners();
+  }
+
+  Future<void> saveSelectedChapterId(String chapterId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selectedChapterId', chapterId);
+    _selectedChapterId = chapterId;
+    notifyListeners();
   }
 
   // Books tabs

@@ -15,7 +15,8 @@ import 'package:webview_windows/webview_windows.dart' as webview_windows;
 class ChapterBookScreen extends StatefulWidget {
   final String bookTitle;
   final String chapterId;
-  final String chapterTitle;
+  final String? chapterTitle;
+  final String? chapterNumber;
   final String chapterWebViewUrl;
 
   final Stream<Map<String, dynamic>> Function(String) fetchChapterImages; // Function to fetch chapter images
@@ -24,7 +25,8 @@ class ChapterBookScreen extends StatefulWidget {
     super.key,
     required this.bookTitle,
     required this.chapterId,
-    required this.chapterTitle,
+    this.chapterTitle,
+    this.chapterNumber,
     required this.fetchChapterImages,
     this.chapterWebViewUrl = '',
   });
@@ -252,9 +254,11 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
       webViewContent = const Text('Unsupported platform');
     }
 
+    final displayTitle = widget.chapterTitle ?? widget.chapterNumber ?? 'Chapter';
     return Scaffold(
+      
       appBar: AppBar(
-        title: Text(widget.chapterTitle),
+        title: Text(displayTitle),
         backgroundColor: Color.fromARGB(178, 60, 16, 180),
         elevation: 0,
         shape: const RoundedRectangleBorder(
@@ -290,10 +294,12 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final displayTitle = widget.chapterTitle ?? widget.chapterNumber ?? 'Chapter';
+
     return Scaffold(
       appBar:_showControls ? AppBar(
         title: Text(
-          '${widget.bookTitle} - ${widget.chapterTitle}',
+          '${widget.bookTitle} - $displayTitle',
           style: const TextStyle(color: Color.fromARGB(255, 224, 224, 224), fontWeight: FontWeight.bold)
         ),
         shape: const RoundedRectangleBorder(
@@ -420,6 +426,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                             bookTitle: widget.bookTitle,
                             chapterId: nextChapterData['chapterID'],
                             chapterTitle: nextChapterData['title'],
+                            chapterNumber: nextChapterData['chapter'],
                             fetchChapterImages: widget.fetchChapterImages,
                             chapterWebViewUrl: nextChapterData['chapterWebviewUrl'],
                           )));

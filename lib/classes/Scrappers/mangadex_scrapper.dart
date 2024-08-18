@@ -206,7 +206,6 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
         },
         'status': attributes['status'],
         'tags': attributes['tags'].map((tag) => tag['attributes']['name']['en']).toList(),
-        'genres': data['data']['attributes']['genres'],
         'type': mangaDetails['type'],
         'chapters': chapters,
       };

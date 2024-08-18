@@ -12,15 +12,18 @@ class Appthemes {
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: Color.fromARGB(50, 60, 16, 180),
     ),
+    cardTheme: CardTheme(
+      color: Colors.black,
+      shadowColor: Colors.purple.shade900,
+      elevation: 5,
+    ),
     useMaterial3: true,
-     textTheme: TextTheme(
-
+    textTheme: TextTheme(
       displayMedium: TextStyle(color: Colors.grey),
       displaySmall: TextStyle(color: Colors.grey),
       titleMedium: TextStyle(color: Color.fromARGB(255, 17, 82, 19)),
       titleSmall: TextStyle(color: Colors.white),
     ),
-    
   );
 
   static final ThemeData deepOcean = ThemeData(
@@ -34,13 +37,18 @@ class Appthemes {
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: Colors.blue.shade800,
     ),
+    cardTheme: CardTheme(
+      color: Colors.black,
+      shadowColor: Colors.blue.shade900,
+      elevation: 5,
+    ),
     useMaterial3: true,
-     textTheme: TextTheme(
+    textTheme: TextTheme(
       displayMedium: TextStyle(color: Colors.grey),
       displaySmall: TextStyle(color: Colors.grey),
       titleMedium: TextStyle(color: Color.fromARGB(255, 17, 82, 19)),
       titleSmall: TextStyle(color: Colors.white),
-    )
+    ),
   );
 
   static final ThemeData redRiver = ThemeData(
@@ -54,13 +62,18 @@ class Appthemes {
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: Colors.red.shade800,
     ),
+    cardTheme: CardTheme(
+      color: Colors.black,
+      shadowColor: Colors.red.shade900,
+      elevation: 5,
+    ),
     useMaterial3: true,
     textTheme: TextTheme(
       displayMedium: TextStyle(color: Colors.grey),
       displaySmall: TextStyle(color: Colors.grey),
       titleMedium: TextStyle(color: Color.fromARGB(255, 17, 82, 19)),
       titleSmall: TextStyle(color: Colors.white),
-    )
+    ),
   );
 
   static final ThemeData grayCity = ThemeData(
@@ -74,16 +87,21 @@ class Appthemes {
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: Colors.grey.shade800,
     ),
+    cardTheme: CardTheme(
+      color: Colors.black,
+      shadowColor: Colors.grey.shade900,
+      elevation: 5,
+    ),
     useMaterial3: true,
     textTheme: TextTheme(
       displayMedium: TextStyle(color: Colors.grey),
       displaySmall: TextStyle(color: Colors.grey),
       titleMedium: TextStyle(color: Color.fromARGB(255, 17, 82, 19)),
       titleSmall: TextStyle(color: Colors.white),
-    )
+    ),
   );
 
-  static final heavensDay = ThemeData(
+  static final ThemeData heavensDay = ThemeData(
     brightness: Brightness.light,
     primaryColor: Colors.lightBlue.shade100,
     scaffoldBackgroundColor: Colors.white,
@@ -94,13 +112,18 @@ class Appthemes {
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: Colors.lightBlue.shade200,
     ),
+    cardTheme: CardTheme(
+      color: Colors.white,
+      shadowColor: Colors.lightBlue.shade100,
+      elevation: 5,
+    ),
     useMaterial3: true,
     textTheme: TextTheme(
       displayMedium: TextStyle(color: Color.fromARGB(255, 24, 22, 22)),
       displaySmall: TextStyle(color: Color.fromARGB(255, 24, 22, 22)),
       titleMedium: TextStyle(color: Color.fromARGB(255, 19, 226, 26)),
       titleSmall: TextStyle(color: Color.fromARGB(255, 4, 68, 163)),
-    )
+    ),
   );
 
   static final ThemeData sunsLight = ThemeData(
@@ -114,13 +137,18 @@ class Appthemes {
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: Colors.yellow.shade200,
     ),
+    cardTheme: CardTheme(
+      color: Colors.white,
+      shadowColor: Colors.yellow.shade100,
+      elevation: 5,
+    ),
     useMaterial3: true,
     textTheme: TextTheme(
       displayMedium: TextStyle(color: Color.fromARGB(255, 24, 22, 22)),
       displaySmall: TextStyle(color: Color.fromARGB(255, 24, 22, 22)),
       titleMedium: TextStyle(color: Color.fromARGB(255, 19, 226, 26)),
       titleSmall: TextStyle(color: Colors.black),
-    )
+    ),
   );
 
   static final ThemeData frozenLake = ThemeData(
@@ -134,13 +162,18 @@ class Appthemes {
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: Colors.blue.shade200,
     ),
+    cardTheme: CardTheme(
+      color: Colors.white,
+      shadowColor: Colors.blue.shade100,
+      elevation: 5,
+    ),
     useMaterial3: true,
     textTheme: TextTheme(
       displayMedium: TextStyle(color: Color.fromARGB(255, 24, 22, 22)),
       displaySmall: TextStyle(color: Color.fromARGB(255, 24, 22, 22)),
       titleMedium: TextStyle(color: Color.fromARGB(255, 1, 255, 10)),
       titleSmall: TextStyle(color: Color.fromARGB(255, 4, 68, 163)),
-    )
+    ),
   );
 
   static ThemeData getThemeByName(String themeName) {

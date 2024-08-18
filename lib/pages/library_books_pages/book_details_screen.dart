@@ -28,6 +28,13 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   bool _showWebView = false;
   // ignore: unused_field
   bool _isLoadingChapter = false;
+  String? _selectedChapterId;
+
+  @override
+  void initState() {
+    super.initState();
+   Provider.of<FontProvider>(context, listen: false).loadSelectedChapterId();
+  }
 
   void _toogleChapterOrder() {
     setState(() {
@@ -128,6 +135,51 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     ),
                   )
                 ),
+                Positioned(
+                  top: 16.0,
+                  left: isDesktop ? 240 : 130,
+                  child: Text(
+                    widget.bookDetails['type'] ?? 'No type available',
+                    style: const TextStyle(
+                      fontSize: 24.0,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      shadows: <Shadow>[
+                        Shadow(color: Colors.black, blurRadius: 10.0),
+                      ]
+                    ),
+                  ),
+                ),
+
+                if (!isDesktop) Positioned(
+                  bottom: 30.0,
+                  right: 16.0,
+                  width: 300,
+
+                  child: Wrap(
+                    spacing: 8.0,
+                    runSpacing: 8.0,
+                    alignment: WrapAlignment.start,
+                    crossAxisAlignment: WrapCrossAlignment.start,
+                    verticalDirection: VerticalDirection.down,
+                    direction: Axis.horizontal,
+                    children: widget.bookDetails['tags']
+                      .map<Widget>((tag) => Chip(
+                        label: Text(tag, style: const TextStyle(color: Colors.white),),
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                        visualDensity: VisualDensity.compact,
+                        elevation: 2.0,
+                        surfaceTintColor: Colors.transparent,
+                        shape: const StadiumBorder(),
+                        labelStyle: const TextStyle(color: Colors.white),
+                        side: const BorderSide(color: Colors.transparent),
+                      ))
+                      .toList(),
+                  )
+                ),
+                
                 if (isDesktop) Positioned(
                   top: 16.0,
                   right: 16.0,
@@ -221,6 +273,30 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   ),
                 ),
 
+                if (widget.bookDetails['altTitles'] != null && widget.bookDetails['altTitles'].isNotEmpty)
+                  Card(
+                    margin: EdgeInsets.only(top: 16.0),
+                    surfaceTintColor: Colors.blueGrey,
+                    color: theme.selectedTheme.cardTheme.color,
+                    shadowColor: theme.selectedTheme.cardTheme.shadowColor,
+                    elevation: theme.selectedTheme.cardTheme.elevation,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: widget.bookDetails['altTitles'].map<Widget>((altTitle) {
+                          return Text(
+                            altTitle.values.first,
+                            style: TextStyle(
+                              fontSize: 16.0,
+                              color: theme.selectedTheme.textTheme.displayMedium?.color
+                            )
+                          );
+                        }
+                      ).toList(),),
+                    ),
+                  ),
+
                 const SizedBox(height: 16.0),
                 if (!isDesktop)
                   Text(
@@ -229,6 +305,24 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                       fontSize: 16.0,
                       color: theme.selectedTheme.textTheme.displayMedium?.color
                     ),
+                  ),
+
+                  if (isDesktop) Wrap(
+                    spacing: 8.0,
+                    children: widget.bookDetails['tags'].map<Widget>((tag) {
+                      return Chip(
+                        label: Text(tag, style: const TextStyle(color: Colors.white),),
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                        visualDensity: VisualDensity.compact,
+                        elevation: 2.0,
+                        surfaceTintColor: Colors.transparent,
+                        shape: const StadiumBorder(),
+                        labelStyle: const TextStyle(color: Colors.white),
+                        side: const BorderSide(color: Colors.transparent),
+                      );
+                    }).toList(),
                   ),
 
                 Text(
@@ -268,7 +362,9 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Chapter ${chapter['chapter']}',
+                      chapter['title'] != null && chapter['title'].isNotEmpty
+                      ? '${chapter['title']} - Chapter ${chapter['chapter']}'
+                      : 'Chapter ${chapter['chapter']}',
                       style: TextStyle(
                         color: theme.selectedTheme.textTheme.titleSmall?.color,
                         fontSize: 16.0,
@@ -291,6 +387,10 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                       ),
                     )
                   ],
+                ),
+                tileColor: _selectedChapterId == chapter['id'] ? Color(0xFF483D8B).withAlpha(150).withOpacity(0.5) : null,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
                 ),
                 subtitle: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -322,7 +422,10 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                 onTap: () async {
                   setState(() {
                     _isLoadingChapter = true;
+                    _selectedChapterId = chapter['id'];
                   });
+
+                  await Provider.of<FontProvider>(context, listen: false).saveSelectedChapterId(chapter['id']);
 
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -345,6 +448,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                         bookTitle: widget.bookDetails['title'],
                         chapterId: chapterData['chapterID'],
                         chapterTitle: chapter['title'],
+                        chapterNumber: chapter['chapter'],
                         fetchChapterImages: widget.getChapter,
                         chapterWebViewUrl: chapterData['chapterWebviewUrl'],
                       )));
