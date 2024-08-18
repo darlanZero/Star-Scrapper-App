@@ -62,8 +62,8 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     super.initState();
      final fontProvider = Provider.of<FontProvider>(context, listen: false);
     getchapter = fontProvider.selectedFontApi.getChapter ?? _dummyGetChapter;
-    retrieveLastChapter = fontProvider.selectedFontApi._retrieveLastChapter ?? _dummyGetChapter;
-    retrieveNextChapter = fontProvider.selectedFontApi._retrieveNextChapter ?? _dummyGetChapter;
+    retrieveLastChapter = fontProvider.selectedFontApi.retrieveLastChapter ?? _dummyGetChapter;
+    retrieveNextChapter = fontProvider.selectedFontApi.retrieveNextChapter ?? _dummyGetChapter;
     _pages = [
       HomePageScreen(
         libraryBooks: libraryBooks,

@@ -286,7 +286,7 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
     return null;
   }
 
-  Stream<Map<String, dynamic>> _retrieveLastChapter(String currentChapterId, String mangaId) async* {
+  Stream<Map<String, dynamic>> retrieveLastChapter(String currentChapterId, String mangaId) async* {
     final lastChapterId = await _findAdjacentChapterId(currentChapterId, mangaId, false);
     if (lastChapterId != null) {
       yield* getChapter(lastChapterId, mangaId);
@@ -295,7 +295,7 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
     }
   }
 
-  Stream<Map<String, dynamic>> _retrieveNextChapter(String currentChapterId, String mangaId) async* {
+  Stream<Map<String, dynamic>> retrieveNextChapter(String currentChapterId, String mangaId) async* {
     final nextChapterId = await _findAdjacentChapterId(currentChapterId, mangaId, true);
     if (nextChapterId != null) {
       yield* getChapter(nextChapterId, mangaId);
