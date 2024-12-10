@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/components/Shared/active_scrappers.dart';
+import 'package:star_scrapper_app/components/Shared/library_books_history.dart';
 import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';
 
 class ScrappersScreen extends StatefulWidget {
@@ -68,7 +69,7 @@ class _ScrappersScreenState extends State<ScrappersScreen> with TickerProviderSt
             retrieveNextChapter: widget.retrieveNextChapter
           )),
           Center(child: ScrapperDownloaderFonts()),
-          Center(child: Text('History')),
+          Center(child: LibraryBooksHistory()),
           Center(child: Text('Migrate')),
         ],
       );

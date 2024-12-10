@@ -80,8 +80,6 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     ];
   }
 
-  
-
   Future<Map<String, dynamic>> _dummyGetChapter(String chapterId) async {  
     // Implement a dummy function or throw an error if no font is selected  
     throw Exception('No font selected');

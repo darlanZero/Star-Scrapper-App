@@ -493,7 +493,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     _selectedChapterId = chapter['id'];
                   });
 
-                  await Provider.of<FontProvider>(context, listen: false).saveSelectedChapterId(chapter['id']);
+                  await Provider.of<FontProvider>(context, listen: false).SaveSingleSelectedChapterId(widget.bookDetails['id'],chapter['id']);
 
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
