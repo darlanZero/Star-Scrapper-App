@@ -14,7 +14,7 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<FontProvider>(context, listen: false).favoritedBooks;
+      Provider.of<FontProvider>(context, listen: false).readBooks;
       Provider.of<FontProvider>(context, listen: false).loadSelectedChapterId();
       Provider.of<FontProvider>(context, listen: false).loadLastReadedChapterId();
     });
@@ -23,7 +23,7 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
   @override
   Widget build(BuildContext context) {
     final fontProvider = Provider.of<FontProvider>(context, listen: false);
-    final favoritedBooks = fontProvider.favoritedBooks;
+    final readedBooks = fontProvider.readBooks.reversed.toList();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -35,9 +35,9 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
               mainAxisSpacing: 8.0,
               crossAxisSpacing: 8.0,
             ),
-            itemCount: favoritedBooks.length,
+            itemCount: readedBooks.length,
             itemBuilder: (context, index) {
-              final book = favoritedBooks[index];
+              final book = readedBooks[index];
               final bookId = book['id'];
 
               return Stack(
@@ -57,8 +57,8 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                         color: Colors.black.withOpacity(0.5),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: FutureBuilder<String>(
-                        future: fontProvider.loadLastReadedChapterId().then((map) => map[bookId] ?? 'N/A'),
+                      child: FutureBuilder<Map<String, String>?>(
+                        future: fontProvider.loadLastReadedChapterId().then((map) => map[bookId]),
                         builder: (context, snapshot) {
                           if (snapshot.connectionState == ConnectionState.waiting) {
                             return const CircularProgressIndicator();
@@ -85,9 +85,9 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
         } else {
           return ListView.builder(
             padding: const EdgeInsets.all(8.0),
-            itemCount: favoritedBooks.length,
+            itemCount: readedBooks.length,
             itemBuilder: (context, index) {
-              final book = favoritedBooks[index];
+              final book = readedBooks[index];
               final bookId = book['id'];
 
               return Card(
@@ -126,29 +126,40 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          FutureBuilder<String>(
-                            future: fontProvider.loadLastReadedChapterId().then((map) => map[bookId] ?? 'N/A'),
+                          FutureBuilder<Map<String, String>?>(
+                            future: fontProvider.loadLastReadedChapterId().then((map) => map[bookId]),
                             builder: (context, snapshot) {
                               if (snapshot.connectionState == ConnectionState.waiting) {
                                 return const CircularProgressIndicator();
                               } else if (snapshot.hasError) {
                                 return Text('Erro: ${snapshot.error}');
                               } else {
-                                final lastReadedChapter = snapshot.data ?? 'N/A';
-                                return Text(
-                                  'Chap. $lastReadedChapter',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                  ),
-                                );
+                                final lastReadedChapter = snapshot.data;
+                                if (lastReadedChapter != null) {
+                                  final chapterTitle = lastReadedChapter['title'] ?? 'N/A';
+                                  return Text(
+                                    'Cap. $chapterTitle',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                    ),
+                                  );
+                                } else {
+                                  return Text(
+                                    'Cap. N/A',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                    ),
+                                  );
+                                }
                               }
                             },
                           ),
                         ],
                       ),
                     ),
-                    FutureBuilder<List<String>>(
+                    FutureBuilder<List<Map<String, String>>>(
                       future: fontProvider.loadSelectedChapterId().then((map) => map[bookId] ?? []),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -156,16 +167,17 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                         } else if (snapshot.hasError) {
                           return Text('Erro: ${snapshot.error}');
                         } else {
-                          final selectedChapterIds = snapshot.data ?? [];
+                          final selectedChapters = snapshot.data ?? [];
                           return Positioned(
                             bottom: 10,
                             left: 10,
                             right: 10,
                             child: Wrap(
                               spacing: 8.0,
-                              children: selectedChapterIds.map((chapterId) {
+                              children: selectedChapters.map((chapter) {
+                                final chapterTitle = chapter['title'] ?? 'N/A';
                                 return Chip(
-                                  label: Text('Chap. $chapterId'),
+                                  label: Text('Chap. $chapterTitle'),
                                 );
                               }).toList(),
                             ),

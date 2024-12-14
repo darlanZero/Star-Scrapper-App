@@ -37,6 +37,10 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final fontProvider = Provider.of<FontProvider>(context, listen: false);
+    fontProvider.addBookToReadBooks(widget.bookDetails);
+  });
    Provider.of<FontProvider>(context, listen: false).loadSelectedChapterId();
   }
 
@@ -493,7 +497,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     _selectedChapterId = chapter['id'];
                   });
 
-                  await Provider.of<FontProvider>(context, listen: false).SaveSingleSelectedChapterId(widget.bookDetails['id'],chapter['id']);
+                  await Provider.of<FontProvider>(context, listen: false).SaveSingleSelectedChapterId(widget.bookDetails['id'],chapter['id'], chapter['chapter']);
 
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(

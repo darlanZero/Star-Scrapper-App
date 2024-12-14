@@ -22,28 +22,28 @@ class FontProvider with ChangeNotifier {
   ];
 
   List<Map<String, dynamic>> _favoritedBooks = [];
-  Map<String, List<String>> _selectedChapterIds = {};
-  Map<String, String> _lastReadedChapterId = {};
+  List<Map<String, dynamic>> _readBooks = [];
+  Map<String, List<Map<String, String>>> _selectedChapterIds = {};
+  Map<String, Map<String, String>> _lastReadedChapterId = {};
  
 
   FontProvider() {
-   
+    clearSelectedChapterIds();
     _loadFonts();
     _loadFavoritedBooks();
+    _loadReadBooks();
     loadSelectedChapterId();
     loadLastReadedChapterId();
-
-
-
     notifyListeners();
   }
 
   List<Fonte> get fonts => _fonts;
   List<Map<String, dynamic>> get favoritedBooks => _favoritedBooks;
+  List<Map<String, dynamic>> get readBooks => _readBooks;
   Fonte get selectedFont => _fonts.firstWhere((font) => font.isActive, orElse: () => _fonts.first);
   dynamic get selectedFontApi => selectedFont.api;
-  Map<String, List<String>> get selectedChapterIds => _selectedChapterIds;
-  Map<String, String>? get lastReadedChapterId => _lastReadedChapterId;
+  Map<String, List<Map<String, String>>> get selectedChapterIds => _selectedChapterIds;
+  Map<String, Map<String, String>> get lastReadedChapterId => _lastReadedChapterId;
 
   void toggleFontState(Fonte font) {
     font.isActive = !font.isActive;
@@ -115,50 +115,101 @@ class FontProvider with ChangeNotifier {
     await prefs.remove('selectedChapterIds');
   }
 
-  Future<Map<String, List<String>>> loadSelectedChapterId() async {
+  Future<Map<String, List<Map<String, String>>>> loadSelectedChapterId() async {
     final prefs = await SharedPreferences.getInstance();
     final selectedChapterIdsString = prefs.getString('selectedChapterIds') ?? '{}';
-    final selectedChapterIds = jsonDecode(selectedChapterIdsString) as Map<String, dynamic>;
+    final Map<String, dynamic> selectedChapterIds = jsonDecode(selectedChapterIdsString);
+
     _selectedChapterIds = selectedChapterIds.map((key, value) {
       if (value is List) {
-        return MapEntry(key, value.map((item) => item.toString()).toList());
+        return MapEntry(
+          key,
+          value.map<Map<String, String>>((item) {
+            return Map<String, String>.from(item as Map);
+          }).toList(),
+        );
       } else {
-        return MapEntry(key, <String>[]);
+        return MapEntry(key, <Map<String, String>>[]);
       }
     });
+
     notifyListeners();
     return _selectedChapterIds;
   }
 
-  Future<void> saveSelectedChapterId(String bookId,List<String> chapterIds) async {
+  Future<void> saveSelectedChapterId(String bookId, List<Map<String, String>> chapters) async {
     final prefs = await SharedPreferences.getInstance();
-    _selectedChapterIds[bookId] = chapterIds;
+    _selectedChapterIds[bookId] = chapters;
     await prefs.setString('selectedChapterIds', jsonEncode(_selectedChapterIds)); 
     notifyListeners();
   }
 
-  SaveSingleSelectedChapterId(String bookId,String chapterId) async {
+  SaveSingleSelectedChapterId(String bookId,String chapterId, String chapterTitle) async {
     _selectedChapterIds[bookId] ??= [];
-    if (!_selectedChapterIds[bookId]!.contains(chapterId)) {
-      _selectedChapterIds[bookId]!.add(chapterId);
+   bool chapterExists = _selectedChapterIds[bookId]!.any((chapter) => chapter['id'] == chapterId);
+
+    if (!chapterExists) {
+      _selectedChapterIds[bookId]!.add({'id': chapterId, 'title': chapterTitle});
       await saveSelectedChapterId(bookId, _selectedChapterIds[bookId]!);
-    } else {
-      return false;
+
+      await saveLastReadedChapterId();
     }
   }
 
-  Future<void> saveLastReadedChapterId(String bookId,String chapterId) async {
+  //Readed books
+
+  void _loadReadBooks() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('lastReadedChapterId', chapterId);
-    _lastReadedChapterId[bookId] = chapterId;
-    await prefs.setString('lastReadedChapterId', jsonEncode(_lastReadedChapterId));
+    final readBooks = prefs.getStringList('readBooks') ?? [];
+    _readBooks = readBooks.map((book) {
+      try {
+        return jsonDecode(book) as Map<String, dynamic>;
+      } catch (e) {
+        return null;
+      }
+    }).where((book) => book != null).cast<Map<String, dynamic>>().toList();
     notifyListeners();
   }
 
-  Future<Map<String, String>> loadLastReadedChapterId() async {
+  void _saveReadBooks() async {
     final prefs = await SharedPreferences.getInstance();
-    final lastReadedChapterId = prefs.getString('lastReadedChapterId') ?? '{}';
-    _lastReadedChapterId = Map<String, String>.from(jsonDecode(lastReadedChapterId));
+    final readBooks = _readBooks.map((book) => jsonEncode(book)).toList();
+    prefs.setStringList('readBooks', readBooks);
+  }
+
+  void addBookToReadBooks(Map<String, dynamic> book) {
+    if (!_readBooks.any((b) => b['id'] == book['id'])) {
+      _readBooks.add(book);
+      _saveReadBooks();
+      notifyListeners();
+    }
+  }
+
+  Future<void> saveLastReadedChapterId() async {
+    _lastReadedChapterId = {};
+    final prefs = await SharedPreferences.getInstance();
+    _selectedChapterIds.forEach((bookId, chapters) {
+      if (chapters.isNotEmpty) {
+        final lastChapter = chapters.last;
+        _lastReadedChapterId[bookId] = {
+          'id': lastChapter['id']!,
+          'title': lastChapter['title']!,
+        };
+      }
+    });
+    await prefs.setString('lastReadedChapterId', jsonEncode(_lastReadedChapterId));
+
+    notifyListeners();
+  }
+
+  Future<Map<String, Map<String, String>>> loadLastReadedChapterId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastReadedChapterIdString = prefs.getString('lastReadedChapterId') ?? '{}';
+    final Map<String, dynamic> decodedData = jsonDecode(lastReadedChapterIdString);
+
+    _lastReadedChapterId = decodedData.map((key, value) {
+      return MapEntry(key, Map<String, String>.from(value as Map));
+    });
     notifyListeners();
     return _lastReadedChapterId;
   }
