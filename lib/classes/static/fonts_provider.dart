@@ -28,10 +28,11 @@ class FontProvider with ChangeNotifier {
  
 
   FontProvider() {
-    clearSelectedChapterIds();
+    
     _loadFonts();
     _loadFavoritedBooks();
     _loadReadBooks();
+    
     loadSelectedChapterId();
     loadLastReadedChapterId();
     notifyListeners();
@@ -183,6 +184,11 @@ class FontProvider with ChangeNotifier {
       _saveReadBooks();
       notifyListeners();
     }
+  }
+
+  void clearLastReadedChapterId() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('lastReadedChapterId');
   }
 
   Future<void> saveLastReadedChapterId() async {

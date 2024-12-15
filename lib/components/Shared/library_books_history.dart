@@ -65,14 +65,26 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                           } else if (snapshot.hasError) {
                             return Text('Erro: ${snapshot.error}');
                           } else {
-                            final lastReadedChapter = snapshot.data ?? 'N/A';
-                            return Text(
-                              'Chap. $lastReadedChapter',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            );
+                            final lastReadedChapter = snapshot.data;
+                            if (lastReadedChapter != null) {
+                              final chapterTitle = lastReadedChapter['title'] ?? 'N/A';
+                              return Text(
+                                'Cap. $chapterTitle',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
+                              );
+                            } else {
+                              return Text(
+                                'Cap. N/A',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
+                              );
+                            }
+                            
                           }
                         },
                       ),
