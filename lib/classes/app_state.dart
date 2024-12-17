@@ -59,7 +59,7 @@ class TabsState extends ChangeNotifier  {
   void renameLibraryTab(int index, String newName, FontProvider fontProvider) {
     String oldName = _libraryTabs[index];
     _libraryTabs[index] = newName;
-    fontProvider.renameTabBooks(oldName, newName, context);
+    fontProvider.renameTabBooks(oldName, newName);
     _saveLibraryTabs();
     notifyListeners();
   }

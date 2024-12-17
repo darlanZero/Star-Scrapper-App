@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:cron/cron.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,14 +22,19 @@ class FontProvider with ChangeNotifier {
     // Add more fonts here
   ];
 
+  //Maps of books
   List<Map<String, dynamic>> _favoritedBooks = [];
   List<Map<String, dynamic>> _readBooks = [];
   Map<String, List<Map<String, String>>> _selectedChapterIds = {};
   Map<String, Map<String, String>> _lastReadedChapterId = {};
+
+  //Tabs
+  Duration _updateInterval = Duration(hours: 24);
+  Set<String> _tabsToUpdate = {};
+  Cron? _cron;
  
 
   FontProvider() {
-    
     _loadFonts();
     _loadFavoritedBooks();
     _loadReadBooks();
@@ -46,19 +52,125 @@ class FontProvider with ChangeNotifier {
   Map<String, List<Map<String, String>>> get selectedChapterIds => _selectedChapterIds;
   Map<String, Map<String, String>> get lastReadedChapterId => _lastReadedChapterId;
 
+  Duration get updateInterval => _updateInterval;
+  Set<String> get tabsToUpdate => _tabsToUpdate;
+
   void toggleFontState(Fonte font) {
     font.isActive = !font.isActive;
     _saveFonts();
     notifyListeners();
   }
 
-  void toggleFavorite(Map<String, dynamic> book, BuildContext context) {  
+  //update single book details
+  Future<void> updateBookDetails(String bookId) async {
+    final fontApi = selectedFontApi;
+
+    Map<String, dynamic> updatedBookDetails = await fontApi.getBookDetails(bookId);
+
+    if (updatedBookDetails != null) {
+      List<Map<String, String>> readChapters = _selectedChapterIds[bookId] ?? [];
+
+      int index = _favoritedBooks.indexWhere((book) => book['id'] == bookId);
+      if (index != -1) {
+        _favoritedBooks[index] = updatedBookDetails;
+      }
+
+      _selectedChapterIds[bookId] = readChapters;
+
+      _saveFavoritedBooks();
+      await saveSelectedChapterId(bookId, readChapters);
+
+      notifyListeners();
+    }
+  }
+
+  void setUpdateInterval(Duration interval) {
+    _updateInterval = interval;
+    notifyListeners();
+  }
+
+  void _scheduleAutomaticUpdates(BuildContext context) {
+    _cron?.close();
+
+    _cron = Cron();
+    _cron!.schedule(Schedule.parse('*/${_updateInterval.inHours} * * * '), () async {
+      await _updateLibraryBooks(context);
+    });
+
+  }
+
+  void setTabsToUpdate(Set<String> tabs) {
+    _tabsToUpdate = tabs;
+    notifyListeners();
+  }
+
+  void _saveUpdateSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString('updateIntervalHours', _updateInterval.toString());
+    prefs.setStringList('tabsToUpdate', _tabsToUpdate.toList());
+  }
+
+  void _loadUpdateSettings(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    int hours = prefs.getInt('updateIntervalHours') ?? 24;
+    _updateInterval = Duration(hours: hours);
+    List<String> tabs = prefs.getStringList('tabsToUpdate') ?? [];
+    _tabsToUpdate = Set.from(tabs);
+
+    _scheduleAutomaticUpdates(context);
+    notifyListeners();
+  }
+
+  void setBooksInTab(String tab, List<Map<String, dynamic>> books) {
+    for (var book in books) {
+      book['tab'] = tab;
+    }
+    _favoritedBooks.removeWhere((book) => book['tab'] == tab);
+    _favoritedBooks.addAll(books);
+    _saveFavoritedBooks();
+    notifyListeners();
+  }
+
+  void updateBookInTab(String tab, Map<String, dynamic> updatedBook, BuildContext libraryContext) {
+    List<Map<String, dynamic>> booksInTab = getBooksInTab(tab, libraryContext);
+    int index = booksInTab.indexWhere((book) => book['id'] == updatedBook['id']);
+    if (index != -1) {
+      booksInTab[index] = updatedBook;
+      setBooksInTab(tab, booksInTab);
+    }
+  }
+
+  Future<void> _updateLibraryBooks(BuildContext libraryContext) async {
+    
+    for (String tab in _tabsToUpdate) {
+      List<Map<String, dynamic>> booksInTab = getBooksInTab(tab, libraryContext);
+
+      for (var book in booksInTab) {
+        String bookId = book['id'];
+
+        List<Map<String, String>> readChapters = _selectedChapterIds[bookId] ?? [];
+        Map<String, dynamic> updatedBookDetails = await selectedFontApi.getBookDetails(bookId);
+
+        if (updatedBookDetails != null) {
+          updateBookInTab(tab, updatedBookDetails, libraryContext);
+          _selectedChapterIds[bookId] = readChapters;
+          await saveSelectedChapterId(bookId, readChapters);
+        }
+      }
+    }
+    notifyListeners();
+  }
+
+  //General Functions
+
+  void toggleFavorite(Map<String, dynamic> book, BuildContext libraryContext) {  
     final index = _favoritedBooks.indexWhere((favorited) => favorited['id'] == book['id']);  
     final isFavorited = index != -1;  
     if (isFavorited) {  
       _favoritedBooks.remove(book);  
     } else {  
-      addBookToTab('Reading', book, context);  
+      addBookToTab('Reading', book, libraryContext);  
     }  
     _saveFavoritedBooks();  
     notifyListeners();  
@@ -221,16 +333,16 @@ class FontProvider with ChangeNotifier {
   }
 
   // Books tabs
-  List<Map<String, dynamic>> getBooksInTab(String tabName, BuildContext context) {  
-    final tabsState = Provider.of<TabsState>(context, listen: false);  
+  List<Map<String, dynamic>> getBooksInTab(String tabName, BuildContext libraryContext) {  
+    final tabsState = Provider.of<TabsState>(libraryContext, listen: false);  
     if (tabsState.libraryTabs.contains(tabName)) {  
       return _favoritedBooks.where((book) => book['tab'] == tabName).toList();  
     }  
     return [];  
   }
 
-  void addBookToTab(String tabName, Map<String, dynamic> book, BuildContext context) {  
-    final tabsState = Provider.of<TabsState>(context, listen: false);  
+  void addBookToTab(String tabName, Map<String, dynamic> book, BuildContext libraryContext) {  
+    final tabsState = Provider.of<TabsState>(libraryContext, listen: false);  
     if (tabsState.libraryTabs.contains('Reading')) {  
       book['tab'] = 'Reading';  
     } else if (tabsState.libraryTabs.isNotEmpty) {  
@@ -247,7 +359,7 @@ class FontProvider with ChangeNotifier {
     notifyListeners();  
   }
 
-  void renameTabBooks(String oldName, String newName, BuildContext context) {
+  void renameTabBooks(String oldName, String newName) {
     for (var book in _favoritedBooks) {
       if (book['tab'] == oldName) {
         book['tab'] = newName;
@@ -257,8 +369,8 @@ class FontProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void removeBookFromTab(String tabName, Map<String, dynamic> book, BuildContext context) {
-    final tabsState = Provider.of<TabsState>(context, listen: false);
+  void removeBookFromTab(String tabName, Map<String, dynamic> book, BuildContext libraryContext) {
+    final tabsState = Provider.of<TabsState>(libraryContext, listen: false);
     
     if (tabName == 'Reading' || tabsState.libraryTabs.contains(tabName)) {
       _favoritedBooks.remove(book);
@@ -267,9 +379,9 @@ class FontProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void moveBookInTab(String oldTabName, String newTabName, Map<String, dynamic> book, BuildContext context) {
-    removeBookFromTab(oldTabName, book, context);
-    addBookToTab(newTabName, book, context);
+  void moveBookInTab(String oldTabName, String newTabName, Map<String, dynamic> book, BuildContext libraryContext) {
+    removeBookFromTab(oldTabName, book, libraryContext);
+    addBookToTab(newTabName, book, libraryContext);
   }
 
   void remapBooksFromRemovedTab(String removedTab, String defaultTab) {  
