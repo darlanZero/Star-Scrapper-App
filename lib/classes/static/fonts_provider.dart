@@ -72,6 +72,8 @@ class FontProvider with ChangeNotifier {
 
       int index = _favoritedBooks.indexWhere((book) => book['id'] == bookId);
       if (index != -1) {
+        String currentTab = _favoritedBooks[index]['tab'] ?? 'Reading';
+        updatedBookDetails['tab'] = currentTab;
         _favoritedBooks[index] = updatedBookDetails;
       }
 

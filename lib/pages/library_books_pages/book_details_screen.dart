@@ -27,6 +27,7 @@ class BookDetailsScreen extends StatefulWidget {
 }
 
 class _BookDetailsScreenState extends State<BookDetailsScreen> {
+  late Map<String, dynamic> bookDetails;
   bool _isChapterReversed = false;
   String _selectedLanguagePrefix = '';
   bool _showWebView = false;
@@ -34,12 +35,15 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   bool _isLoadingChapter = false;
   String? _selectedChapterId;
 
+  Future<void>? _updateFuture;
+
   @override
   void initState() {
     super.initState();
+    bookDetails = widget.bookDetails;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final fontProvider = Provider.of<FontProvider>(context, listen: false);
-    fontProvider.addBookToReadBooks(widget.bookDetails);
+    fontProvider.addBookToReadBooks(bookDetails);
   });
    Provider.of<FontProvider>(context, listen: false).loadSelectedChapterId();
   }
@@ -64,17 +68,115 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
     return Scaffold(
       backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
-      body: _showWebView ? _buildWebView(context) : _ReactiveDetailsBook(isDesktop, theme),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _toogleChapterOrder,
-        child: const Icon(Icons.swap_vert),
-      ),
+      body: _showWebView ? 
+        _buildWebView(context) : 
+        FutureBuilder<void>(
+          future: _updateFuture, 
+          builder: (context, snapshot) {
+            if (_updateFuture == null) {
+              return _ReactiveDetailsBook(context, isDesktop, theme, bookDetails);
+            } else {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              } else {
+                return _ReactiveDetailsBook(context, isDesktop, theme, bookDetails);
+              }
+            }
+          }
+        ),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton(
+            heroTag: 'reverse_chapters',
+            onPressed: _toogleChapterOrder,
+            hoverColor: Colors.blueGrey,
+            child: Icon(
+              _isChapterReversed ? Icons.arrow_downward : Icons.arrow_upward,
+              color: Colors.white,
+              
+            ),
+          ),
+          const SizedBox(height: 8.0),
+          FloatingActionButton(
+            heroTag: 'update_book_details',
+            onPressed: () async {
+              final fontProvider = Provider.of<FontProvider>(context, listen: false);
+              final bookId = widget.bookDetails['id'];
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: const [
+                      Text('Updating book details...'),
+                      SizedBox(width: 10),
+                      CircularProgressIndicator(),
+                    ]
+                  ),
+                  duration: const Duration(minutes: 1),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+                )
+              );
+
+              try {
+                await fontProvider.updateBookDetails(bookId);
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Book details updated successfully!'),
+                    duration: Duration(seconds: 2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+                    backgroundColor: Colors.green,
+                  )
+                );
+
+                final updatedBook = fontProvider.favoritedBooks.firstWhere(
+                  (book) => book['id'] == bookId,
+                  orElse: () => bookDetails,
+                );
+
+                setState(() {
+                  _updateFuture = null;
+                  bookDetails = updatedBook;
+
+                }); // Refresh the screen
+              } catch (e) {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to update book details: $e'),
+                    duration: Duration(seconds: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+                    backgroundColor: Colors.red,
+                  )
+                );
+
+                if (kDebugMode) {
+                  print('Failed to update book details: $e');
+                }
+
+                setState(() {
+                  _updateFuture = null;
+                });
+              }
+
+            },
+            hoverColor: Colors.blueGrey,
+            child: const Icon(
+              Icons.update,
+              color: Colors.white,
+            )
+          )
+        ]
+      )
     );
   }
 
-  Widget _ReactiveDetailsBook(bool isDesktop, ThemeProvider theme) {
+  Widget _ReactiveDetailsBook(BuildContext context, bool isDesktop, ThemeProvider theme, Map<String, dynamic> bookDetails) {
     
-    List<dynamic> chapters = List.from(widget.bookDetails['chapters'] ?? []);
+    List<dynamic> chapters = List.from(bookDetails['chapters'] ?? []);
 
     if (_isChapterReversed) {
       chapters = chapters.reversed.toList();
@@ -90,12 +192,12 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         .toList();
     }
 
-    String imageUrl = widget.bookDetails['coverImageUrl'] ?? 'https://via.placeholder.com/150';
+    String imageUrl = bookDetails['coverImageUrl'] ?? 'https://via.placeholder.com/150';
 
     void _showMoveBookDialog(BuildContext context) {
       final fontProvider = Provider.of<FontProvider>(context, listen: false);
       final tabsState = Provider.of<TabsState>(context, listen: false);
-      final currentTab = widget.bookDetails['tab'] ?? tabsState.defaultTab;
+      final currentTab = bookDetails['tab'] ?? tabsState.defaultTab;
 
       showDialog(
         context: context,
@@ -111,7 +213,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     groupValue: currentTab,
                     onChanged: (String? value) {
                       if (value != null && value != currentTab) {
-                        fontProvider.moveBookInTab(currentTab, value, widget.bookDetails, context);
+                        fontProvider.moveBookInTab(currentTab, value, bookDetails, context);
                         Navigator.of(context).pop();
                       }
                     }
@@ -235,7 +337,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     width: 300,
                     child: SingleChildScrollView(
                       child: Text(
-                        widget.bookDetails['description'] ?? 'No description Available',
+                        bookDetails['description'] ?? 'No description Available',
                         style: const TextStyle(
                           fontSize: 16.0,
                           color: Colors.white
@@ -251,7 +353,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        widget.bookDetails['author']['name'] ?? 'No author available',
+                        bookDetails['author']['name'] ?? 'No author available',
                         style: TextStyle(
                           fontSize: isDesktop ? 16.0 : 8.0,
                           fontWeight: FontWeight.bold,
@@ -260,7 +362,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                       ),
                       const SizedBox(width: 8.0),
                       Text(
-                        widget.bookDetails['artist']['name'] ?? 'No artist available',
+                        bookDetails['artist']['name'] ?? 'No artist available',
                         style:  TextStyle(
                           fontSize: isDesktop ? 16.0 : 8.0,
                           color: Colors.grey
@@ -275,17 +377,15 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           actions: [
             Consumer<FontProvider>(
               builder: (context, favoritedBooksState, child) {
-                final isFavorited = favoritedBooksState.isFavorited(widget.bookDetails);
+                final isFavorited = favoritedBooksState.isFavorited(bookDetails);
                 return IconButton(
                   icon: Icon(
                     isFavorited ? Icons.favorite : Icons.favorite_border,
                     color: Colors.red,
                   ),
                   onPressed: () {
-                    favoritedBooksState.toggleFavorite(widget.bookDetails, context);
-                    setState(() {
-                      
-                    });
+                    favoritedBooksState.toggleFavorite(bookDetails, context);
+                    setState(() {});
                   }
                 );
               },
@@ -333,7 +433,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
               crossAxisAlignment: isDesktop ? CrossAxisAlignment.center : CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.bookDetails['title'] ?? 'No title available',
+                  bookDetails['title'] ?? 'No title available',
                   style: TextStyle(
                     fontSize: 24.0,
                     fontWeight: FontWeight.bold,
@@ -345,7 +445,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   ),
                 ),
 
-                if (widget.bookDetails['altTitles'] != null && widget.bookDetails['altTitles'].isNotEmpty)
+                if (bookDetails['altTitles'] != null && bookDetails['altTitles'].isNotEmpty)
                   Card(
                     margin: EdgeInsets.only(top: 16.0),
                     surfaceTintColor: Colors.blueGrey,
@@ -356,7 +456,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                       padding: const EdgeInsets.all(8.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: widget.bookDetails['altTitles'].map<Widget>((altTitle) {
+                        children: bookDetails['altTitles'].map<Widget>((altTitle) {
                           return Text(
                             altTitle.values.first,
                             style: TextStyle(
@@ -372,7 +472,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                 const SizedBox(height: 16.0),
                 if (!isDesktop)
                   Text(
-                    widget.bookDetails['description'] ?? 'No description Available',
+                    bookDetails['description'] ?? 'No description Available',
                     style: TextStyle(
                       fontSize: 16.0,
                       color: theme.selectedTheme.textTheme.displayMedium?.color
@@ -381,7 +481,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
                   if (isDesktop) Wrap(
                     spacing: 8.0,
-                    children: widget.bookDetails['tags'].map<Widget>((tag) {
+                    children: bookDetails['tags'].map<Widget>((tag) {
                       return Chip(
                         label: Text(tag, style: TextStyle(color: theme.selectedTheme.textTheme.displayMedium?.color),),
                         backgroundColor: Colors.transparent,
@@ -433,16 +533,22 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      chapter['title'] != null && chapter['title'].isNotEmpty
-                      ? '${chapter['title']} - Chapter ${chapter['chapter']}'
-                      : 'Chapter ${chapter['chapter']}',
-                      style: TextStyle(
-                        color: theme.selectedTheme.textTheme.titleSmall?.color,
-                        fontSize: 16.0,
-                        fontWeight: FontWeight.bold
+                    Expanded(
+                      
+                      child: Text(
+                        chapter['title'] != null && chapter['title'].isNotEmpty
+                        ? '${chapter['title']} - Chapter ${chapter['chapter']}'
+                        : 'Chapter ${chapter['chapter']}',
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: theme.selectedTheme.textTheme.titleSmall?.color,
+                          fontSize: 16.0,
+                          fontWeight: FontWeight.bold
+                        ),
                       ),
                     ),
+                    
                     Text(
                       'Volume: ' + _FormatVolume(chapter['volume']),
                       style: TextStyle(
@@ -450,6 +556,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                         fontSize: 16.0,
                       ),
                     ),
+
+                    SizedBox(width: 8.0),
 
                     Text(
                       '${chapter['translatedLanguage']}',
@@ -497,7 +605,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     _selectedChapterId = chapter['id'];
                   });
 
-                  await Provider.of<FontProvider>(context, listen: false).SaveSingleSelectedChapterId(widget.bookDetails['id'],chapter['id'], chapter['chapter']);
+                  await Provider.of<FontProvider>(context, listen: false).SaveSingleSelectedChapterId(bookDetails['id'],chapter['id'], chapter['chapter']);
 
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -514,13 +622,13 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   );
 
                   try {
-                    await for (final chapterData in widget.getChapter(chapter['id'], widget.bookDetails['id'])) {
+                    await for (final chapterData in widget.getChapter(chapter['id'], bookDetails['id'])) {
                       ScaffoldMessenger.of(context).hideCurrentSnackBar();
                       Navigator.push(context, MaterialPageRoute(builder: (context) => ChapterBookScreen(
-                        bookTitle: widget.bookDetails['title'],
+                        bookTitle: bookDetails['title'],
                         chapterId: chapterData['chapterID'],
                         chapterTitle: chapter['title'],
-                        mangaID: widget.bookDetails['id'],
+                        mangaID: bookDetails['id'],
                         chapterNumber: chapter['chapter'],
                         getChapter: widget.getChapter,
                         retrieveLastChapter: widget.retrieveLastChapter,
@@ -543,7 +651,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
                     if (kDebugMode) {
                       print('Failed to load chapter: $e');
-                      print(widget.getChapter(chapter['id'], widget.bookDetails['id']));
+                      print(widget.getChapter(chapter['id'], bookDetails['id']));
                     }
                   } finally {
                     setState(() {
@@ -561,7 +669,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   }
 
   List<Widget> _buildLanguageFilterButtons() {
-    List<String> languagePrefixes = widget.bookDetails['chapters']
+    List<String> languagePrefixes = bookDetails['chapters']
       .map<String>((chapter) => chapter['translatedLanguage'].toString())
       .toSet()
       .toList();
@@ -580,7 +688,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   }
 
   Widget _buildWebView(BuildContext context) {
-    final String url = widget.bookDetails['mangaUrl'] ?? 'https://www.google.com';
+    final String url = bookDetails['mangaUrl'] ?? 'https://www.google.com';
     Widget webViewContent;
 
     if (kIsWeb) {
@@ -593,7 +701,6 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         flutter_webview.NavigationDelegate(
           onProgress: (int progress) {
             // Update loading bar
-
           },
           onPageStarted: (String url) {},
           onPageFinished: (String url) {},
@@ -632,7 +739,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.bookDetails['title']),
+        title: Text(bookDetails['title']),
         backgroundColor: Color.fromARGB(29, 60, 16, 180),
         elevation: 0,
         shape: const RoundedRectangleBorder(
