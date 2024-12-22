@@ -90,6 +90,70 @@ class _LibraryItemsSettingsScreenState extends State<LibraryItemsSettingsScreen>
         ),
         iconTheme: IconThemeData(color: theme.selectedTheme.textTheme.titleMedium?.color),
       ),
+
+      body: ListView(
+        children: [
+          ListTile(
+            title: Text(
+              'Update Interval',
+              style: TextStyle(
+                color: theme.selectedTheme.textTheme.titleMedium?.color,
+                fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
+                fontWeight: FontWeight.bold,
+              )
+            ),
+            subtitle: DropdownButton<String>(
+              value: selectedUpdateInterval,
+              items: updateIntervals.map((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
+              onChanged: (String? value) {
+                setState(() {
+                  selectedUpdateInterval = value!;
+                  
+                });
+              },
+            ),
+          ),
+          ListTile(
+            title: Text(
+              'Tabs to Update',
+              style: TextStyle(
+                color: theme.selectedTheme.textTheme.titleMedium?.color,
+                fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
+                fontWeight: FontWeight.bold,
+              )
+            ),
+            subtitle: Column(
+              children: tabsSelection.keys.map((tab) {
+                return CheckboxListTile(
+                  title: Text(tab),
+                  value: tabsSelection[tab],
+                  onChanged: (bool? value) {
+                    setState(() {
+                      tabsSelection[tab] = value!;
+                    });
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: _saveSettings,
+            child: Text(
+              'Save Settings',
+              style: TextStyle(
+                color: theme.selectedTheme.textTheme.titleMedium?.color,
+                fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
+                fontWeight: FontWeight.bold,
+              )
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

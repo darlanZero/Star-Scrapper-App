@@ -45,8 +45,9 @@ class ScrapperDownloaderFonts extends StatefulWidget {
 }
 
 class _ScrapperDownloaderFontsState extends State<ScrapperDownloaderFonts> {
-  List<Fonte> fonts = FontProvider().fonts;
+ 
   List<LanguageGroup> languageGroups = [];
+
 
   bool isSvgImage(String url) {
     return url.toLowerCase().endsWith('.svg');
@@ -60,6 +61,8 @@ List<Fonte> InactiveFonts = [];
     super.initState();
     loadFontState();
   }
+
+  List<Fonte> get fonts => FontProvider(context).fonts;
 
   Future<void> loadFontState() async {
     final prefs = await SharedPreferences.getInstance();

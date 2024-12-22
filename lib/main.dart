@@ -1,5 +1,6 @@
 import 'package:desktop_webview_window/desktop_webview_window.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
@@ -9,10 +10,21 @@ import 'package:star_scrapper_app/pages/settings_screen.dart';
 import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
 
 void main(List<String> args) {
+
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
   if (runWebViewTitleBarWidget(args)) {
     return;
   }
   WidgetsFlutterBinding.ensureInitialized();
+
+  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+
+  final InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+  );
+
+  flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
   runApp(
     MultiProvider(providers: 
@@ -20,7 +32,7 @@ void main(List<String> args) {
       ChangeNotifierProvider(create: (context) => ThemeProvider()),
       ChangeNotifierProvider(create: (context) => AppState()),
       ChangeNotifierProvider(create: (_) => TabsState(_)),
-      ChangeNotifierProvider(create: (context) => FontProvider()),
+      ChangeNotifierProvider(create: (context) => FontProvider(context)),
     ], child: const MyApp()),
   );
 }

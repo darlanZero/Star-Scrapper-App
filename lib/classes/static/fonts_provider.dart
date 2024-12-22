@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:cron/cron.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/classes/Scrappers/mangadex_scrapper.dart';
@@ -32,15 +33,16 @@ class FontProvider with ChangeNotifier {
   Duration _updateInterval = Duration(hours: 24);
   Set<String> _tabsToUpdate = {};
   Cron? _cron;
- 
+  late BuildContext _context;
 
-  FontProvider() {
+  FontProvider(this._context) {
     _loadFonts();
     _loadFavoritedBooks();
     _loadReadBooks();
-    
+    _loadUpdateSettings(_context);
     loadSelectedChapterId();
     loadLastReadedChapterId();
+
     notifyListeners();
   }
 
@@ -143,7 +145,33 @@ class FontProvider with ChangeNotifier {
     }
   }
 
+  Future<void> _showUpdatedNotification(List<Map<String, dynamic>> updatedBooks) async {
+    if (updatedBooks.isEmpty) return;
+
+    const AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
+      'books_updates_channel',
+      'Books Updates',
+      importance: Importance.max,
+      priority: Priority.high,
+      channelDescription: 'Channel for books updates',
+      showWhen: false,
+    );
+
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics);
+
+    String bookTitles = updatedBooks.map((book) => book['title']).join(', ');
+
+    await FlutterLocalNotificationsPlugin().show(
+      0,
+      'Books Updated',
+      'The following books have been updated: $bookTitles',
+      platformChannelSpecifics,
+      payload: jsonEncode(updatedBooks),
+    );
+  }
+
   Future<void> _updateLibraryBooks(BuildContext libraryContext) async {
+    List<Map<String, dynamic>> allUpdatedBooks = [];
     
     for (String tab in _tabsToUpdate) {
       List<Map<String, dynamic>> booksInTab = getBooksInTab(tab, libraryContext);
@@ -158,8 +186,14 @@ class FontProvider with ChangeNotifier {
           updateBookInTab(tab, updatedBookDetails, libraryContext);
           _selectedChapterIds[bookId] = readChapters;
           await saveSelectedChapterId(bookId, readChapters);
+
+          allUpdatedBooks.add(updatedBookDetails);
         }
       }
+    }
+
+    if (allUpdatedBooks.isNotEmpty) {
+      await _showUpdatedNotification(allUpdatedBooks);
     }
     notifyListeners();
   }
