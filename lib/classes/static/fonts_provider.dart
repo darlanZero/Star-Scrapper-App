@@ -6,6 +6,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/classes/Scrappers/mangadex_scrapper.dart';
+import 'package:star_scrapper_app/classes/Scrappers/pt-br/demon_sect_scrapper.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';
 
@@ -19,6 +20,14 @@ class FontProvider with ChangeNotifier {
       isActive: false,
       api: MangadexScrapper(),
       isRRated: true,
+    ),
+    Fonte(
+      image: 'https://seitacelestial.com/wp-content/uploads/2024/08/logo-extended.png', 
+      name: 'Seita Celestial', 
+      languagePrefix: 'Pt-BR', 
+      flags: ['https://cdn.countryflags.com/thumbs/brazil/flag-3d-250.png'], 
+      api: DemonSectScrapper(),
+      isRRated: false,
     ),
     // Add more fonts here
   ];
@@ -39,7 +48,9 @@ class FontProvider with ChangeNotifier {
     _loadFonts();
     _loadFavoritedBooks();
     _loadReadBooks();
+
     _loadUpdateSettings(_context);
+    
     loadSelectedChapterId();
     loadLastReadedChapterId();
 
@@ -90,17 +101,31 @@ class FontProvider with ChangeNotifier {
 
   void setUpdateInterval(Duration interval) {
     _updateInterval = interval;
+    _scheduleAutomaticUpdates(_context);
+    _saveUpdateSettings();
     notifyListeners();
+  }
+
+  String _getCronExpression(Duration interval) {
+    if (interval.inHours == 24) {
+      return '0 0 * * *';
+    } else {
+      return '0 */${interval.inHours} * * *';
+    }
   }
 
   void _scheduleAutomaticUpdates(BuildContext context) {
     _cron?.close();
 
     _cron = Cron();
-    _cron!.schedule(Schedule.parse('*/${_updateInterval.inHours} * * * '), () async {
-      await _updateLibraryBooks(context);
-    });
-
+    final cronExp = _getCronExpression(_updateInterval);
+    try{
+      _cron!.schedule(Schedule.parse(cronExp), () async {
+        await _updateLibraryBooks(context);
+      });
+    } catch (e) {
+      print('Error scheduling automatic updates: $e');
+    }
   }
 
   void setTabsToUpdate(Set<String> tabs) {
@@ -110,8 +135,14 @@ class FontProvider with ChangeNotifier {
 
   void _saveUpdateSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    prefs.setString('updateIntervalHours', _updateInterval.toString());
+    prefs.setInt('updateIntervalHours', _updateInterval.inHours);
     prefs.setStringList('tabsToUpdate', _tabsToUpdate.toList());
+  }
+
+  void _clearUpdateSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('updateIntervalHours');
+    await prefs.remove('tabsToUpdate');
   }
 
   void _loadUpdateSettings(BuildContext context) async {
