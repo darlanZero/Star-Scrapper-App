@@ -203,7 +203,12 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
 
   Widget _buildBookTile(dynamic bookDetails, ThemeProvider theme, bool isFavorited) {
     String title = widget.selectedFont.api.getTitle(bookDetails);
-    String imageUrl = widget.selectedFont.api.getCoverImageUrl(bookDetails);
+    String imageUrl = widget.selectedFont.api.
+    
+    
+    
+    
+    getCoverImageUrl(bookDetails);
     String mangaId = widget.selectedFont.api.getBookId(bookDetails);
     final fontProvider = Provider.of<FontProvider>(context, listen: false);
     bool isBookFavorited = fontProvider.isFavorited(bookDetails);
