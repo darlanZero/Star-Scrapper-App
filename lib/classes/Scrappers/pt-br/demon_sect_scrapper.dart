@@ -127,7 +127,15 @@ class DemonSectScrapper extends Scrapper {
       print('bookElements: ${bookElements.length} in the page: $url');
       List<Book> books = bookElements.map((element) {
         String title = element.querySelector('.bigor .tt')?.text.trim() ?? 'No title';
-        String link = element.querySelector('a')?.attributes['href'] ?? '';
+        String link = element.attributes['href'] ?? '';
+
+        if (link.isNotEmpty && !link.startsWith('/')) {
+          link = '$baseUrl$link';
+        }
+
+        if (link.isEmpty) {
+          print('Warning: Book $title has no available link');
+        }
         String imageurl = element.querySelector('img')?.attributes['src'] ?? '';
         String latestChapter = element.querySelector('.adds .epxs')?.text.trim() ?? 'No chapter';
         String ratingString = element.querySelector('.adds .rt .numscore')?.text.trim() ?? '0';
@@ -165,11 +173,10 @@ class DemonSectScrapper extends Scrapper {
   }
 
   String getTitle(dynamic bookDetails) {
-    String url = '';
-
-    if (bookDetails.containsKey('title')) {
+    if (bookDetails.containsKey('link')) {
+      String link = bookDetails['link'];
       for (var book in _allResults) {
-        if (book['link'] == url) {
+        if (book['link'] == link) {
           return book['title'];
         }
       }
@@ -178,11 +185,10 @@ class DemonSectScrapper extends Scrapper {
   }
 
   String getCoverImageUrl(dynamic bookDetails) {
-    String url = '';
-
     if (bookDetails.containsKey('link')) {
+      String link = bookDetails['link'];
       for (var book in _allResults) {
-        if (book['link'] == url) {
+        if (book['link'] == link) {
           return book['imageurl'];
         }
       }
@@ -195,8 +201,38 @@ class DemonSectScrapper extends Scrapper {
     return _localIds[link] ?? _generateRandomBookId();
   }
 
+  String _extractMangaId(String link) {
+    if (link.isEmpty) {
+      print('Warning: Book has no available link');
+      return '';
+    }
+
+    final trimmedLink = link.endsWith('/') ? link.substring(0, link.length - 1) : link;
+
+    final uri = Uri.parse(trimmedLink);
+    if (uri.pathSegments.contains('comics')) {
+      final index = uri.pathSegments.indexOf('comics');
+      if (index != -1 && index + 1 < uri.pathSegments.length) {
+        return uri.pathSegments[index + 1];
+      }
+    }
+
+    print('Warning: Link structure not recognized: $link');
+    return '';
+  }
+
   @override
   Future<dynamic> getBookDetails(String mangaID) async {
+    for (var book in _allResults) {
+      String link = book['link'];
+      mangaID = _extractMangaId(link);
+
+      if (mangaID.isNotEmpty) {
+        print('Book found: $mangaID');
+      } else {
+        print('Book not found: $mangaID');
+      }
+    }
     final url = '$baseUrl/comics/$mangaID';
     final response = await http.get(Uri.parse(url), headers: {
       'Content-Type': 'text/html; charset=utf-8',
