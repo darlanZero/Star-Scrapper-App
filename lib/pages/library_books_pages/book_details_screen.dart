@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart' as flutter_webview;  
 import 'package:webview_windows/webview_windows.dart' as webview_windows;
 
+
 class BookDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> bookDetails;
   final Stream<Map<String, dynamic>> Function(String, String) getChapter;
@@ -192,7 +193,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         .toList();
     }
 
-    String imageUrl = bookDetails['coverImageUrl'] ?? 'https://via.placeholder.com/150';
+    String imageUrl = bookDetails['coverImageUrl'] ?? 'https://static.thenounproject.com/png/482114-200.png';
 
     void _showMoveBookDialog(BuildContext context) {
       final fontProvider = Provider.of<FontProvider>(context, listen: false);

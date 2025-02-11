@@ -223,16 +223,22 @@ class DemonSectScrapper extends Scrapper {
 
   @override
   Future<dynamic> getBookDetails(String mangaID) async {
+    Map<String, dynamic>? selectedBook;
     for (var book in _allResults) {
       String link = book['link'];
       mangaID = _extractMangaId(link);
 
-      if (mangaID.isNotEmpty) {
-        print('Book found: $mangaID');
-      } else {
-        print('Book not found: $mangaID');
+      String extractedMangaID = _extractMangaId(link);
+      if (extractedMangaID == mangaID) {
+        selectedBook = book;
+        break;
       }
     }
+    
+    if (selectedBook == null) {
+      throw Exception('Book not found for mangaID: $mangaID');
+    }
+
     final url = '$baseUrl/comics/$mangaID';
     final response = await http.get(Uri.parse(url), headers: {
       'Content-Type': 'text/html; charset=utf-8',
@@ -242,26 +248,50 @@ class DemonSectScrapper extends Scrapper {
     if (response.statusCode == 200) {
       final document = parser.parse(response.body);
 
-      String author = document.querySelector('.tsinfo .imptdt:nth-child(3) .author .name')?.text.trim() ?? 'Unknown Author';
-      String status = document.querySelector('.tsinfo .imptdt:nth-child(1) i')?.text.trim() ?? 'Unknown Status';
-      List<String> tags = document.querySelectorAll('.wd-full .mgen a').map((e) => e.text.trim()).toList();
-      String type = document.querySelector('.tsinfo .imptdt:nth-child(2) a')?.text.trim() ?? 'Unknown Type';
+      String authorText = document
+        .querySelector('.tsinfo .imptdt:nth-child(3) .author .name')
+        ?.text.trim() ?? 
+        'Unknown Author';
+      String statusText = document
+        .querySelector('.tsinfo .imptdt:nth-child(1) i')
+        ?.text.trim() ?? 
+        'Unknown Status';
+      List<String> tags = document
+        .querySelectorAll('.wd-full .mgen a')
+        .map((e) => e.text.trim())
+        .toList();
+      String typeText = document
+        .querySelector('.tsinfo .imptdt:nth-child(2) a')
+        ?.text.trim() ?? 
+        'Unknown Type';
+      String descriptionText = document
+        .querySelector('.wd-full .desc')
+        ?.text.trim() ?? 
+        'No description';
 
-      for (var book in _allResults) {
-        if (book['link'] == url) {
-          book['author'] = author;
-          book['status'] = status;
-          book['tags'] = tags;
-          book['type'] = type;
-          break;
-        }
-      }
-
+      
       return {
-        'author': author,
-        'status': status,
+        'id': selectedBook != null ? selectedBook['id'] : mangaID,
+        'title': selectedBook != null ? selectedBook['title'] : 'No title',
+        'altTitles': [],
+        'description': descriptionText,
+        'coverArt': {
+          'id': null,
+          'filename':  selectedBook['imageurl'],
+        },
+        'mangaUrl': url,
+        'author': {
+          'id': '',
+          'name': authorText,
+        },
+        'artist': {
+          'id': '',
+          'name': authorText,
+        },
+        'status': statusText,
         'tags': tags,
-        'type': type
+        'type': typeText,
+        'chapters': [],
       };
     } else {
       throw Exception('Failed to load page');
