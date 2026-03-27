@@ -17,6 +17,7 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
     return await _fetchResults(filter);
   }
 
+  @override
   Future<List<dynamic>> loadMore(String filter) async {
     _currentPage++;
     return await _fetchResults(filter);
@@ -90,11 +91,13 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
     }
   }
 
+  @override
   String getTitle(dynamic bookDetails) {
     return bookDetails['title'] ?? 'No title';
   }
 
-  String getCoverImageUrl(dynamic bookDetails) {  
+  @override
+  String getCoverImageUrl(dynamic bookDetails) {
     String coverFileName = bookDetails['coverArt']['fileName'] ?? '';  
     String mangaId = bookDetails['id'];  
     return coverFileName.isNotEmpty  
@@ -102,7 +105,8 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
         : 'https://via.placeholder.com/150';  
   }  
 
-  String getBookId(dynamic bookDetails) {  
+  @override
+  String getBookId(dynamic bookDetails) {
     return bookDetails['id'];  
   }    
 
@@ -286,6 +290,7 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
     return null;
   }
 
+  @override
   Stream<Map<String, dynamic>> retrieveLastChapter(String currentChapterId, String mangaId) async* {
     final lastChapterId = await _findAdjacentChapterId(currentChapterId, mangaId, false);
     if (lastChapterId != null) {
@@ -295,6 +300,7 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
     }
   }
 
+  @override
   Stream<Map<String, dynamic>> retrieveNextChapter(String currentChapterId, String mangaId) async* {
     final nextChapterId = await _findAdjacentChapterId(currentChapterId, mangaId, true);
     if (nextChapterId != null) {

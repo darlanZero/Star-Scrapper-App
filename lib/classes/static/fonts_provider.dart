@@ -4,6 +4,7 @@ import 'package:cron/cron.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 import 'package:star_scrapper_app/classes/Scrappers/mangadex_scrapper.dart';
 import 'package:star_scrapper_app/classes/Scrappers/pt-br/demon_sect_scrapper.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
@@ -65,7 +66,7 @@ class FontProvider with ChangeNotifier {
   List<Map<String, dynamic>> get favoritedBooks => _favoritedBooks;
   List<Map<String, dynamic>> get readBooks => _readBooks;
   Fonte get selectedFont => _fonts.firstWhere((font) => font.isActive, orElse: () => _fonts.first);
-  dynamic get selectedFontApi => selectedFont.api;
+  Scrapper get selectedFontApi => selectedFont.api;
   Map<String, List<Map<String, String>>> get selectedChapterIds => _selectedChapterIds;
   Map<String, Map<String, String>> get lastReadedChapterId => _lastReadedChapterId;
 
@@ -84,23 +85,28 @@ class FontProvider with ChangeNotifier {
 
     Map<String, dynamic> updatedBookDetails = await fontApi.getBookDetails(bookId);
 
-    if (updatedBookDetails != null) {
-      List<Map<String, String>> readChapters = _selectedChapterIds[bookId] ?? [];
+    List<Map<String, String>> readChapters = _selectedChapterIds[bookId] ?? [];
 
-      int index = _favoritedBooks.indexWhere((book) => book['id'] == bookId);
-      if (index != -1) {
-        String currentTab = _favoritedBooks[index]['tab'] ?? 'Reading';
-        updatedBookDetails['tab'] = currentTab;
-        _favoritedBooks[index] = updatedBookDetails;
-      }
-
-      _selectedChapterIds[bookId] = readChapters;
-
+    // Atualiza em _favoritedBooks preservando a tab atual
+    int favIndex = _favoritedBooks.indexWhere((book) => book['id'] == bookId);
+    if (favIndex != -1) {
+      String currentTab = _favoritedBooks[favIndex]['tab'] ?? 'Reading';
+      updatedBookDetails['tab'] = currentTab;
+      _favoritedBooks[favIndex] = updatedBookDetails;
       _saveFavoritedBooks();
-      await saveSelectedChapterId(bookId, readChapters);
-
-      notifyListeners();
     }
+
+    // Atualiza em _readBooks também
+    int readIndex = _readBooks.indexWhere((book) => book['id'] == bookId);
+    if (readIndex != -1) {
+      _readBooks[readIndex] = updatedBookDetails;
+      _saveReadBooks();
+    }
+
+    _selectedChapterIds[bookId] = readChapters;
+    await saveSelectedChapterId(bookId, readChapters);
+
+    notifyListeners();
   }
 
   void setUpdateInterval(Duration interval) {

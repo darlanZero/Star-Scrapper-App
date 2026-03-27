@@ -86,6 +86,7 @@ class DemonSectScrapper extends Scrapper {
     return String.fromCharCodes(Iterable.generate(12, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
   }
 
+  @override
   Future<List<dynamic>> loadMore(String filter) async {
     _currentPage++;
     return await _fetchResults(filter);
@@ -172,6 +173,7 @@ class DemonSectScrapper extends Scrapper {
     }
   }
 
+  @override
   String getTitle(dynamic bookDetails) {
     if (bookDetails.containsKey('link')) {
       String link = bookDetails['link'];
@@ -184,6 +186,7 @@ class DemonSectScrapper extends Scrapper {
     return bookDetails['title'] ?? 'No title';
   }
 
+  @override
   String getCoverImageUrl(dynamic bookDetails) {
     if (bookDetails.containsKey('link')) {
       String link = bookDetails['link'];
@@ -196,6 +199,7 @@ class DemonSectScrapper extends Scrapper {
     return bookDetails['imageurl'] ?? 'https://via.placeholder.com/150';
   }
 
+  @override
   String getBookId(dynamic bookDetails) {
     String link = bookDetails['link'];
     return _localIds[link] ?? _generateRandomBookId();
@@ -323,6 +327,16 @@ class DemonSectScrapper extends Scrapper {
     } catch (e) {
       return [];
     }
+  }
+
+  @override
+  Stream<Map<String, dynamic>> retrieveLastChapter(String currentChapterId, String mangaId) async* {
+    yield {'type': 'error', 'message': 'Navegação entre capítulos não é suportada nesta fonte.'};
+  }
+
+  @override
+  Stream<Map<String, dynamic>> retrieveNextChapter(String currentChapterId, String mangaId) async* {
+    yield {'type': 'error', 'message': 'Navegação entre capítulos não é suportada nesta fonte.'};
   }
 
   @override

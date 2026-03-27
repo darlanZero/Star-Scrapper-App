@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 
 class Fonte {
@@ -9,7 +10,7 @@ class Fonte {
   final String name;
   final String languagePrefix;
   List<String> flags;
-  final api;
+  final Scrapper api;
   bool isActive = false;
   bool isRRated = false;
 

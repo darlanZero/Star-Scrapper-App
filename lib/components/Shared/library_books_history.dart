@@ -14,195 +14,148 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<FontProvider>(context, listen: false).readBooks;
-      Provider.of<FontProvider>(context, listen: false).loadSelectedChapterId();
-      Provider.of<FontProvider>(context, listen: false).loadLastReadedChapterId();
+      final provider = Provider.of<FontProvider>(context, listen: false);
+      provider.loadSelectedChapterId();
+      provider.loadLastReadedChapterId();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final fontProvider = Provider.of<FontProvider>(context, listen: false);
-    final readedBooks = fontProvider.readBooks.reversed.toList();
+    return Consumer<FontProvider>(
+      builder: (context, fontProvider, _) {
+        final readedBooks = fontProvider.readBooks.reversed.toList();
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 600) {
-          return GridView.builder(
-            padding: const EdgeInsets.all(8.0),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 8.0,
-              crossAxisSpacing: 8.0,
-            ),
-            itemCount: readedBooks.length,
-            itemBuilder: (context, index) {
-              final book = readedBooks[index];
-              final bookId = book['id'];
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 600) {
+              return GridView.builder(
+                padding: const EdgeInsets.all(8.0),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 8.0,
+                  crossAxisSpacing: 8.0,
+                ),
+                itemCount: readedBooks.length,
+                itemBuilder: (context, index) {
+                  final book = readedBooks[index];
+                  final bookId = book['id'] as String?;
+                  final lastChapter = bookId != null
+                      ? fontProvider.lastReadedChapterId[bookId]
+                      : null;
+                  final chapterTitle = lastChapter?['title'] ?? 'N/A';
 
-              return Stack(
-                children: [
-                  Image.network(
-                    fontProvider.selectedFontApi.getCoverImageUrl(book),
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                  ),
-                  Positioned(
-                    top: 10,
-                    right: 10,
-                    child: Container(
-                      padding: const EdgeInsets.all(8.0),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(10),
+                  return Stack(
+                    children: [
+                      Image.network(
+                        fontProvider.selectedFontApi.getCoverImageUrl(book),
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
                       ),
-                      child: FutureBuilder<Map<String, String>?>(
-                        future: fontProvider.loadLastReadedChapterId().then((map) => map[bookId]),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return const CircularProgressIndicator();
-                          } else if (snapshot.hasError) {
-                            return Text('Erro: ${snapshot.error}');
-                          } else {
-                            final lastReadedChapter = snapshot.data;
-                            if (lastReadedChapter != null) {
-                              final chapterTitle = lastReadedChapter['title'] ?? 'N/A';
-                              return Text(
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: Container(
+                          padding: const EdgeInsets.all(8.0),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            'Cap. $chapterTitle',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              );
+            } else {
+              return ListView.builder(
+                padding: const EdgeInsets.all(8.0),
+                itemCount: readedBooks.length,
+                itemBuilder: (context, index) {
+                  final book = readedBooks[index];
+                  final bookId = book['id'] as String?;
+                  final lastChapter = bookId != null
+                      ? fontProvider.lastReadedChapterId[bookId]
+                      : null;
+                  final chapterTitle = lastChapter?['title'] ?? 'N/A';
+                  final selectedChapters = bookId != null
+                      ? (fontProvider.selectedChapterIds[bookId] ?? [])
+                      : <Map<String, String>>[];
+
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Stack(
+                      children: [
+                        Image.network(
+                          fontProvider.selectedFontApi.getCoverImageUrl(book),
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: 200,
+                          color: Colors.black.withOpacity(0.5),
+                          colorBlendMode: BlendMode.darken,
+                        ),
+                        Positioned(
+                          top: 10,
+                          left: 10,
+                          child: Image.network(
+                            fontProvider.selectedFontApi.getCoverImageUrl(book),
+                            fit: BoxFit.cover,
+                            width: 50,
+                            height: 50,
+                          ),
+                        ),
+                        Positioned(
+                          top: 10,
+                          left: 70,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                fontProvider.selectedFontApi.getTitle(book),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
                                 'Cap. $chapterTitle',
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 12,
+                                  fontSize: 14,
                                 ),
-                              );
-                            } else {
-                              return Text(
-                                'Cap. N/A',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                ),
-                              );
-                            }
-                            
-                          }
-                        },
-                      ),
-                    ),
-                  )
-                ],
-              );
-            },
-          );
-        } else {
-          return ListView.builder(
-            padding: const EdgeInsets.all(8.0),
-            itemCount: readedBooks.length,
-            itemBuilder: (context, index) {
-              final book = readedBooks[index];
-              final bookId = book['id'];
-
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Stack(
-                  children: [
-                    Image.network(
-                      fontProvider.selectedFontApi.getCoverImageUrl(book),
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: 200,
-                      color: Colors.black.withOpacity(0.5),
-                      colorBlendMode: BlendMode.darken,
-                    ),
-                    Positioned(
-                      top: 10,
-                      left: 10,
-                      child: Image.network(
-                        fontProvider.selectedFontApi.getCoverImageUrl(book),
-                        fit: BoxFit.cover,
-                        width: 50,
-                        height: 50,
-                      ),
-                    ),
-                    Positioned(
-                      top: 10,
-                      left: 70,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            fontProvider.selectedFontApi.getTitle(book),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                              ),
+                            ],
                           ),
-                          FutureBuilder<Map<String, String>?>(
-                            future: fontProvider.loadLastReadedChapterId().then((map) => map[bookId]),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState == ConnectionState.waiting) {
-                                return const CircularProgressIndicator();
-                              } else if (snapshot.hasError) {
-                                return Text('Erro: ${snapshot.error}');
-                              } else {
-                                final lastReadedChapter = snapshot.data;
-                                if (lastReadedChapter != null) {
-                                  final chapterTitle = lastReadedChapter['title'] ?? 'N/A';
-                                  return Text(
-                                    'Cap. $chapterTitle',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14,
-                                    ),
-                                  );
-                                } else {
-                                  return Text(
-                                    'Cap. N/A',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14,
-                                    ),
-                                  );
-                                }
-                              }
-                            },
+                        ),
+                        Positioned(
+                          bottom: 10,
+                          left: 10,
+                          right: 10,
+                          child: Wrap(
+                            spacing: 8.0,
+                            children: selectedChapters.map((chapter) {
+                              final title = chapter['title'] ?? 'N/A';
+                              return Chip(label: Text('Chap. $title'));
+                            }).toList(),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    FutureBuilder<List<Map<String, String>>>(
-                      future: fontProvider.loadSelectedChapterId().then((map) => map[bookId] ?? []),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const CircularProgressIndicator();
-                        } else if (snapshot.hasError) {
-                          return Text('Erro: ${snapshot.error}');
-                        } else {
-                          final selectedChapters = snapshot.data ?? [];
-                          return Positioned(
-                            bottom: 10,
-                            left: 10,
-                            right: 10,
-                            child: Wrap(
-                              spacing: 8.0,
-                              children: selectedChapters.map((chapter) {
-                                final chapterTitle = chapter['title'] ?? 'N/A';
-                                return Chip(
-                                  label: Text('Chap. $chapterTitle'),
-                                );
-                              }).toList(),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ],
-                ),
+                  );
+                },
               );
-            },
-          );
-        }
+            }
+          },
+        );
       },
     );
   }

@@ -123,9 +123,10 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         bottom: Provider.of<TabsState>(context).appBarBottom,
       ),
 
-      body: Center(
-        child: _pages[Provider.of<AppState>(context).currentIndex],
-      ), 
+      body: IndexedStack(
+        index: Provider.of<AppState>(context).currentIndex,
+        children: _pages,
+      ),
 
       bottomNavigationBar: StylishBottomBar(
         items: [
