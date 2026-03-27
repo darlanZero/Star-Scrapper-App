@@ -14,13 +14,12 @@ class AppState extends ChangeNotifier {
   }
 } 
 
-class TabsState extends ChangeNotifier  {  
+class TabsState extends ChangeNotifier  {
   PreferredSizeWidget? _appBarBottom;
-  
-  late BuildContext context;    
+
   PreferredSizeWidget? get appBarBottom => _appBarBottom;
 
-  TabsState(this.context) {
+  TabsState() {
     _tabsLoaded = _loadLibraryTabs();
   }
 

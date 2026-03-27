@@ -4,7 +4,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
-import 'package:star_scrapper_app/pages/Scrappers_screen.dart';
+import 'package:star_scrapper_app/pages/scrappers_screen.dart';
 import 'package:star_scrapper_app/pages/pages.dart';
 import 'package:star_scrapper_app/pages/settings_screen.dart';
 import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
@@ -31,8 +31,14 @@ void main(List<String> args) {
     [
       ChangeNotifierProvider(create: (context) => ThemeProvider()),
       ChangeNotifierProvider(create: (context) => AppState()),
-      ChangeNotifierProvider(create: (_) => TabsState(_)),
-      ChangeNotifierProvider(create: (context) => FontProvider(context)),
+      ChangeNotifierProvider(create: (_) => TabsState()),
+      ChangeNotifierProxyProvider<TabsState, FontProvider>(
+        create: (context) => FontProvider(Provider.of<TabsState>(context, listen: false)),
+        update: (context, tabsState, fontProvider) {
+          fontProvider!.setTabsState(tabsState);
+          return fontProvider;
+        },
+      ),
     ], child: const MyApp()),
   );
 }
@@ -62,40 +68,17 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateMixin {
 
-  final List<Map<String, dynamic>> libraryBooks = [];
-
   late final List<Widget> _pages;
-  late Stream<Map<String, dynamic>> Function(String, String) getchapter;
-  late final Stream<Map<String, dynamic>> Function(String, String) retrieveLastChapter;  
-  late final Stream<Map<String, dynamic>> Function(String, String) retrieveNextChapter;
 
   @override
   void initState() {
     super.initState();
-     final fontProvider = Provider.of<FontProvider>(context, listen: false);
-    getchapter = fontProvider.selectedFontApi.getChapter ?? _dummyGetChapter;
-    retrieveLastChapter = fontProvider.selectedFontApi.retrieveLastChapter ?? _dummyGetChapter;
-    retrieveNextChapter = fontProvider.selectedFontApi.retrieveNextChapter ?? _dummyGetChapter;
     _pages = [
-      HomePageScreen(
-        libraryBooks: libraryBooks,
-        getchapter: getchapter,
-        retrieveLastChapter: retrieveLastChapter,
-        retrieveNextChapter: retrieveNextChapter
-      ),
-      ScrappersScreen(
-        getChapter: getchapter,
-        retrieveLastChapter: retrieveLastChapter,
-        retrieveNextChapter: retrieveNextChapter
-      ),
+      const HomePageScreen(),
+      const ScrappersScreen(),
       const SettingsScreen(),
     ];
   }
-
-  Future<Map<String, dynamic>> _dummyGetChapter(String chapterId) async {  
-    // Implement a dummy function or throw an error if no font is selected  
-    throw Exception('No font selected');
-  } 
   
   @override
   Widget build(BuildContext context) {

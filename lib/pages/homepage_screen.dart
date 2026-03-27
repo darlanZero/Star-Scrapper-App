@@ -5,21 +5,10 @@ import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.dart';
 
 class HomePageScreen extends StatefulWidget {
-  final List<Map<String, dynamic>> libraryBooks;
-  final  Stream<Map<String, dynamic>> Function(String, String) getchapter; 
-  final Stream<Map<String, dynamic>> Function(String, String) retrieveLastChapter;  
-  final Stream<Map<String, dynamic>> Function(String, String) retrieveNextChapter;
-  const HomePageScreen({
-    super.key, 
-    required this.libraryBooks,
-    required this.getchapter,
-    required this.retrieveLastChapter,
-    required this.retrieveNextChapter,
-
-  });
+  const HomePageScreen({super.key});
 
   @override
-  State<HomePageScreen> createState() =>  _HomePageState(libraryBooks: []);
+  State<HomePageScreen> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin {
@@ -76,9 +65,6 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
     _tabController.dispose();
     super.dispose();
   }
-
-  _HomePageState({required this.libraryBooks}) : super();
-  final List<Map<String, dynamic>> libraryBooks;
 
   @override
   Widget build(BuildContext context) {
@@ -161,7 +147,7 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
   Widget _buildBooksGrid(String tabName) {
     return Consumer<FontProvider>(
       builder: (context, fontProvider, child) {
-        final booksInTab = fontProvider.getBooksInTab(tabName, context);
+        final booksInTab = fontProvider.getBooksInTab(tabName);
         return Center(
           child: booksInTab.isEmpty
             ? Card(
@@ -193,9 +179,6 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
                         MaterialPageRoute(
                           builder: (context) => BookDetailsScreen(
                             bookDetails: booksInTab[index],
-                            getChapter: widget.getchapter,
-                            retrieveLastChapter: widget.retrieveLastChapter,
-                            retrieveNextChapter: widget.retrieveNextChapter,
                           ),
                         ),
                       );

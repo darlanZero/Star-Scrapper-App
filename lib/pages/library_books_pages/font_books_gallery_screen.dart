@@ -6,20 +6,14 @@ import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';  
 import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.dart';  
 
-class FontBooksGalleryScreen extends StatefulWidget {  
-  final String initialView;  
+class FontBooksGalleryScreen extends StatefulWidget {
+  final String initialView;
   final Fonte selectedFont;
-  final Stream<Map<String, dynamic>> Function(String, String) getChapter;  
-  final Stream<Map<String, dynamic>> Function(String, String) retrieveLastChapter;  
-  final Stream<Map<String, dynamic>> Function(String, String) retrieveNextChapter;  
-  const FontBooksGalleryScreen({  
-      Key? key,  
-      required this.initialView,  
+  const FontBooksGalleryScreen({
+      Key? key,
+      required this.initialView,
       required this.selectedFont,
-      required this.getChapter,
-      required this.retrieveLastChapter,
-      required this.retrieveNextChapter,  
-  }) : super(key: key);  
+  }) : super(key: key);
 
   @override  
   State<FontBooksGalleryScreen> createState() => _FontBooksGalleryScreenState();  
@@ -301,16 +295,13 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
       }
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-      Navigator.push(  
-        context,  
-        MaterialPageRoute(  
-          builder: (context) => BookDetailsScreen(  
-            bookDetails: bookDetails,  
-            getChapter: widget.selectedFont.api.getChapter,
-            retrieveLastChapter: widget.retrieveLastChapter,
-            retrieveNextChapter: widget.retrieveNextChapter,
-          ),  
-        ),  
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BookDetailsScreen(
+            bookDetails: bookDetails,
+          ),
+        ),
       ).then((_) {
         setState(() {
           

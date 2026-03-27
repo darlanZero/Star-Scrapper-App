@@ -12,7 +12,7 @@ class Appthemes {
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: Color.fromARGB(50, 60, 16, 180),
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: Colors.black,
       shadowColor: Colors.purple.shade900,
       elevation: 5,
@@ -37,7 +37,7 @@ class Appthemes {
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: Colors.blue.shade800,
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: Colors.black,
       shadowColor: Colors.blue.shade900,
       elevation: 5,
@@ -62,7 +62,7 @@ class Appthemes {
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: Colors.red.shade800,
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: Colors.black,
       shadowColor: Colors.red.shade900,
       elevation: 5,
@@ -87,7 +87,7 @@ class Appthemes {
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: Colors.grey.shade800,
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: Colors.black,
       shadowColor: Colors.grey.shade900,
       elevation: 5,
@@ -112,7 +112,7 @@ class Appthemes {
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: Colors.lightBlue.shade200,
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: Colors.white,
       shadowColor: Colors.lightBlue.shade100,
       elevation: 5,
@@ -137,7 +137,7 @@ class Appthemes {
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: Colors.yellow.shade200,
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: Colors.white,
       shadowColor: Colors.yellow.shade100,
       elevation: 5,
@@ -162,7 +162,7 @@ class Appthemes {
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: Colors.blue.shade200,
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: Colors.white,
       shadowColor: Colors.blue.shade100,
       elevation: 5,

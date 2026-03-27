@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 
@@ -62,7 +63,7 @@ List<Fonte> InactiveFonts = [];
     loadFontState();
   }
 
-  List<Fonte> get fonts => FontProvider(context).fonts;
+  List<Fonte> get fonts => Provider.of<FontProvider>(context, listen: false).fonts;
 
   Future<void> loadFontState() async {
     final prefs = await SharedPreferences.getInstance();

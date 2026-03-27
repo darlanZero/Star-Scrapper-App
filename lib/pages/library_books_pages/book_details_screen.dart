@@ -12,15 +12,9 @@ import 'package:webview_windows/webview_windows.dart' as webview_windows;
 
 class BookDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> bookDetails;
-  final Stream<Map<String, dynamic>> Function(String, String) getChapter;
-  final Stream<Map<String, dynamic>> Function(String, String) retrieveLastChapter;  
-  final Stream<Map<String, dynamic>> Function(String, String) retrieveNextChapter;
   const BookDetailsScreen({
-    Key? key, 
+    Key? key,
     required this.bookDetails,
-    required this.retrieveLastChapter,
-    required this.retrieveNextChapter,
-    required this.getChapter,
   }): super(key: key);
 
   @override
@@ -214,7 +208,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     groupValue: currentTab,
                     onChanged: (String? value) {
                       if (value != null && value != currentTab) {
-                        fontProvider.moveBookInTab(currentTab, value, bookDetails, context);
+                        fontProvider.moveBookInTab(currentTab, value, bookDetails);
                         Navigator.of(context).pop();
                       }
                     }
@@ -385,7 +379,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     color: Colors.red,
                   ),
                   onPressed: () {
-                    favoritedBooksState.toggleFavorite(bookDetails, context);
+                    favoritedBooksState.toggleFavorite(bookDetails);
                     setState(() {});
                   }
                 );
@@ -623,7 +617,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   );
 
                   try {
-                    await for (final chapterData in widget.getChapter(chapter['id'], bookDetails['id'])) {
+                    final fontApi = Provider.of<FontProvider>(context, listen: false).selectedFontApi;
+                    await for (final chapterData in fontApi.getChapter(chapter['id'], bookDetails['id'])) {
                       ScaffoldMessenger.of(context).hideCurrentSnackBar();
                       Navigator.push(context, MaterialPageRoute(builder: (context) => ChapterBookScreen(
                         bookTitle: bookDetails['title'],
@@ -631,9 +626,6 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                         chapterTitle: chapter['title'],
                         mangaID: bookDetails['id'],
                         chapterNumber: chapter['chapter'],
-                        getChapter: widget.getChapter,
-                        retrieveLastChapter: widget.retrieveLastChapter,
-                        retrieveNextChapter: widget.retrieveNextChapter,
                         chapterWebViewUrl: chapterData['chapterWebviewUrl'],
                       )));
                       break;
@@ -652,7 +644,6 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
                     if (kDebugMode) {
                       print('Failed to load chapter: $e');
-                      print(widget.getChapter(chapter['id'], bookDetails['id']));
                     }
                   } finally {
                     setState(() {
