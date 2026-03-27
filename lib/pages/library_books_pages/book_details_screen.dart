@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, kDe
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
+import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 import 'package:star_scrapper_app/pages/library_books_pages/chapter_book_screen.dart';
 import 'package:url_launcher/url_launcher.dart';  
 import 'package:webview_flutter/webview_flutter.dart' as flutter_webview;  
@@ -12,9 +13,12 @@ import 'package:webview_windows/webview_windows.dart' as webview_windows;
 
 class BookDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> bookDetails;
+  /// Scrapper a ser usado nesta tela. Se null, usa o selectedFontApi global.
+  final Scrapper? scrapper;
   const BookDetailsScreen({
     Key? key,
     required this.bookDetails,
+    this.scrapper,
   }): super(key: key);
 
   @override
@@ -38,9 +42,30 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     bookDetails = widget.bookDetails;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final fontProvider = Provider.of<FontProvider>(context, listen: false);
-    fontProvider.addBookToReadBooks(bookDetails);
-  });
-   Provider.of<FontProvider>(context, listen: false).loadSelectedChapterId();
+      fontProvider.addBookToReadBooks(bookDetails);
+
+      // Se o livro veio da busca online (sem capítulos), busca os detalhes completos
+      final hasChapters = (bookDetails['chapters'] as List?)?.isNotEmpty == true;
+      if (!hasChapters && widget.scrapper != null) {
+        setState(() {
+          _updateFuture = fontProvider.updateBookDetails(
+            bookDetails['id'],
+            scrapper: widget.scrapper,
+          ).then((_) {
+            // Atualiza o estado local com os dados carregados
+            final updated = fontProvider.favoritedBooks.firstWhere(
+              (b) => b['id'] == bookDetails['id'],
+              orElse: () => fontProvider.readBooks.firstWhere(
+                (b) => b['id'] == bookDetails['id'],
+                orElse: () => bookDetails,
+              ),
+            );
+            if (mounted) setState(() => bookDetails = updated);
+          });
+        });
+      }
+    });
+    Provider.of<FontProvider>(context, listen: false).loadSelectedChapterId();
   }
 
   void _toogleChapterOrder() {
@@ -116,7 +141,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
               );
 
               try {
-                await fontProvider.updateBookDetails(bookId);
+                await fontProvider.updateBookDetails(bookId, scrapper: widget.scrapper);
                 ScaffoldMessenger.of(context).hideCurrentSnackBar();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -189,43 +214,60 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
     String imageUrl = bookDetails['coverImageUrl'] ?? 'https://static.thenounproject.com/png/482114-200.png';
 
-    void _showMoveBookDialog(BuildContext context) {
+    void _showManageTabsDialog(BuildContext context) {
       final fontProvider = Provider.of<FontProvider>(context, listen: false);
       final tabsState = Provider.of<TabsState>(context, listen: false);
-      final currentTab = bookDetails['tab'] ?? tabsState.defaultTab;
+
+      final storedBook = fontProvider.favoritedBooks.firstWhere(
+        (b) => b['id'] == bookDetails['id'],
+        orElse: () => bookDetails,
+      );
+      final rawTabs = storedBook['tabs'];
+      final initialTabs = rawTabs is List
+          ? List<String>.from(rawTabs)
+          : (storedBook['tab'] is String ? [storedBook['tab'] as String] : <String>['Reading']);
 
       showDialog(
         context: context,
         builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Move Book'),
-            content: SingleChildScrollView(
-              child: ListBody(
-                children: tabsState.libraryTabs.map((libraryTab) {
-                  return RadioListTile<String>(
-                    title: Text(libraryTab),
-                    value: libraryTab,
-                    groupValue: currentTab,
-                    onChanged: (String? value) {
-                      if (value != null && value != currentTab) {
-                        fontProvider.moveBookInTab(currentTab, value, bookDetails);
-                        Navigator.of(context).pop();
-                      }
-                    }
-                  );
-                }).toList()
-              )
-            ),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('Cancel'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-            ],
+          List<String> selectedTabs = List.from(initialTabs);
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                title: const Text('Gerenciar Tabs'),
+                content: SingleChildScrollView(
+                  child: ListBody(
+                    children: tabsState.libraryTabs.map((libraryTab) {
+                      return CheckboxListTile(
+                        title: Text(libraryTab),
+                        value: selectedTabs.contains(libraryTab),
+                        onChanged: (bool? checked) {
+                          setDialogState(() {
+                            if (checked == true) {
+                              if (!selectedTabs.contains(libraryTab)) {
+                                selectedTabs.add(libraryTab);
+                                fontProvider.addBookToTab(libraryTab, bookDetails);
+                              }
+                            } else if (selectedTabs.length > 1) {
+                              selectedTabs.remove(libraryTab);
+                              fontProvider.removeBookFromTab(libraryTab, bookDetails);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    child: const Text('Fechar'),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              );
+            },
           );
-        }
+        },
       );
     }
 
@@ -400,22 +442,22 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
             PopupMenuButton(
               onSelected: (String value) {
-                if (value == 'Move Book From Tab') {
-                  _showMoveBookDialog(context);
+                if (value == 'Manage Tabs') {
+                  _showManageTabsDialog(context);
                 }
               },
               itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
                 const PopupMenuItem<String>(
                   value: 'Rename Book',
-                  child: Text('Rename book', ),
+                  child: Text('Rename book'),
                 ),
                 const PopupMenuItem<String>(
                   value: 'Migrate Book',
-                  child: Text('Migrate book', ),
+                  child: Text('Migrate book'),
                 ),
                 const PopupMenuItem<String>(
-                  value: 'Move Book From Tab',
-                  child: Text('Move book from tab', ),
+                  value: 'Manage Tabs',
+                  child: Text('Gerenciar tabs'),
                 ),
               ]
             ),
@@ -521,8 +563,14 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
               if (index >= chapters.length) {
                 return const SizedBox.shrink();
               }
-                
+
               final chapter = chapters[index];
+              final fontProvider = Provider.of<FontProvider>(context, listen: false);
+              final readChapterIds = (fontProvider.selectedChapterIds[bookDetails['id']] ?? [])
+                  .map((c) => c['id'] as String)
+                  .toSet();
+              final isRead = readChapterIds.contains(chapter['id'] as String? ?? '');
+
               return ListTile(
                 title: 
                 Row(
@@ -563,7 +611,16 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     )
                   ],
                 ),
-                tileColor: _selectedChapterId == chapter['id'] ? Color(0xFF483D8B).withAlpha(150).withOpacity(0.5) : null,
+                leading: Icon(
+                  isRead ? Icons.check_circle : Icons.circle_outlined,
+                  color: isRead ? Colors.green : Colors.grey,
+                  size: 20,
+                ),
+                tileColor: _selectedChapterId == chapter['id']
+                    ? const Color(0xFF483D8B).withAlpha(150)
+                    : isRead
+                        ? Colors.green.withOpacity(0.08)
+                        : null,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8.0),
                 ),
@@ -617,7 +674,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   );
 
                   try {
-                    final fontApi = Provider.of<FontProvider>(context, listen: false).selectedFontApi;
+                    final fontApi = widget.scrapper
+                        ?? Provider.of<FontProvider>(context, listen: false).selectedFontApi;
                     await for (final chapterData in fontApi.getChapter(chapter['id'], bookDetails['id'])) {
                       ScaffoldMessenger.of(context).hideCurrentSnackBar();
                       Navigator.push(context, MaterialPageRoute(builder: (context) => ChapterBookScreen(

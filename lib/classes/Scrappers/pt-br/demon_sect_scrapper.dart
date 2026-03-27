@@ -344,15 +344,43 @@ class DemonSectScrapper extends Scrapper {
     yield {'error': 'Not implemented yet'};
   }
 
-   @override
-  Future<dynamic> searchTitle(String title) async {
-    final response = await http.get(Uri.parse('$baseUrl/?s=$title'));
-    
-    if (response.statusCode == 200) {
-      return parser.parse(response.body);
-    } else {
-      throw Exception('Failed to load data');
-    }
+  @override
+  Future<List<dynamic>> searchTitle(String title) async {
+    final url = '$baseUrl/?s=${Uri.encodeComponent(title)}';
+    final response = await http.get(Uri.parse(url), headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Accept': 'text/html,application/xhtml+xml',
+    });
+
+    if (response.statusCode != 200) throw Exception('Failed to search');
+
+    final document = parser.parse(response.body);
+    final bookElements = document.querySelectorAll('.listupd .bsx a');
+    await _loadLocalBookIds();
+
+    final results = bookElements.map((element) {
+      final title = element.querySelector('.bigor .tt')?.text.trim() ?? 'No title';
+      final link = element.attributes['href'] ?? '';
+      final imageUrl = element.querySelector('img')?.attributes['src'] ?? '';
+      final latestChapter = element.querySelector('.adds .epxs')?.text.trim() ?? '';
+
+      final id = _localIds.containsKey(link)
+          ? _localIds[link]!
+          : _generateRandomBookId();
+      if (!_localIds.containsKey(link)) _localIds[link] = id;
+
+      return {
+        'id': id,
+        'title': title,
+        'link': link,
+        'imageurl': imageUrl,
+        'latestChapter': latestChapter,
+        'type': 'manga',
+      };
+    }).toList();
+
+    await _saveLocalBookIds();
+    return results;
   }
 }
 

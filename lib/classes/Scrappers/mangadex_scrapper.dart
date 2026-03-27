@@ -311,13 +311,39 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
   }
 
   @override
-  Future<dynamic> searchTitle(String title) async {
-    final response = await http.get(Uri.parse('$_baseUrl/manga?title=$title'));
-    
+  Future<List<dynamic>> searchTitle(String title) async {
+    final url = '$_baseUrl/manga?title=${Uri.encodeComponent(title)}&includes[]=cover_art&limit=20';
+    final response = await http.get(Uri.parse(url), headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    });
+
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Failed to load data');
+      final data = jsonDecode(response.body);
+      if (data['result'] == 'ok') {
+        final List<dynamic> mangaList = data['data'];
+        return mangaList.map((manga) {
+          final attributes = manga['attributes'];
+          final titleKey = attributes['title'].keys.first;
+          final coverArt = manga['relationships'].firstWhere(
+            (r) => r['type'] == 'cover_art',
+            orElse: () => {'id': null, 'attributes': {'fileName': null}},
+          );
+          return {
+            'id': manga['id'],
+            'title': attributes['title'][titleKey],
+            'coverArt': {
+              'id': coverArt['id'],
+              'fileName': coverArt['attributes']['fileName'],
+            },
+            'status': attributes['status'],
+            'tags': attributes['tags'].map((t) => t['attributes']['name']['en']).toList(),
+            'type': manga['type'],
+          };
+        }).toList();
+      }
+      return [];
     }
+    throw Exception('Failed to search: ${response.statusCode}');
   }
 }

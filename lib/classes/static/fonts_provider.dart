@@ -80,18 +80,19 @@ class FontProvider with ChangeNotifier {
   }
 
   //update single book details
-  Future<void> updateBookDetails(String bookId) async {
-    final fontApi = selectedFontApi;
+  Future<void> updateBookDetails(String bookId, {Scrapper? scrapper}) async {
+    final fontApi = scrapper ?? selectedFontApi;
 
     Map<String, dynamic> updatedBookDetails = await fontApi.getBookDetails(bookId);
 
     List<Map<String, String>> readChapters = _selectedChapterIds[bookId] ?? [];
 
-    // Atualiza em _favoritedBooks preservando a tab atual
+    // Atualiza em _favoritedBooks preservando as tabs atuais
     int favIndex = _favoritedBooks.indexWhere((book) => book['id'] == bookId);
     if (favIndex != -1) {
-      String currentTab = _favoritedBooks[favIndex]['tab'] ?? 'Reading';
-      updatedBookDetails['tab'] = currentTab;
+      final currentTabs = _bookTabs(_favoritedBooks[favIndex]);
+      updatedBookDetails['tabs'] = currentTabs;
+      updatedBookDetails.remove('tab');
       _favoritedBooks[favIndex] = updatedBookDetails;
       _saveFavoritedBooks();
     }
@@ -168,21 +169,39 @@ class FontProvider with ChangeNotifier {
   }
 
   void setBooksInTab(String tab, List<Map<String, dynamic>> books) {
-    for (var book in books) {
-      book['tab'] = tab;
+    // Remove o tab de todos os livros que o tinham
+    for (int i = 0; i < _favoritedBooks.length; i++) {
+      final book = Map<String, dynamic>.from(_favoritedBooks[i]);
+      final tabs = _bookTabs(book);
+      if (tabs.contains(tab)) {
+        tabs.remove(tab);
+        book['tabs'] = tabs;
+        book.remove('tab');
+        if (tabs.isEmpty) {
+          _favoritedBooks.removeAt(i--);
+        } else {
+          _favoritedBooks[i] = book;
+        }
+      }
     }
-    _favoritedBooks.removeWhere((book) => book['tab'] == tab);
-    _favoritedBooks.addAll(books);
+    // Adiciona os novos livros ao tab
+    for (var book in books) {
+      addBookToTab(tab, book);
+    }
     _saveFavoritedBooks();
     notifyListeners();
   }
 
   void updateBookInTab(String tab, Map<String, dynamic> updatedBook) {
-    List<Map<String, dynamic>> booksInTab = getBooksInTab(tab);
-    int index = booksInTab.indexWhere((book) => book['id'] == updatedBook['id']);
+    final index = _favoritedBooks.indexWhere((book) => book['id'] == updatedBook['id']);
     if (index != -1) {
-      booksInTab[index] = updatedBook;
-      setBooksInTab(tab, booksInTab);
+      final stored = Map<String, dynamic>.from(_favoritedBooks[index]);
+      final currentTabs = _bookTabs(stored);
+      updatedBook['tabs'] = currentTabs;
+      updatedBook.remove('tab');
+      _favoritedBooks[index] = updatedBook;
+      _saveFavoritedBooks();
+      notifyListeners();
     }
   }
 
@@ -243,13 +262,12 @@ class FontProvider with ChangeNotifier {
 
   void toggleFavorite(Map<String, dynamic> book) {
     final index = _favoritedBooks.indexWhere((favorited) => favorited['id'] == book['id']);
-    final isFavorited = index != -1;
-    if (isFavorited) {
-      _favoritedBooks.remove(book);
+    if (index != -1) {
+      _favoritedBooks.removeAt(index);
+      _saveFavoritedBooks();
     } else {
       addBookToTab('Reading', book);
     }
-    _saveFavoritedBooks();
     notifyListeners();
   }
 
@@ -282,11 +300,17 @@ class FontProvider with ChangeNotifier {
     _favoritedBooks = favoritedBooks.map((book) {
       try {
         final decodedBook = jsonDecode(book);
-        if (decodedBook is  Map<String, dynamic>) {
+        if (decodedBook is Map<String, dynamic>) {
+          // Migração: converte campo antigo 'tab' (String) → 'tabs' (List)
+          if (!decodedBook.containsKey('tabs') && decodedBook.containsKey('tab')) {
+            decodedBook['tabs'] = [decodedBook['tab']];
+            decodedBook.remove('tab');
+          } else if (!decodedBook.containsKey('tabs')) {
+            decodedBook['tabs'] = ['Reading'];
+          }
           return decodedBook;
-        } else {
-          return null;
         }
+        return null;
       } catch (e) {
         return null;
       }
@@ -409,60 +433,100 @@ class FontProvider with ChangeNotifier {
     return _lastReadedChapterId;
   }
 
-  // Books tabs
+  // Books tabs — modelo multi-tab: cada livro tem 'tabs': List<String>
+
+  List<String> _bookTabs(Map<String, dynamic> book) {
+    final raw = book['tabs'];
+    if (raw is List) return List<String>.from(raw);
+    // migração de dados antigos: campo 'tab' único
+    final legacy = book['tab'];
+    if (legacy is String) return [legacy];
+    return ['Reading'];
+  }
+
   List<Map<String, dynamic>> getBooksInTab(String tabName) {
     if (_tabsState.libraryTabs.contains(tabName)) {
-      return _favoritedBooks.where((book) => book['tab'] == tabName).toList();
+      return _favoritedBooks.where((book) => _bookTabs(book).contains(tabName)).toList();
     }
     return [];
   }
 
   void addBookToTab(String tabName, Map<String, dynamic> book) {
-    if (_tabsState.libraryTabs.contains('Reading')) {
-      book['tab'] = 'Reading';
-    } else if (_tabsState.libraryTabs.isNotEmpty) {
-      book['tab'] = _tabsState.libraryTabs.first;
+    final effectiveTab = _tabsState.libraryTabs.contains(tabName)
+        ? tabName
+        : (_tabsState.libraryTabs.isNotEmpty ? _tabsState.libraryTabs.first : 'Reading');
+
+    final existingIndex = _favoritedBooks.indexWhere((b) => b['id'] == book['id']);
+    if (existingIndex != -1) {
+      final stored = Map<String, dynamic>.from(_favoritedBooks[existingIndex]);
+      final tabs = _bookTabs(stored);
+      if (!tabs.contains(effectiveTab)) tabs.add(effectiveTab);
+      stored['tabs'] = tabs;
+      stored.remove('tab');
+      _favoritedBooks[existingIndex] = stored;
     } else {
-      // Se não houver tabs disponíveis, não adicione o livro
-      return;
-    }
-
-    if (!_favoritedBooks.contains(book)) {
-      _favoritedBooks.add(book);
-    }
-    _saveFavoritedBooks();
-    notifyListeners();
-  }
-
-  void renameTabBooks(String oldName, String newName) {
-    for (var book in _favoritedBooks) {
-      if (book['tab'] == oldName) {
-        book['tab'] = newName;
-      }
+      final bookCopy = Map<String, dynamic>.from(book);
+      bookCopy['tabs'] = [effectiveTab];
+      bookCopy.remove('tab');
+      _favoritedBooks.add(bookCopy);
     }
     _saveFavoritedBooks();
     notifyListeners();
   }
 
   void removeBookFromTab(String tabName, Map<String, dynamic> book) {
-    if (tabName == 'Reading' || _tabsState.libraryTabs.contains(tabName)) {
-      _favoritedBooks.remove(book);
+    final index = _favoritedBooks.indexWhere((b) => b['id'] == book['id']);
+    if (index == -1) return;
+
+    final stored = Map<String, dynamic>.from(_favoritedBooks[index]);
+    final tabs = _bookTabs(stored);
+    tabs.remove(tabName);
+
+    if (tabs.isEmpty) {
+      _favoritedBooks.removeAt(index);
+    } else {
+      stored['tabs'] = tabs;
+      stored.remove('tab');
+      _favoritedBooks[index] = stored;
     }
     _saveFavoritedBooks();
     notifyListeners();
   }
 
+  // Adiciona à nova tab SEM remover da antiga (multi-tab)
   void moveBookInTab(String oldTabName, String newTabName, Map<String, dynamic> book) {
-    removeBookFromTab(oldTabName, book);
     addBookToTab(newTabName, book);
   }
 
-  void remapBooksFromRemovedTab(String removedTab, String defaultTab) {  
-    final booksToMove = _favoritedBooks.where((book) => book['tab'] == removedTab).toList();  
-    for (var book in booksToMove) {  
-      book['tab'] = defaultTab;  
-    }  
-    _saveFavoritedBooks();  
-    notifyListeners();  
+  void renameTabBooks(String oldName, String newName) {
+    for (int i = 0; i < _favoritedBooks.length; i++) {
+      final book = Map<String, dynamic>.from(_favoritedBooks[i]);
+      final tabs = _bookTabs(book);
+      final idx = tabs.indexOf(oldName);
+      if (idx != -1) {
+        tabs[idx] = newName;
+        book['tabs'] = tabs;
+        book.remove('tab');
+        _favoritedBooks[i] = book;
+      }
+    }
+    _saveFavoritedBooks();
+    notifyListeners();
+  }
+
+  void remapBooksFromRemovedTab(String removedTab, String defaultTab) {
+    for (int i = 0; i < _favoritedBooks.length; i++) {
+      final book = Map<String, dynamic>.from(_favoritedBooks[i]);
+      final tabs = _bookTabs(book);
+      if (tabs.contains(removedTab)) {
+        tabs.remove(removedTab);
+        if (tabs.isEmpty) tabs.add(defaultTab);
+        book['tabs'] = tabs;
+        book.remove('tab');
+        _favoritedBooks[i] = book;
+      }
+    }
+    _saveFavoritedBooks();
+    notifyListeners();
   }
 }

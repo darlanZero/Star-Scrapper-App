@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
+import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.dart';
 
 class LibraryBooksHistory extends StatefulWidget {
   const LibraryBooksHistory({super.key});
@@ -45,33 +46,35 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                       : null;
                   final chapterTitle = lastChapter?['title'] ?? 'N/A';
 
-                  return Stack(
-                    children: [
-                      Image.network(
-                        fontProvider.selectedFontApi.getCoverImageUrl(book),
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                      ),
-                      Positioned(
-                        top: 10,
-                        right: 10,
-                        child: Container(
-                          padding: const EdgeInsets.all(8.0),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            'Cap. $chapterTitle',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
+                  return InkWell(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => BookDetailsScreen(bookDetails: book),
+                    )),
+                    child: Stack(
+                      children: [
+                        Image.network(
+                          fontProvider.selectedFontApi.getCoverImageUrl(book),
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child: Container(
+                            padding: const EdgeInsets.all(8.0),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              'Cap. $chapterTitle',
+                              style: const TextStyle(color: Colors.white, fontSize: 12),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   );
                 },
               );
@@ -90,7 +93,11 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                       ? (fontProvider.selectedChapterIds[bookId] ?? [])
                       : <Map<String, String>>[];
 
-                  return Card(
+                  return InkWell(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => BookDetailsScreen(bookDetails: book),
+                    )),
+                    child: Card(
                     margin: const EdgeInsets.symmetric(vertical: 8.0),
                     child: Stack(
                       children: [
@@ -150,7 +157,8 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                         ),
                       ],
                     ),
-                  );
+                  ),  // fecha Card
+                  );  // fecha InkWell
                 },
               );
             }
