@@ -23,9 +23,9 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
     _tabController = TabController(length: tabsState.libraryTabs.length, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       tabsState.addListener(_updateLibraryTabs);
-      tabsState.setAppBarBottom(
+      tabsState.setAppBarBottom(0,
         PreferredSize(
-          preferredSize: Size.fromHeight(10.0), 
+          preferredSize: Size.fromHeight(10.0),
           child: Text(
             'Library',
             style: TextStyle(

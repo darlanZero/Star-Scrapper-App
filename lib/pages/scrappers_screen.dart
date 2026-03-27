@@ -21,12 +21,11 @@ class _ScrappersScreenState extends State<ScrappersScreen> with TickerProviderSt
     _tabController = TabController(length: 4, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final tabsState = Provider.of<TabsState>(context, listen: false);
-      tabsState.setAppBarBottom(
+      tabsState.setAppBarBottom(1,
         PreferredSize(
-          preferredSize: Size.fromHeight(48.0), 
+          preferredSize: Size.fromHeight(48.0),
           child: TabBar(
             controller: _tabController,
-            
             tabs: const [
             Tab(text: 'Fonts'),
             Tab(text: 'Downloads'),

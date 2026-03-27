@@ -95,20 +95,32 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
               return Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Image.asset('lib/assets/starscrapper.png', width: 150, height: 150, fit: BoxFit.fitHeight, alignment: Alignment.center),
-                  Text(widget.title, style: const TextStyle(color: Color.fromARGB(255, 224, 224, 224), fontSize: 25.0, fontWeight: FontWeight.bold, shadows: [
-                    Shadow(color: Colors.blue, offset: Offset(1.0, 1.0), blurRadius: 3.0),
-                    Shadow(color: Colors.red, offset: Offset(1.0, 1.0), blurRadius: 3.0),
-                  ])),
-                  Opacity(opacity: 0.0, child: Image.asset('lib/assets/starscrapper.png', width: 150, height: 150)),
+                  Image.asset('lib/assets/starscrapper.png', width: 56, height: 56, fit: BoxFit.contain),
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color.fromARGB(255, 224, 224, 224),
+                        fontSize: 22.0,
+                        fontWeight: FontWeight.bold,
+                        shadows: [
+                          Shadow(color: Colors.blue, offset: Offset(1.0, 1.0), blurRadius: 3.0),
+                          Shadow(color: Colors.red, offset: Offset(1.0, 1.0), blurRadius: 3.0),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 56),
                 ],
               );
             } else {
-              return Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Image.asset('lib/assets/starscrapper.png', width: 150, height: 150, fit: BoxFit.fitHeight, alignment: Alignment.center),
-                ]
+              return Image.asset(
+                'lib/assets/starscrapper.png',
+                width: 56,
+                height: 56,
+                fit: BoxFit.contain,
               );
             }
           },
@@ -137,6 +149,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         currentIndex: Provider.of<AppState>(context).currentIndex,
         onTap: (index) {
           Provider.of<AppState>(context, listen: false).setIndex(index);
+          Provider.of<TabsState>(context, listen: false).setActivePageIndex(index);
         },
         option: AnimatedBarOptions(
           opacity: 1.0,

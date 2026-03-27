@@ -15,10 +15,6 @@ class AppState extends ChangeNotifier {
 } 
 
 class TabsState extends ChangeNotifier  {
-  PreferredSizeWidget? _appBarBottom;
-
-  PreferredSizeWidget? get appBarBottom => _appBarBottom;
-
   TabsState() {
     _tabsLoaded = _loadLibraryTabs();
   }
@@ -91,12 +87,22 @@ class TabsState extends ChangeNotifier  {
     fontProvider.remapBooksFromRemovedTab(removedTab, defaultTab);
   }
 
-  //general tabs
-  setAppBarBottom(PreferredSizeWidget? newBottom) {  
-    _appBarBottom = newBottom;  
-    notifyListeners();  
+  //general tabs — armazena um bottom por índice de página
+  final Map<int, PreferredSizeWidget?> _pageBottoms = {};
+  int _activePageIndex = 0;
+
+  PreferredSizeWidget? get appBarBottom => _pageBottoms[_activePageIndex];
+
+  void setAppBarBottom(int pageIndex, PreferredSizeWidget? newBottom) {
+    _pageBottoms[pageIndex] = newBottom;
+    notifyListeners();
   }
- 
+
+  void setActivePageIndex(int index) {
+    _activePageIndex = index;
+    notifyListeners();
+  }
+
 }
 
 class ThemeProvider extends ChangeNotifier {

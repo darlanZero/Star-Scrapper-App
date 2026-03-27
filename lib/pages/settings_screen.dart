@@ -20,12 +20,11 @@ class _SettingsScreenState extends State<SettingsScreen> with TickerProviderStat
     _tabController = TabController(length: 3, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final tabsState = Provider.of<TabsState>(context, listen: false);
-      tabsState.setAppBarBottom(
+      tabsState.setAppBarBottom(2,
         PreferredSize(
-          preferredSize: Size.fromHeight(48.0), 
+          preferredSize: Size.fromHeight(48.0),
           child: TabBar(
             controller: _tabController,
-            
             tabs: const [
             Tab(text: 'General'),
             Tab(text: 'Account'),
