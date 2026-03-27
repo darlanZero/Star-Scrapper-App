@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 import 'package:star_scrapper_app/classes/Scrappers/mangadex_scrapper.dart';
 import 'package:star_scrapper_app/classes/Scrappers/pt-br/demon_sect_scrapper.dart';
+import 'package:star_scrapper_app/classes/Scrappers/sites/luratoons_scrapper.dart';
+import 'package:star_scrapper_app/classes/Scrappers/sites/mediocrescan_scrapper.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';
 
@@ -29,7 +31,26 @@ class FontProvider with ChangeNotifier {
       api: DemonSectScrapper(),
       isRRated: false,
     ),
-    // Add more fonts here
+    // ── Sites com autenticação ────────────────────────────────────────────────
+    // auth via AuthWebViewScreen (OAuth/Cloudflare) ou authenticateWithCredentials.
+    Fonte(
+      image: 'https://luratoons.net/media/images/cropped-lura_scans.format-webp.width-250.webp',
+      name: 'LuraToons',
+      languagePrefix: 'Pt-BR',
+      flags: ['https://cdn.countryflags.com/thumbs/brazil/flag-3d-250.png'],
+      isActive: false,
+      api: LuraToonsScrapper(),
+      isRRated: false,
+    ),
+    Fonte(
+      image: 'https://mediocrescan.com/_next/image?url=%2Flogo.png&w=48&q=75',
+      name: 'MediocreScan',
+      languagePrefix: 'Pt-BR',
+      flags: ['https://cdn.countryflags.com/thumbs/brazil/flag-3d-250.png'],
+      isActive: false,
+      api: MediocreScanScrapper(),
+      isRRated: false,
+    ),
   ];
 
   //Maps of books
