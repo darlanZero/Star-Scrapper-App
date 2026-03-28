@@ -77,15 +77,26 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
 
   Future<void> _loadChapterImages() async {
     final fontApi = _fontProvider.selectedFontApi;
-    _chapterImagesSubscription = fontApi.getChapter(widget.chapterId, widget.mangaID).listen((imageData) {
-      if (imageData['type'] == 'image') {
-        setState(() {
-          _chapterImages.add(imageData['imagePath']);
-        });
-      } else if (imageData['type'] == 'info') {
-        _chapterWebViewUrl = imageData['chapterWebviewUrl'];
-      }
-    });
+    _chapterImagesSubscription = fontApi.getChapter(widget.chapterId, widget.mangaID).listen(
+      (imageData) {
+        if (imageData['type'] == 'image') {
+          setState(() {
+            _chapterImages.add(imageData['imagePath']);
+          });
+        } else if (imageData['type'] == 'info') {
+          _chapterWebViewUrl = imageData['chapterWebviewUrl'];
+        }
+      },
+      onDone: () {
+        // Se o scrapper não forneceu imagens (ex.: conteúdo protegido por DRM),
+        // abre automaticamente a WebView com a URL do capítulo.
+        if (_chapterImages.isEmpty && _chapterWebViewUrl.isNotEmpty) {
+          setState(() {
+            _showWebView = true;
+          });
+        }
+      },
+    );
   }
 
   Future<void> _calculatePageHeights() async {

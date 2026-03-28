@@ -350,8 +350,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     verticalDirection: VerticalDirection.down,
                     direction: Axis.horizontal,
-                    children: widget.bookDetails['tags']
-                      .map<Widget>((tag) => Chip(
+                    children: ((widget.bookDetails['tags'] as List?) ?? []).map<Widget>((tag) => Chip(
                         label: Text(tag, style: TextStyle(color: theme.selectedTheme.textTheme.displayMedium?.color),),
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
@@ -390,7 +389,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        bookDetails['author']['name'] ?? 'No author available',
+                        (bookDetails['author'] as Map?)?['name'] ?? 'No author available',
                         style: TextStyle(
                           fontSize: isDesktop ? 16.0 : 8.0,
                           fontWeight: FontWeight.bold,
@@ -399,7 +398,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                       ),
                       const SizedBox(width: 8.0),
                       Text(
-                        bookDetails['artist']['name'] ?? 'No artist available',
+                        (bookDetails['artist'] as Map?)?['name'] ?? 'No artist available',
                         style:  TextStyle(
                           fontSize: isDesktop ? 16.0 : 8.0,
                           color: Colors.grey
@@ -518,7 +517,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
                   if (isDesktop) Wrap(
                     spacing: 8.0,
-                    children: bookDetails['tags'].map<Widget>((tag) {
+                    children: ((bookDetails['tags'] as List?) ?? []).map<Widget>((tag) {
                       return Chip(
                         label: Text(tag, style: TextStyle(color: theme.selectedTheme.textTheme.displayMedium?.color),),
                         backgroundColor: Colors.transparent,
@@ -719,7 +718,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   }
 
   List<Widget> _buildLanguageFilterButtons() {
-    List<String> languagePrefixes = bookDetails['chapters']
+    List<String> languagePrefixes = ((bookDetails['chapters'] as List?) ?? [])
       .map<String>((chapter) => chapter['translatedLanguage'].toString())
       .toSet()
       .toList();

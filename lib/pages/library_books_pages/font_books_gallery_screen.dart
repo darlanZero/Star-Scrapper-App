@@ -1,8 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:webview_windows/webview_windows.dart' as wvw;
 import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 import 'package:star_scrapper_app/classes/Scrappers/engine/auth_webview_screen.dart';
+import 'package:star_scrapper_app/classes/Scrappers/engine/base_html_scrapper.dart';
 import 'package:star_scrapper_app/classes/Scrappers/engine/scrapper_profile.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
@@ -29,6 +33,10 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   bool _isLoadingMore = false;
   bool _authRequired = false;
   List<dynamic> allBooksData = [];
+
+  /// Referência ao WebviewController após login WebView no Windows.
+  /// Usado para limpar cookies do WebView2 e como backend do proxy HTTP.
+  wvw.WebviewController? _proxyController;
 
   @override
   void initState() {
@@ -57,6 +65,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _proxyController?.dispose();
     super.dispose();
   }
 
@@ -115,7 +124,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Entrar em ${widget.selectedFont.name}',
+                'Enter in ${widget.selectedFont.name}',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -124,14 +133,14 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Escolha como deseja autenticar:',
+                'Choose how you want to authenticate:',
                 style: TextStyle(color: Colors.grey.shade500),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
                 icon: const Icon(Icons.email_outlined),
-                label: const Text('Entrar com email e senha'),
+                label: const Text('Login with email and password'),
                 onPressed: () {
                   Navigator.pop(ctx);
                   _showCredentialsDialog(api);
@@ -140,7 +149,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 icon: const Icon(Icons.open_in_browser_outlined),
-                label: const Text('Entrar pelo navegador'),
+                label: const Text('Login via browser'),
                 onPressed: () {
                   Navigator.pop(ctx);
                   _openWebViewLogin(api, profile);
@@ -160,6 +169,25 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
       context: context,
       profile: profile,
       onSuccess: (cookies) => api.updateSession(cookies),
+      onSuccessWithController: (cookies, controller) async {
+        // Guarda referência para poder limpar cookies do WebView2 mais tarde (ex.: debug logout).
+        _proxyController?.dispose();
+        _proxyController = controller;
+
+        // On Windows: se algum cookie de sessão está faltando (HttpOnly, ex.: sessionid),
+        // configura proxy via WebView para manter a sessão autenticada.
+        final missing = profile.auth.sessionCookieNames.any(
+          (n) => !cookies.containsKey(n),
+        );
+        if (missing && api is BaseHtmlScrapper) {
+          api.setHttpGetProxy(
+            _buildWebViewProxy(
+              controller,
+              onDisconnect: () => api.setHttpGetProxy(null),
+            ),
+          );
+        }
+      },
     );
     if (cookies != null && cookies.isNotEmpty) {
       _loadBooks();
@@ -170,64 +198,91 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   void _showCredentialsDialog(Scrapper api) {
     final emailCtrl = TextEditingController();
     final passCtrl = TextEditingController();
-    bool _loading = false;
+    var loading = false;
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text('Login — ${widget.selectedFont.name}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: emailCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email_outlined),
+        builder: (ctx, setDialogState) {
+          Future<void> submit() async {
+            final email = emailCtrl.text.trim();
+            final pass = passCtrl.text;
+            if (email.isEmpty || pass.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Please fill in both email and password.')),
+              );
+              return;
+            }
+            setDialogState(() => loading = true);
+            try {
+              await api.authenticateWithCredentials(email, pass);
+              if (mounted) {
+                Navigator.pop(ctx);
+                _loadBooks();
+              }
+            } catch (e) {
+              setDialogState(() => loading = false);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                        'Login failed: ${e.toString().replaceAll('Exception: ', '')}'),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              }
+            }
+          }
+
+          return AlertDialog(
+            title: Text('Login — ${widget.selectedFont.name}'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: emailCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  enabled: !loading,
                 ),
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                enabled: !_loading,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: passCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Senha',
-                  prefixIcon: Icon(Icons.lock_outline),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: passCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: Icon(Icons.lock_outline),
+                  ),
+                  obscureText: true,
+                  textInputAction: TextInputAction.done,
+                  enabled: !loading,
+                  onSubmitted: (_) => loading ? null : submit(),
                 ),
-                obscureText: true,
-                textInputAction: TextInputAction.done,
-                enabled: !_loading,
-                onSubmitted: (_) => _loading
-                    ? null
-                    : _submitCredentials(
-                        ctx, api, emailCtrl, passCtrl, setDialogState,
-                      ),
-              ),
-              if (_loading) ...[
-                const SizedBox(height: 16),
-                const LinearProgressIndicator(),
+                if (loading) ...[
+                  const SizedBox(height: 16),
+                  const LinearProgressIndicator(),
+                ],
               ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: loading ? null : () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: loading ? null : submit,
+                child: const Text('Login'),
+              ),
             ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: _loading ? null : () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: _loading
-                  ? null
-                  : () => _submitCredentials(
-                        ctx, api, emailCtrl, passCtrl, setDialogState,
-                      ),
-              child: const Text('Entrar'),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     ).then((_) {
       emailCtrl.dispose();
@@ -235,41 +290,54 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     });
   }
 
-  Future<void> _submitCredentials(
-    BuildContext dialogCtx,
-    Scrapper api,
-    TextEditingController emailCtrl,
-    TextEditingController passCtrl,
-    StateSetter setDialogState,
-  ) async {
-    final email = emailCtrl.text.trim();
-    final pass = passCtrl.text;
-    if (email.isEmpty || pass.isEmpty) {
+  // ─── Debug helpers ─────────────────────────────────────────────────────────
+
+  /// Limpa a sessão HTTP **e** o cookie store do WebView2.
+  /// Usado no modo debug para testar o fluxo de login do zero.
+  Future<void> _debugClearSession() async {
+    final api = widget.selectedFont.api;
+
+    // 1. Zera sessão no SharedPreferences e remove proxy HTTP.
+    await api.logout();
+    if (api is BaseHtmlScrapper) api.setHttpGetProxy(null);
+
+    // 2. Limpa o cookie store persistente do WebView2 (Windows).
+    if (defaultTargetPlatform == TargetPlatform.windows) {
+      await _clearWebViewCookies();
+    }
+
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preencha email e senha.')),
+        const SnackBar(
+          content: Text('Sessão + cookies WebView limpos.'),
+          duration: Duration(seconds: 3),
+        ),
       );
+      _loadBooks();
+    }
+  }
+
+  /// Limpa o cookie store do WebView2.
+  ///
+  /// Usa [_proxyController] se disponível (já inicializado); caso contrário
+  /// cria um controller temporário só para a chamada de limpeza.
+  Future<void> _clearWebViewCookies() async {
+    if (_proxyController != null) {
+      try {
+        await _proxyController!.clearCookies();
+      } catch (_) {}
+      _proxyController!.dispose();
+      _proxyController = null;
       return;
     }
-    setDialogState(() {});
-    // Usamos uma variável local para evitar set no contexto do diálogo fechado
+
+    // Nenhum controller ativo — cria um temporário.
+    final ctrl = wvw.WebviewController();
     try {
-      await api.authenticateWithCredentials(email, pass);
-      if (mounted) {
-        Navigator.pop(dialogCtx);
-        _loadBooks();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Login falhou: ${e.toString().replaceAll('Exception: ', '')}'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-      }
-    }
+      await ctrl.initialize();
+      await ctrl.clearCookies();
+    } catch (_) {}
+    await ctrl.dispose();
   }
 
   // ─── Build ─────────────────────────────────────────────────────────────────
@@ -295,6 +363,14 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
+        actions: [
+          if (kDebugMode)
+            IconButton(
+              icon: const Icon(Icons.logout, color: Colors.redAccent),
+              tooltip: 'Limpar sessão + cookies WebView (debug)',
+              onPressed: _debugClearSession,
+            ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(50),
           child: Center(
@@ -317,7 +393,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
                     children: [
                       Icon(Icons.filter_list,
                           color: theme.selectedTheme.textTheme.displayMedium?.color),
-                      Text('filter',
+                      Text('Filter',
                           style: TextStyle(
                               color: theme.selectedTheme.textTheme.displayMedium?.color)),
                     ],
@@ -381,13 +457,13 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
                   const Icon(Icons.error_outline, size: 48, color: Colors.red),
                   const SizedBox(height: 12),
                   Text(
-                    'Erro ao carregar: ${snapshot.error}',
+                    'Error loading: ${snapshot.error}',
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Tentar novamente'),
+                    label: const Text('Retry'),
                     onPressed: _loadBooks,
                   ),
                 ],
@@ -452,7 +528,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Faça login em ${widget.selectedFont.name} para acessar o conteúdo.',
+              'Please log in to ${widget.selectedFont.name} to access the content.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade400),
             ),
@@ -462,7 +538,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.login),
-                  label: Text('Entrar em ${widget.selectedFont.name}'),
+                  label: Text('Login to ${widget.selectedFont.name}'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
@@ -646,4 +722,66 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
       },
     );
   }
+}
+
+/// Cria uma função de proxy HTTP que roteia requests GET através da sessão
+/// autenticada do WebView (inclui cookies HttpOnly como sessionid automaticamente).
+///
+/// Usado no Windows após Google OAuth quando sessionid é HttpOnly e não pode
+/// ser lido via document.cookie. O WebView tem a sessão válida; o fetch()
+/// executado via executeScript inclui os cookies automaticamente.
+Future<http.Response> Function(String url) _buildWebViewProxy(
+  wvw.WebviewController controller, {
+  VoidCallback? onDisconnect,
+}) {
+  return (String url) async {
+    final encodedUrl = jsonEncode(url);
+    dynamic result;
+    try {
+      // Usa XMLHttpRequest síncrono — executeScript não aguarda Promises,
+      // portanto async/await ou fetch() retornariam {} sem o resultado real.
+      result = await controller.executeScript('''
+        (function() {
+          try {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", $encodedUrl, false);
+            xhr.withCredentials = true;
+            xhr.setRequestHeader("Accept", "text/html,application/xhtml+xml,*/*;q=0.8");
+            xhr.send(null);
+            var finalUrl = xhr.responseURL || "";
+            if (finalUrl.indexOf("/login") !== -1 || finalUrl.indexOf("/entrar") !== -1) {
+              return JSON.stringify({ status: 302, location: finalUrl, body: "" });
+            }
+            return JSON.stringify({ status: xhr.status, location: "", body: xhr.responseText });
+          } catch(e) {
+            return JSON.stringify({ status: 0, location: "", body: "" });
+          }
+        })()
+      ''');
+    } catch (_) {
+      // executeScript lançou (controller morto/disposed) → limpa proxy e sinaliza login
+      onDisconnect?.call();
+      return http.Response('', 302, headers: {'location': '/accounts/login/'});
+    }
+
+    String raw = result?.toString().trim() ?? '{"status":0,"location":"","body":""}';
+    // webview_windows envolve strings JS em aspas externas: "\"...\""
+    if (raw.startsWith('"') && raw.endsWith('"')) {
+      raw = jsonDecode(raw) as String;
+    }
+    final data = jsonDecode(raw) as Map<String, dynamic>;
+    final status = (data['status'] as num? ?? 0).toInt();
+    final body = data['body'] as String? ?? '';
+    final location = data['location'] as String? ?? '';
+
+    if (status == 0) {
+      // XHR falhou (WebView desconectado ou bloqueado) → limpa proxy e exibe login UI
+      onDisconnect?.call();
+      return http.Response('', 302, headers: {'location': '/accounts/login/'});
+    }
+    if (location.isNotEmpty) {
+      return http.Response(body, status, headers: {'location': location});
+    }
+    return http.Response(body, status);
+  };
 }

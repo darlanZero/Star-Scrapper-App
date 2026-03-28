@@ -54,10 +54,19 @@ class AuthWebViewScreen extends StatefulWidget {
   /// Chamado com os cookies extraídos após login bem-sucedido.
   final Future<void> Function(Map<String, String> cookies) onSuccess;
 
+  /// (Windows only) Chamado após login com o [wvw.WebviewController], cujo
+  /// ownership é transferido ao caller (não será disposed pela tela de auth).
+  /// Usar para contornar cookies HttpOnly inacessíveis via JS (ex.: sessionid do Django).
+  final Future<void> Function(
+    Map<String, String> cookies,
+    wvw.WebviewController controller,
+  )? onSuccessWithController;
+
   const AuthWebViewScreen({
     super.key,
     required this.profile,
     required this.onSuccess,
+    this.onSuccessWithController,
   });
 
   @override
@@ -110,7 +119,7 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
             await _checkLoginSuccess(url);
           },
           onWebResourceError: (error) {
-            debugPrint('[AuthWebView] Erro de recurso: ${error.description}');
+            debugPrint('[AuthWebView] resource error: ${error.description}');
           },
         ),
       )
@@ -148,6 +157,14 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
 
     final loginUrl = widget.profile.auth.loginUrl;
     final successFragment = widget.profile.auth.successUrlFragment;
+
+    // Deve estar no domínio do próprio site (não em Google/Discord/OAuth provider)
+    final siteHost = Uri.tryParse(loginUrl)?.host ?? '';
+    final currentHost = Uri.tryParse(url)?.host ?? '';
+    if (siteHost.isNotEmpty && currentHost.isNotEmpty &&
+        !currentHost.endsWith(siteHost)) {
+      return; // Ainda em provider externo (ex.: accounts.google.com)
+    }
 
     // Ainda na página de login → aguarda
     if (url.contains(loginUrl) ||
@@ -190,6 +207,17 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
     );
 
     await widget.onSuccess(sessionCookies.isNotEmpty ? sessionCookies : cookies);
+
+    // On Windows: transfer the WebviewController so the caller can proxy HTTP
+    // requests through the authenticated WebView session (HttpOnly cookie workaround).
+    if (_isWindows && widget.onSuccessWithController != null && _windowsController != null) {
+      final ctrl = _windowsController!;
+      _windowsController = null; // Transfer ownership: dispose() will skip it
+      await widget.onSuccessWithController!(
+        sessionCookies.isNotEmpty ? sessionCookies : cookies,
+        ctrl,
+      );
+    }
 
     if (mounted) Navigator.of(context).pop(sessionCookies);
   }
@@ -251,14 +279,14 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
       // quando o resultado JS é uma string. Precisamos desembrulhar.
       String jsonStr = rawJson.trim();
       if (jsonStr.startsWith('"') && jsonStr.endsWith('"')) {
-        // Desescapa e remove aspas externas
+        // Unescape and remove external quotes
         jsonStr = jsonDecode(jsonStr) as String;
       }
 
       final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
       return decoded.map((k, v) => MapEntry(k, v.toString()));
     } catch (e) {
-      debugPrint('[AuthWebView] Erro ao extrair cookies: $e');
+      debugPrint('[AuthWebView] Error when extracting cookies: $e');
       return {};
     }
   }
@@ -311,8 +339,8 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
             color: Theme.of(context).colorScheme.primaryContainer,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Text(
-              'Entre com sua conta do ${widget.profile.name}. '
-              'Após o login, a sessão será salva automaticamente.',
+              'Enter with your ${widget.profile.name} account. '
+              'After login, the session will be saved automatically.',
               style: TextStyle(
                 fontSize: 12,
                 color: Theme.of(context).colorScheme.onPrimaryContainer,
@@ -348,12 +376,17 @@ Future<Map<String, String>?> showAuthWebView({
   required BuildContext context,
   required ScrapperProfile profile,
   required Future<void> Function(Map<String, String> cookies) onSuccess,
+  Future<void> Function(
+    Map<String, String> cookies,
+    wvw.WebviewController controller,
+  )? onSuccessWithController,
 }) {
   return Navigator.of(context).push<Map<String, String>>(
     MaterialPageRoute(
       builder: (_) => AuthWebViewScreen(
         profile: profile,
         onSuccess: onSuccess,
+        onSuccessWithController: onSuccessWithController,
       ),
     ),
   );

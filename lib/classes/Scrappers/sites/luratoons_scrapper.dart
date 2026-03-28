@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:star_scrapper_app/classes/Scrappers/engine/base_html_scrapper.dart';
 import 'package:star_scrapper_app/classes/Scrappers/engine/scrapper_profile.dart';
 
@@ -7,135 +10,55 @@ import 'package:star_scrapper_app/classes/Scrappers/engine/scrapper_profile.dart
 ///
 /// Scrapper para https://luratoons.net
 ///
-/// Stack: Vue.js (custom) com CSS scoped (classes hasheadas ex.: .nEjte, .V7SZP).
+/// Stack: Vue.js 3 SPA + Django REST API backend.
 ///
 /// Autenticação:
-///   1. Form HTTP (recomendado):
+///   1. Form HTTP (email + senha):
 ///      ```dart
 ///      await scrapper.authenticateWithCredentials(email, senha);
 ///      ```
-///      Fluxo: GET /accounts/login/ → extrai csrfmiddlewaretoken →
-///             POST email+senha+csrf → extrai sessionid do Set-Cookie.
+///   2. WebView (Google OAuth):
+///      Após o OAuth, o sessionid HttpOnly fica na store do WebView2.
+///      O proxy XHR (setHttpGetProxy) encaminha as requisições com withCredentials.
 ///
-///   2. WebView (Google OAuth ou login visual):
-///      ```dart
-///      await showAuthWebView(context: ctx, profile: scrapper.scrapperProfile!, onSuccess: ...);
-///      ```
+/// Endpoints REST confirmados (Playwright DevTools — março 2026):
+///   GET /api/obras/             → { obras: [{id, slug, title, capa}] } — 268 itens, sem paginação
+///   GET /api/obra/{slug}/       → detalhe: {titulo, sinopse, caps:[{num,slug,data,id}], generos, ...}
+///   GET /{slug}/{cap_slug}/     → leitura via WebView (imagens cifradas por WASM/DRM)
 ///
-/// Seletores confirmados por inspeção (Chrome DevTools — março 2026):
-///   • Lista de obras  : a.nEjte  (o card inteiro é um <a>)
-///   • Capa na lista   : img dentro de a.nEjte  (attr src; pode ser data-src em lazy)
-///   • Título na lista : p dentro de a.nEjte
-///   • Capa no detalhe : img.container__img
-///   • Lista capítulos : div.XXfRC → a.V7SZP  (o item é um <a>)
-///   • Título capítulo : .BrZpP dentro de a.V7SZP
-///   • Leitor          : div.iAyij → img (src attr; 162 imgs lazy-loaded)
-///
-/// URLs confirmadas:
-///   • Login          : /accounts/login/
-///   • Google OAuth   : /accounts/google/login/?process=login
-///   • Lista obras    : /todas-as-obras/
-///   • Detalhe obra   : /{manga-slug}/
-///   • Capítulo       : /{manga-slug}/{numero-capitulo}/
-///   • Busca          : /todas-as-obras/?search={q}
-
+/// Imagens de capítulo:
+///   Cifradas em ArrayBuffer via WASM — não extraíveis sem o runtime JS/WASM do site.
+///   A leitura usa a WebView autenticada (WebView2 possui o sessionid do OAuth).
 class LuraToonsScrapper extends BaseHtmlScrapper {
   LuraToonsScrapper() : super(_profile);
 
   static const String _base = 'https://luratoons.net';
 
+  // Cache de todas as obras (carregadas de uma só vez, sem paginação real).
+  List<Map<String, dynamic>>? _cachedObras;
+
   static final ScrapperProfile _profile = ScrapperProfile(
     name: 'LuraToons',
     baseUrl: _base,
-    contentType: ContentType.serverRenderedHtml,
+    contentType: ContentType.spa,
 
-    // ── Autenticação ──────────────────────────────────────────────────────────
     auth: AuthConfig(
       loginUrl: '$_base/accounts/login/',
       type: AuthType.djangoForm,
-
-      // Campos do formulário django-allauth
       usernameFieldName: 'login',
       passwordFieldName: 'password',
       csrfFieldName: 'csrfmiddlewaretoken',
       csrfCookieName: 'csrftoken',
-
-      // Sucesso quando a URL não contém mais 'login'
       successUrlFragment: '/',
-
-      // Cookies de sessão Django
       sessionCookieNames: ['sessionid', 'csrftoken'],
-
       logoutUrl: '$_base/accounts/logout/',
     ),
 
-    // ── Seletores HTML (confirmados por inspeção — março 2026) ────────────────
-    //
-    // Nota: LuraToons usa Vue.js com CSS scoped — as classes hasheadas
-    // (.nEjte, .V7SZP, .XXfRC, .iAyij) são estáveis pois o site é custom.
-    //
-    // Padrão de link: o card/item INTEIRO é o elemento <a> (itemLinkSelector
-    // aponta para si mesmo; o BaseHtmlScrapper faz fallback para o elemento).
-    selectors: HtmlSelectorMap(
-      // ── Lista de obras (/todas-as-obras/) ──
-      // body como container garante que todos os cards a.nEjte sejam encontrados.
-      listContainer: 'body',
-      listItem: 'a.nEjte',           // o card <a> em si
-      itemTitle: 'p',                 // <p> filho do card com o título
-      itemTitleAttr: null,            // usa text content
-      itemCoverSelector: 'img',       // <img> filho do card
-      itemCoverAttr: 'src',           // atributo de URL; lazy-load pode usar data-src
-      itemLinkSelector: 'a.nEjte',   // self-reference → BaseHtmlScrapper usa fallback
-      itemLinkAttr: 'href',
-      itemLatestChapterSelector: null, // não exibido na listagem
+    // selectors: null — LuraToons é uma SPA com API REST; HTML scraping não é usado.
 
-      // ── Detalhe de uma obra ──
-      detailTitleSelector: 'h1',          // título na página de detalhe
-      detailTitleAttr: null,
-      detailCoverSelector: 'img.container__img', // capa principal
-      detailCoverAttr: 'src',
-      detailDescriptionSelector: null,    // sinopse: verificar se existe selector
-
-      // ── Lista de capítulos (div.XXfRC → a.V7SZP) ──
-      chapterListContainer: 'div.XXfRC',
-      chapterItem: 'a.V7SZP',            // o item é o próprio link
-      chapterTitleSelector: '.BrZpP',    // título/número do capítulo
-      chapterLinkSelector: 'a.V7SZP',   // self-reference → fallback para el
-      chapterLinkAttr: 'href',
-
-      // ── Busca ──
-      // URL: /todas-as-obras/?search={q}  (mesmo container da listagem)
-      buildSearchUrl: (q) =>
-          '$_base/todas-as-obras/?search=${Uri.encodeComponent(q)}',
-      searchContainer: 'body',
-      searchItem: null,               // usa listItem (a.nEjte) como fallback
-
-      // ── Leitura de capítulo ──
-      // div.iAyij contém 162 <img> lazy-loaded (src pode precisar de data-src)
-      chapterImagesContainer: 'div.iAyij',
-      chapterImageItem: 'img',
-      chapterImageAttr: 'src',
-    ),
-
-    // ── URL builders ──────────────────────────────────────────────────────────
-    //
-    // LuraToons usa /{slug}/ para obras e /{manga-slug}/{cap-num}/ para capítulos.
-    // extractId retorna o path completo (ex.: "deus-do-campo-de-batalha/311")
-    // para que buildChapterUrl possa reconstruir a URL corretamente.
-    buildDetailUrl: (id, base) => '$base/$id/',
+    buildDetailUrl: (id, base) => '$base/api/obra/$id/',
     buildChapterUrl: (id, base) => '$base/$id/',
-
-    // Paginação: /todas-as-obras/?page=2
-    buildListUrl: (filter, page, base) {
-      final pageParam = page > 0 ? '?page=${page + 1}' : '';
-      return '$base/todas-as-obras/$pageParam';
-    },
-
-    // Extrai o path completo sem a trailing slash.
-    // Ex.: 'https://luratoons.net/deus-do-campo-de-batalha/'
-    //       → 'deus-do-campo-de-batalha'
-    // Ex.: 'https://luratoons.net/deus-do-campo-de-batalha/311/'
-    //       → 'deus-do-campo-de-batalha/311'
+    buildListUrl: (filter, page, base) => '$base/api/obras/',
     extractId: (url) {
       try {
         final uri = Uri.parse(url);
@@ -153,7 +76,193 @@ class LuraToonsScrapper extends BaseHtmlScrapper {
   static const String googleLoginUrl =
       '$_base/accounts/google/login/?process=login';
 
-  /// Retorna o [ScrapperProfile] para uso externo (ex.: AuthWebViewScreen, gallery).
   @override
   ScrapperProfile get scrapperProfile => _profile;
+
+  // ─── HTTP helpers ─────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> _jsonGet(String url) async {
+    final res = await httpGet(url);
+    assertAuthResponse(res);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  // ─── Normalização ──────────────────────────────────────────────────────────
+
+  static String _absoluteCover(String path) =>
+      path.startsWith('http') ? path : '$_base$path';
+
+  List<Map<String, dynamic>> _normalizeObras(List<dynamic> obras) {
+    return obras
+        .map((o) {
+          final obra = o as Map<String, dynamic>;
+          final slug = obra['slug']?.toString() ?? '';
+          if (slug.isEmpty) return null;
+          return <String, dynamic>{
+            'id': slug,
+            'title': obra['title']?.toString() ?? '',
+            'coverImageUrl': _absoluteCover(obra['capa']?.toString() ?? ''),
+            'type': 'manga',
+          };
+        })
+        .whereType<Map<String, dynamic>>()
+        .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchObras() async {
+    final data = await _jsonGet('$_base/api/obras/');
+    return _normalizeObras((data['obras'] ?? []) as List<dynamic>);
+  }
+
+  // ─── Contrato Scrapper ────────────────────────────────────────────────────
+
+  @override
+  Future<List<dynamic>> getAll(String filter) async {
+    final all = await _fetchObras();
+    _cachedObras = all;
+    if (filter.toLowerCase() == 'recent') {
+      // /api/recentes/ não existe — ordena por id descrescente (mais recente primeiro).
+      final sorted = [...all];
+      sorted.sort((a, b) => (b['id'] as String).compareTo(a['id'] as String));
+      return sorted;
+    }
+    return all; // popular = ordem padrão da API
+  }
+
+  @override
+  Future<List<dynamic>> loadMore(String filter) async {
+    // Toda a listagem já vem em uma única requisição — nada mais a carregar.
+    return [];
+  }
+
+  @override
+  Future<dynamic> getBookDetails(String mangaID) async {
+    // mangaID é o slug da obra (ex.: "minha-vida-escolar-fingindo")
+    final data = await _jsonGet('$_base/api/obra/$mangaID/');
+
+    final caps = (data['caps'] ?? []) as List<dynamic>;
+    final generos = (data['generos'] ?? []) as List<dynamic>;
+
+    final chapters = caps
+        .map((c) {
+          final cap = c as Map<String, dynamic>;
+          final slug = cap['slug']?.toString() ?? '';
+          if (slug.isEmpty) return null;
+          return <String, dynamic>{
+            'id': slug,
+            'title': '',
+            'chapter': cap['num']?.toString() ?? '',
+            'translatedLanguage': 'pt-br',
+            'publishedAt': cap['data']?.toString() ?? '',
+          };
+        })
+        .whereType<Map<String, dynamic>>()
+        .toList();
+
+    final capa = data['capa']?.toString() ?? '';
+    return {
+      'id': mangaID,
+      'title': data['titulo']?.toString() ?? '',
+      'coverImageUrl': _absoluteCover(capa),
+      'description': data['sinopse']?.toString() ?? '',
+      'tags': generos
+          .map((g) =>
+              ((g as Map<String, dynamic>)['name']?.toString()) ?? '')
+          .where((t) => t.isNotEmpty)
+          .toList(),
+      'status': data['status']?.toString() ?? '',
+      'author': data['autor']?.toString() ?? '',
+      'chapters': chapters,
+    };
+  }
+
+  @override
+  Stream<Map<String, dynamic>> getChapter(
+    String chapterID,
+    String mangaID,
+  ) async* {
+    // As imagens de capítulo são cifradas por DRM/WASM e só podem ser
+    // renderizadas pelo runtime JS/WASM do próprio site.
+    // A leitura ocorre via WebView autenticada (WebView2 possui o sessionid).
+    yield {
+      'chapterID': chapterID,
+      'chapterWebviewUrl': '$_base/$mangaID/$chapterID/',
+    };
+  }
+
+  @override
+  Stream<Map<String, dynamic>> retrieveLastChapter(
+    String currentChapterId,
+    String mangaId,
+  ) async* {
+    final adjacent =
+        await _findAdjacentChapterId(currentChapterId, mangaId, false);
+    if (adjacent != null) {
+      yield* getChapter(adjacent, mangaId);
+    } else {
+      yield {'type': 'error', 'message': 'Não há capítulo anterior.'};
+    }
+  }
+
+  @override
+  Stream<Map<String, dynamic>> retrieveNextChapter(
+    String currentChapterId,
+    String mangaId,
+  ) async* {
+    final adjacent =
+        await _findAdjacentChapterId(currentChapterId, mangaId, true);
+    if (adjacent != null) {
+      yield* getChapter(adjacent, mangaId);
+    } else {
+      yield {'type': 'error', 'message': 'Não há próximo capítulo.'};
+    }
+  }
+
+  /// Retorna o slug do capítulo anterior ([isNext]=false) ou seguinte ([isNext]=true).
+  /// Capítulos da API chegam em ordem crescente de [num].
+  Future<String?> _findAdjacentChapterId(
+    String currentChapterId,
+    String mangaId,
+    bool isNext,
+  ) async {
+    try {
+      final details = await getBookDetails(mangaId) as Map<String, dynamic>;
+      final chapters = (details['chapters'] as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+      // Garante ordem crescente por número de capítulo.
+      chapters.sort((a, b) =>
+          (double.tryParse(a['chapter'] as String? ?? '0') ?? 0)
+              .compareTo(double.tryParse(b['chapter'] as String? ?? '0') ?? 0));
+      final idx = chapters.indexWhere((c) => c['id'] == currentChapterId);
+      if (idx == -1) return null;
+      final targetIdx = isNext ? idx + 1 : idx - 1;
+      if (targetIdx < 0 || targetIdx >= chapters.length) return null;
+      return chapters[targetIdx]['id'] as String;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<List<dynamic>> searchTitle(String title) async {
+    // Busca client-side: filtra a lista em cache (ou refaz a requisição).
+    final obras = _cachedObras ?? await _fetchObras();
+    _cachedObras ??= obras;
+    final q = title.toLowerCase();
+    return obras
+        .where((o) => (o['title'] as String).toLowerCase().contains(q))
+        .toList();
+  }
+
+  @override
+  String getTitle(dynamic bookDetails) =>
+      (bookDetails['title'] ?? '').toString();
+
+  @override
+  String getCoverImageUrl(dynamic bookDetails) =>
+      (bookDetails['coverImageUrl'] ?? '').toString();
+
+  @override
+  String getBookId(dynamic bookDetails) =>
+      (bookDetails['id'] ?? '').toString();
 }

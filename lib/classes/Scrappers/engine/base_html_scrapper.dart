@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
@@ -33,6 +34,7 @@ abstract class BaseHtmlScrapper extends Scrapper {
 
   Map<String, String> _cookies = {};
   int _currentPage = 0;
+  Future<http.Response> Function(String url)? _httpGetProxy;
 
   BaseHtmlScrapper(this.profile);
 
@@ -62,6 +64,23 @@ abstract class BaseHtmlScrapper extends Scrapper {
     await SessionManager.saveCookies(siteKey, _cookies);
   }
 
+  /// Configura (ou remove, passando null) um proxy para todos os _get().
+  /// Usado no Windows após OAuth via WebView quando sessionid é HttpOnly.
+  void setHttpGetProxy(Future<http.Response> Function(String url)? proxy) {
+    _httpGetProxy = proxy;
+  }
+
+  // ─── Protected HTTP helpers (para subclasses) ─────────────────────────────
+
+  /// Executa GET autenticado. Usa o proxy se configurado.
+  /// Destinado a subclasses que precisam fazer requisições HTTP.
+  @protected
+  Future<http.Response> httpGet(String url) => _get(url);
+
+  /// Lança exceção se a resposta indicar erro de auth ou status != 200.
+  @protected
+  void assertAuthResponse(http.Response res) => _assertAuth(res);
+
   /// Efetua logout: limpa cookies locais e, opcionalmente, chama a URL de logout.
   Future<void> logout() async {
     _cookies = {};
@@ -90,9 +109,32 @@ abstract class BaseHtmlScrapper extends Scrapper {
           'Cookie': SessionManager.buildCookieHeader(_cookies),
       };
 
-  Future<http.Response> _get(String url) async {
+  Future<http.Response> _get(String url, {int maxRedirects = 5}) async {
+    if (_httpGetProxy != null) return _httpGetProxy!(url);
     await _ensureSession();
-    return http.get(Uri.parse(url), headers: _authHeaders);
+    final request = http.Request('GET', Uri.parse(url));
+    request.headers.addAll(_authHeaders);
+    request.followRedirects = false;
+    final client = http.Client();
+    try {
+      final streamed = await client.send(request);
+      final response = await http.Response.fromStream(streamed);
+      if (maxRedirects > 0 &&
+          (response.statusCode == 301 ||
+           response.statusCode == 302 ||
+           response.statusCode == 303)) {
+        final location = response.headers['location'] ?? '';
+        if (location.isEmpty) return response;
+        // Auth redirect — return as-is so _assertAuth can detect it
+        if (location.contains('login') || location.contains('entrar')) {
+          return response;
+        }
+        return _get(_absoluteUrl(location), maxRedirects: maxRedirects - 1);
+      }
+      return response;
+    } finally {
+      client.close();
+    }
   }
 
   Future<http.Response> _post(
@@ -107,11 +149,17 @@ abstract class BaseHtmlScrapper extends Scrapper {
         'Cookie': SessionManager.buildCookieHeader(_cookies),
       ...?extraHeaders,
     };
-    return http.post(
-      Uri.parse(url),
-      headers: headers,
-      body: Uri(queryParameters: fields).query,
-    );
+    final request = http.Request('POST', Uri.parse(url));
+    request.headers.addAll(headers);
+    request.body = Uri(queryParameters: fields).query;
+    request.followRedirects = false;
+    final client = http.Client();
+    try {
+      final streamed = await client.send(request);
+      return await http.Response.fromStream(streamed);
+    } finally {
+      client.close();
+    }
   }
 
   /// Retorna true se a resposta indica sessão inválida (redirect para login).
@@ -203,12 +251,16 @@ abstract class BaseHtmlScrapper extends Scrapper {
     );
 
     // Verifica sucesso: 302 redirect para home (não para /login novamente)
+    // Com followRedirects=false no _post, 200 significa que o servidor
+    // devolveu a página de login novamente → credenciais inválidas.
     if (loginRes.statusCode == 302) {
       final location = loginRes.headers['location'] ?? '';
       if (location.contains('login') || location.contains('entrar')) {
         throw Exception('Credenciais inválidas para ${profile.name}');
       }
-    } else if (loginRes.statusCode != 200 && loginRes.statusCode != 302) {
+    } else if (loginRes.statusCode == 200) {
+      throw Exception('Credenciais inválidas para ${profile.name}');
+    } else {
       throw Exception('Login falhou: HTTP ${loginRes.statusCode}');
     }
 

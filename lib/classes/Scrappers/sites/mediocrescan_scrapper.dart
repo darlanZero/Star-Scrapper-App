@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
@@ -11,48 +11,31 @@ import 'package:star_scrapper_app/classes/Scrappers/engine/session_manager.dart'
 ///
 /// Scrapper para https://mediocrescan.com (MediocreToons)
 ///
-/// Contexto técnico:
-///   • Next.js 14 (App Router) com rendering híbrido (SSR + client hydration)
-///   • Cloudflare Turnstile (bot detection) na página de login
-///   • Auth: formulário React com email/password, Google OAuth, Discord OAuth
-///   • Conteúdo: 18.2k obras, 439.3k capítulos, exige assinatura ativa
+/// Stack: Next.js 14 (App Router), REST API separada em https://api.mediocrescan.com
 ///
-/// Estratégia de autenticação:
-///   Por ser Next.js com Cloudflare Turnstile, o login VIA HTTP puro é inviável
-///   sem resolver o desafio JS. A autenticação SEMPRE acontece via WebView:
+/// Autenticação:
+///   Next.js com Cloudflare Turnstile → login sempre via WebView.
+///   O token JWT fica no cookie `token` (não-HttpOnly) em mediocrescan.com.
+///   Após a WebView capturar os cookies, usa o Bearer token para a API.
 ///
-///   ```dart
-///   await showAuthWebView(
-///     context: context,
-///     profile: MediocreScanScrapper().scrapperProfile,
-///     onSuccess: (cookies) async {
-///       await scrapper.updateSession(cookies);
-///     },
-///   );
-///   ```
+/// Endpoints confirmados (inspeção DevTools — março 2026):
+///   GET  /obras/recentes?limite=24&pagina=N       → listagem pública
+///   GET  /obras/novos?limite=24&pagina=N          → novos (requer auth)
+///   GET  /obras/buscar?q={q}&limite=24&pagina=N   → busca
+///   GET  /obras/{id}                              → detalhe da obra
+///   GET  /capitulos?obr_id={id}&page=N&limite=50  → capítulos da obra
+///   GET  /capitulos/{id}                          → detalhe + páginas
 ///
-/// Estratégia de conteúdo:
-///   O Next.js faz chamadas a uma API interna. Os endpoints precisam ser
-///   descobertos monitorando o network tab após login. As chamadas são
-///   autenticadas por Bearer token (JWT em cookie ou localStorage).
-///
-///   Até os endpoints serem descobertos, este scrapper usa uma abordagem
-///   de WebView-fetch: envia uma requisição fetch() pelo contexto JS do
-///   WebView autenticado e parseia o JSON de retorno.
-///
-/// TODO (requer inspeção pós-login):
-///   1. Abrir /pesquisar com DevTools → aba Network
-///   2. Digitar algo na busca e observar as chamadas XHR/Fetch
-///   3. Identificar: base URL da API, headers de auth, estrutura do JSON
-///   4. Substituir [_ApiEndpoints] com os valores corretos
-///   5. Implementar [getAll], [searchTitle], [getBookDetails], [getChapter]
-///      usando HTTP direto com os endpoints descobertos
-
+/// Imagens de capítulo:
+///   https://cdn.mediocrescan.com/obras/{obra_id}/capitulos/{numero}/{src}
 class MediocreScanScrapper extends Scrapper {
   static const String _base = 'https://mediocrescan.com';
+  static const String _apiBase = 'https://api.mediocrescan.com';
+  static const String _cdnBase = 'https://cdn.mediocrescan.com';
 
   Map<String, String> _cookies = {};
   String? _bearerToken;
+  int _currentPage = 1;
 
   // ─── Perfil (para AuthWebViewScreen) ──────────────────────────────────────
 
@@ -64,26 +47,14 @@ class MediocreScanScrapper extends Scrapper {
     auth: AuthConfig(
       loginUrl: '$_base/entrar',
       type: AuthType.webviewForm,
-
-      // Login detectado quando URL muda de /entrar para outra rota
       successUrlFragment: '/',
-
-      // TODO: identificar os cookies/tokens reais após inspeção pós-login
-      // Candidatos comuns em Next.js: '__Secure-next-auth.session-token',
-      // 'next-auth.session-token', 'token', 'auth_token'
-      sessionCookieNames: ['__Secure-next-auth.session-token',
-                           'next-auth.session-token',
-                           'token',
-                           'auth'],
-
-      logoutUrl: '$_base/api/auth/signout',
+      sessionCookieNames: ['token', 'refresh_token'],
+      logoutUrl: null,
     ),
 
-    // ── URL builders (TODO: confirmar após inspeção) ──
-    buildDetailUrl: (id, base) => '$base/obra/$id',     // TODO
-    buildChapterUrl: (id, base) => '$base/capitulo/$id', // TODO
-    buildListUrl: (filter, page, base) =>
-        '$base/pesquisar?page=${page + 1}',              // TODO
+    buildDetailUrl: (id, base) => '$base/obra/$id',
+    buildChapterUrl: (id, base) => '$base/capitulo/$id',
+    buildListUrl: (filter, page, base) => base,
 
     extractId: (url) {
       try {
@@ -103,23 +74,26 @@ class MediocreScanScrapper extends Scrapper {
 
   String get siteKey => 'mediocrescan';
 
-  bool get isAuthenticated => _cookies.isNotEmpty || _bearerToken != null;
+  bool get isAuthenticated => _bearerToken != null && _bearerToken!.isNotEmpty;
 
+  @override
   Future<void> updateSession(Map<String, String> cookies) async {
     _cookies = Map.from(cookies);
-    // Extrai Bearer token se presente como cookie (comum em Next.js)
-    _bearerToken = cookies['token'] ??
-        cookies['auth_token'] ??
-        cookies['access_token'];
+    _bearerToken = cookies['token'];
     await SessionManager.saveCookies(siteKey, cookies);
+  }
+
+  @override
+  Future<void> logout() async {
+    _cookies = {};
+    _bearerToken = null;
+    await SessionManager.clearSession(siteKey);
   }
 
   Future<void> _ensureSession() async {
     if (_cookies.isEmpty) {
       _cookies = await SessionManager.loadCookies(siteKey);
-      _bearerToken = _cookies['token'] ??
-          _cookies['auth_token'] ??
-          _cookies['access_token'];
+      _bearerToken = _cookies['token'];
     }
   }
 
@@ -129,30 +103,11 @@ class MediocreScanScrapper extends Scrapper {
         'Accept': 'application/json, */*',
         'Accept-Language': 'pt-BR,pt;q=0.9',
         'Referer': _base,
-        if (_cookies.isNotEmpty)
-          'Cookie': SessionManager.buildCookieHeader(_cookies),
-        if (_bearerToken != null)
+        if (_bearerToken != null && _bearerToken!.isNotEmpty)
           'Authorization': 'Bearer $_bearerToken',
       };
 
-  // ─── API endpoints (TODO: preencher após inspeção de rede) ───────────────
-
-  /// Candidatos de endpoints descobertos por análise de rotas Next.js:
-  ///   /api/comics          → listagem
-  ///   /api/comics/search   → busca
-  ///   /api/comics/{id}     → detalhes
-  ///   /api/chapters/{id}   → capítulo
-  ///   /api/auth/session    → validação de sessão
-  ///
-  /// Para descobrir: depois de logado, abra o DevTools → Network →
-  /// filtre por "Fetch/XHR" e navegue pelo site.
-  static const _todoEndpoints = {
-    'getAll': '$_base/api/comics',            // TODO
-    'search': '$_base/api/comics/search',     // TODO
-    'details': '$_base/api/comics/',          // TODO: + id
-    'chapter': '$_base/api/chapters/',        // TODO: + id
-    'session': '$_base/api/auth/session',     // TODO
-  };
+  // ─── HTTP ─────────────────────────────────────────────────────────────────
 
   Future<http.Response> _apiGet(String url) async {
     await _ensureSession();
@@ -163,25 +118,84 @@ class MediocreScanScrapper extends Scrapper {
     if (res.statusCode == 401 || res.statusCode == 403) {
       throw Exception('authentication_required');
     }
-    if (res.statusCode != 200) {
-      throw Exception('HTTP ${res.statusCode}');
+    if (res.statusCode != 200 && res.statusCode != 201) {
+      throw Exception('HTTP ${res.statusCode} ao acessar ${res.request?.url}');
     }
+    // Resposta 200 mas com payload de erro de auth (token ausente/inválido)
+    // Verificação via startsWith para evitar falsos positivos em conteúdo de mangás
+    if (res.body.startsWith('{"message":"Token') ||
+        res.body.startsWith('{"statusCode":401')) {
+      throw Exception('authentication_required');
+    }
+  }
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+
+  String _coverUrl(dynamic id, dynamic imagem) {
+    final imgStr = imagem?.toString() ?? '';
+    if (imgStr.isEmpty) return '';
+    return '$_apiBase/storage/obras/$id/$imgStr?w=400';
+  }
+
+  String _numToString(dynamic numero) {
+    if (numero == null) return '';
+    if (numero is double) {
+      return numero == numero.truncateToDouble()
+          ? numero.toInt().toString()
+          : numero.toString();
+    }
+    return numero.toString();
+  }
+
+  // ─── Normalização ─────────────────────────────────────────────────────────
+
+  Map<String, dynamic> _normalizeBook(dynamic raw) {
+    final m = raw as Map<String, dynamic>;
+    final id = m['id'];
+    return {
+      'id': id.toString(),
+      'title': (m['nome'] ?? '').toString(),
+      'coverImageUrl': _coverUrl(id, m['imagem']),
+      'status': (m['status'] ?? '').toString(),
+      'type': 'manga',
+      'latestChapter': m['capitulo_numero']?.toString() ?? '',
+    };
+  }
+
+  Map<String, dynamic> _normalizeBookDetails(Map<String, dynamic> m) {
+    final id = m['id'];
+    final capitulos = (m['capitulos'] ?? []) as List;
+    return {
+      'id': id.toString(),
+      'title': (m['nome'] ?? '').toString(),
+      'coverImageUrl': _coverUrl(id, m['imagem']),
+      'description': (m['descricao'] ?? '').toString(),
+      'chapters': capitulos.map((c) {
+        final ch = c as Map<String, dynamic>;
+        final numStr = _numToString(ch['numero']);
+        final nome = ch['nome']?.toString() ?? '';
+        return {
+          'id': ch['id'].toString(),
+          'title': nome.isNotEmpty ? nome : 'Capítulo $numStr',
+          'translatedLanguage': 'pt-br',
+        };
+      }).toList(),
+    };
   }
 
   // ─── Scrapper contract ────────────────────────────────────────────────────
 
   @override
   Future<List<dynamic>> getAll(String filter) async {
-    // TODO: substituir pelo endpoint real após inspeção
-    final url = _todoEndpoints['getAll']!;
+    _currentPage = 1;
+    final endpoint = filter.toLowerCase() == 'recent'
+        ? '$_apiBase/obras/novos?limite=24&pagina=1'
+        : '$_apiBase/obras/recentes?limite=24&pagina=1';
     try {
-      final res = await _apiGet(url);
+      final res = await _apiGet(endpoint);
       _assertAuth(res);
-      final data = jsonDecode(res.body);
-      // TODO: ajustar o caminho do JSON conforme a estrutura real
-      final List<dynamic> items = data is List
-          ? data
-          : (data['data'] ?? data['comics'] ?? data['results'] ?? []);
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final items = (data['data'] ?? []) as List;
       return items.map(_normalizeBook).toList();
     } catch (e) {
       if (e.toString().contains('authentication_required')) rethrow;
@@ -192,21 +206,32 @@ class MediocreScanScrapper extends Scrapper {
 
   @override
   Future<List<dynamic>> loadMore(String filter) async {
-    // TODO: implementar paginação real
-    return getAll(filter);
+    _currentPage++;
+    final endpoint = filter.toLowerCase() == 'recent'
+        ? '$_apiBase/obras/novos?limite=24&pagina=$_currentPage'
+        : '$_apiBase/obras/recentes?limite=24&pagina=$_currentPage';
+    try {
+      final res = await _apiGet(endpoint);
+      _assertAuth(res);
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final items = (data['data'] ?? []) as List;
+      return items.map(_normalizeBook).toList();
+    } catch (e) {
+      if (e.toString().contains('authentication_required')) rethrow;
+      debugPrint('[MediocreScan] loadMore erro: $e');
+      return [];
+    }
   }
 
   @override
   Future<List<dynamic>> searchTitle(String title) async {
-    // TODO: substituir pela URL real de busca
-    final url = '${_todoEndpoints['search']}?q=${Uri.encodeComponent(title)}';
+    final url =
+        '$_apiBase/obras/buscar?q=${Uri.encodeComponent(title)}&limite=24&pagina=1';
     try {
       final res = await _apiGet(url);
       _assertAuth(res);
-      final data = jsonDecode(res.body);
-      final List<dynamic> items = data is List
-          ? data
-          : (data['data'] ?? data['results'] ?? []);
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final items = (data['data'] ?? []) as List;
       return items.map(_normalizeBook).toList();
     } catch (e) {
       if (e.toString().contains('authentication_required')) rethrow;
@@ -217,8 +242,7 @@ class MediocreScanScrapper extends Scrapper {
 
   @override
   Future<dynamic> getBookDetails(String mangaID) async {
-    // TODO: ajustar endpoint e mapeamento JSON
-    final url = '${_todoEndpoints['details']}$mangaID';
+    final url = '$_apiBase/obras/$mangaID';
     try {
       final res = await _apiGet(url);
       _assertAuth(res);
@@ -235,22 +259,32 @@ class MediocreScanScrapper extends Scrapper {
     String chapterID,
     String mangaID,
   ) async* {
-    // TODO: ajustar endpoint e mapeamento JSON
-    final url = '${_todoEndpoints['chapter']}$chapterID';
+    final url = '$_apiBase/capitulos/$chapterID';
     try {
       final res = await _apiGet(url);
       _assertAuth(res);
       final data = jsonDecode(res.body) as Map<String, dynamic>;
-      // TODO: ajustar campo de imagens
-      final images = (data['images'] ?? data['pages'] ?? []) as List;
+      final paginas = (data['paginas'] ?? []) as List;
+      final obra = data['obra'] as Map<String, dynamic>?;
+      final obraId = obra?['obr_id']?.toString() ?? mangaID;
+      final numStr = _numToString(data['numero']);
+
+      final images = paginas
+          .map((p) {
+            final src = (p as Map<String, dynamic>)['src']?.toString() ?? '';
+            if (src.isEmpty) return '';
+            return '$_cdnBase/obras/$obraId/capitulos/$numStr/$src';
+          })
+          .where((u) => u.isNotEmpty)
+          .toList();
+
       yield {
         'chapterID': chapterID,
-        'chapterWebviewUrl': '$_base/capitulo/$chapterID', // fallback WebView
-        'images': images.cast<String>(),
+        'chapterWebviewUrl': '$_base/capitulo/$chapterID',
+        'images': images,
       };
     } catch (e) {
       if (e.toString().contains('authentication_required')) rethrow;
-      // Fallback: abre o capítulo via WebView
       yield {
         'chapterID': chapterID,
         'chapterWebviewUrl': '$_base/capitulo/$chapterID',
@@ -264,7 +298,6 @@ class MediocreScanScrapper extends Scrapper {
     String currentChapterId,
     String mangaId,
   ) async* {
-    // TODO: implementar navegação de capítulos
     yield {
       'chapterID': currentChapterId,
       'chapterWebviewUrl': '$_base/capitulo/$currentChapterId',
@@ -279,44 +312,6 @@ class MediocreScanScrapper extends Scrapper {
     yield {
       'chapterID': currentChapterId,
       'chapterWebviewUrl': '$_base/capitulo/$currentChapterId',
-    };
-  }
-
-  // ─── Normalização de dados ────────────────────────────────────────────────
-
-  /// Normaliza um item de livro da API para o formato interno do app.
-  /// TODO: ajustar os campos conforme a estrutura JSON real do site.
-  Map<String, dynamic> _normalizeBook(dynamic raw) {
-    final m = raw as Map<String, dynamic>;
-    return {
-      'id': (m['id'] ?? m['slug'] ?? m['_id'] ?? '').toString(),
-      'title': (m['title'] ?? m['name'] ?? m['nome'] ?? '').toString(),
-      'coverImageUrl': (m['cover'] ??
-              m['thumbnail'] ??
-              m['coverUrl'] ??
-              m['image'] ??
-              '')
-          .toString(),
-      'status': (m['status'] ?? '').toString(),
-      'type': 'manga',
-    };
-  }
-
-  Map<String, dynamic> _normalizeBookDetails(Map<String, dynamic> m) {
-    final chapters = (m['chapters'] ?? m['capitulos'] ?? []) as List;
-    return {
-      'id': (m['id'] ?? m['slug'] ?? '').toString(),
-      'title': (m['title'] ?? m['name'] ?? '').toString(),
-      'coverImageUrl': (m['cover'] ?? m['thumbnail'] ?? '').toString(),
-      'description': (m['description'] ?? m['synopsis'] ?? m['sinopse'] ?? '').toString(),
-      'chapters': chapters.map((c) {
-        final ch = c as Map<String, dynamic>;
-        return {
-          'id': (ch['id'] ?? ch['slug'] ?? '').toString(),
-          'title': (ch['title'] ?? ch['name'] ?? ch['numero'] ?? '').toString(),
-          'translatedLanguage': 'pt-br',
-        };
-      }).toList(),
     };
   }
 
