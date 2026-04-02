@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -19,6 +20,7 @@ class ChapterBookScreen extends StatefulWidget {
   final String? chapterNumber;
   final String mangaID;
   final String chapterWebViewUrl;
+  final Scrapper? scrapper;
 
   const ChapterBookScreen({
     super.key,
@@ -28,6 +30,7 @@ class ChapterBookScreen extends StatefulWidget {
     required this.mangaID,
     this.chapterNumber,
     this.chapterWebViewUrl = '',
+    this.scrapper,
   });
 
   @override
@@ -47,6 +50,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   late ScrollController _scrollController;
   // ignore: unused_field
   late FontProvider _fontProvider;
+  late Scrapper _activeScrapper;
   late String _chapterWebViewUrl;
 
   @override
@@ -55,6 +59,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
     _chapterWebViewUrl = widget.chapterWebViewUrl;
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
     _fontProvider = Provider.of<FontProvider>(context, listen: false);
+    _activeScrapper = widget.scrapper ?? _fontProvider.selectedFontApi;
     _scrollController = ScrollController();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _loadReadingProgress();
@@ -76,8 +81,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   }
 
   Future<void> _loadChapterImages() async {
-    final fontApi = _fontProvider.selectedFontApi;
-    _chapterImagesSubscription = fontApi.getChapter(widget.chapterId, widget.mangaID).listen(
+    _chapterImagesSubscription = _activeScrapper.getChapter(widget.chapterId, widget.mangaID).listen(
       (imageData) {
         if (imageData['type'] == 'image') {
           setState(() {
@@ -216,7 +220,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   }
 
   Widget _buildWebView(BuildContext context) {
-    final String url = _chapterWebViewUrl ?? 'https://www.google.com';
+    final String url = _chapterWebViewUrl.isNotEmpty ? _chapterWebViewUrl : 'https://www.google.com';
 
     Widget webViewContent;
 
@@ -279,7 +283,9 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
-            _showWebView = false;
+            setState(() {
+              _showWebView = false;
+            });
           },
         ),
 
@@ -408,8 +414,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                   IconButton(
                     icon: Icon(Icons.auto_mode_rounded),
                     onPressed: () async {
-                      final fontApi = _fontProvider.selectedFontApi;
-                      final previousChapterStream = fontApi.retrieveLastChapter(widget.chapterId, widget.mangaID);
+                      final previousChapterStream = _activeScrapper.retrieveLastChapter(widget.chapterId, widget.mangaID);
                       bool hasPreviousChapter = false;
 
                      await for (var previousChapterData in previousChapterStream) {
@@ -422,6 +427,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                             chapterTitle: previousChapterData['title'],
                             chapterNumber: previousChapterData['chapter'],
                             chapterWebViewUrl: previousChapterData['chapterWebviewUrl'],
+                            scrapper: _activeScrapper,
                           )));
                           break;
                         } else if (previousChapterData['type'] == 'error') {
@@ -452,8 +458,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                   IconButton(
                     icon: Icon(Icons.arrow_forward_ios_rounded),
                     onPressed: () async {
-                      final fontApi = _fontProvider.selectedFontApi;
-                      final nextChapterStream = fontApi.retrieveNextChapter(widget.chapterId, widget.mangaID);
+                      final nextChapterStream = _activeScrapper.retrieveNextChapter(widget.chapterId, widget.mangaID);
                       bool hasNextChapter = false;
 
                      await for (var nextChapterData in nextChapterStream) {
@@ -466,6 +471,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                             chapterTitle: nextChapterData['title'],
                             chapterNumber: nextChapterData['chapter'],
                             chapterWebViewUrl: nextChapterData['chapterWebviewUrl'],
+                            scrapper: _activeScrapper,
                           )));
                           break;
                         } else if (nextChapterData['type'] == 'error') {

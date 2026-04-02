@@ -44,13 +44,16 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
       final fontProvider = Provider.of<FontProvider>(context, listen: false);
       fontProvider.addBookToReadBooks(bookDetails);
 
-      // Se o livro veio da busca online (sem capítulos), busca os detalhes completos
+      // Se o livro veio da busca online (sem capítulos), busca os detalhes completos.
+      // Usa o scrapper explícito, ou tenta detectá-lo pelo domínio da capa.
       final hasChapters = (bookDetails['chapters'] as List?)?.isNotEmpty == true;
-      if (!hasChapters && widget.scrapper != null) {
+      final effectiveScrapper = widget.scrapper
+          ?? fontProvider.findScrapperForBook(bookDetails);
+      if (!hasChapters && effectiveScrapper != null) {
         setState(() {
           _updateFuture = fontProvider.updateBookDetails(
             bookDetails['id'],
-            scrapper: widget.scrapper,
+            scrapper: effectiveScrapper,
           ).then((_) {
             // Atualiza o estado local com os dados carregados
             final updated = fontProvider.favoritedBooks.firstWhere(
@@ -140,8 +143,10 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                 )
               );
 
+              final effectiveScrapper = widget.scrapper
+                  ?? fontProvider.findScrapperForBook(bookDetails);
               try {
-                await fontProvider.updateBookDetails(bookId, scrapper: widget.scrapper);
+                await fontProvider.updateBookDetails(bookId, scrapper: effectiveScrapper);
                 ScaffoldMessenger.of(context).hideCurrentSnackBar();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -389,7 +394,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        (bookDetails['author'] as Map?)?['name'] ?? 'No author available',
+                        _extractPersonName(bookDetails['author']) ?? 'No author available',
                         style: TextStyle(
                           fontSize: isDesktop ? 16.0 : 8.0,
                           fontWeight: FontWeight.bold,
@@ -398,7 +403,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                       ),
                       const SizedBox(width: 8.0),
                       Text(
-                        (bookDetails['artist'] as Map?)?['name'] ?? 'No artist available',
+                        _extractPersonName(bookDetails['artist']) ?? 'No artist available',
                         style:  TextStyle(
                           fontSize: isDesktop ? 16.0 : 8.0,
                           color: Colors.grey
@@ -571,16 +576,13 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
               final isRead = readChapterIds.contains(chapter['id'] as String? ?? '');
 
               return ListTile(
-                title: 
+                title:
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
-                      
                       child: Text(
-                        chapter['title'] != null && chapter['title'].isNotEmpty
-                        ? '${chapter['title']} - Chapter ${chapter['chapter']}'
-                        : 'Chapter ${chapter['chapter']}',
+                        _buildChapterLabel(chapter),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                         style: TextStyle(
@@ -590,19 +592,20 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                         ),
                       ),
                     ),
-                    
-                    Text(
-                      'Volume: ' + _FormatVolume(chapter['volume']),
-                      style: TextStyle(
-                        color: theme.selectedTheme.textTheme.titleSmall?.color,
-                        fontSize: 16.0,
+
+                    if (chapter['volume'] != null)
+                      Text(
+                        'Vol. ${_FormatVolume(chapter['volume']?.toString())}',
+                        style: TextStyle(
+                          color: theme.selectedTheme.textTheme.titleSmall?.color,
+                          fontSize: 16.0,
+                        ),
                       ),
-                    ),
 
                     SizedBox(width: 8.0),
 
                     Text(
-                      '${chapter['translatedLanguage']}',
+                      '${chapter['translatedLanguage'] ?? ''}',
                       style: TextStyle(
                         color: theme.selectedTheme.textTheme.titleSmall?.color,
                         fontSize: 16.0,
@@ -626,23 +629,24 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                 subtitle: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '${chapter['pages']} pages',
-                      style: TextStyle(
-                        color: theme.selectedTheme.textTheme.displayMedium?.color,
-                        fontSize: 14.0,
+                    if (chapter['pages'] != null)
+                      Text(
+                        '${chapter['pages']} pages',
+                        style: TextStyle(
+                          color: theme.selectedTheme.textTheme.displayMedium?.color,
+                          fontSize: 14.0,
+                        ),
                       ),
-                    ),
-                    Text(
-                      chapter['uploader'] ?? 'No uploader',
-                      style: TextStyle(
-                        color: theme.selectedTheme.textTheme.displayMedium?.color,
-                        fontSize: 14.0,
+                    if (chapter['uploader'] != null)
+                      Text(
+                        chapter['uploader'],
+                        style: TextStyle(
+                          color: theme.selectedTheme.textTheme.displayMedium?.color,
+                          fontSize: 14.0,
+                        ),
                       ),
-                    ),
-
                     Text(
-                      _formatDate(chapter['publishedAt']),
+                      _formatDate(chapter['publishedAt']?.toString()),
                       style: TextStyle(
                         color: theme.selectedTheme.textTheme.displayMedium?.color,
                         fontSize: 14.0,
@@ -651,12 +655,20 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   ],
                 ),
                 onTap: () async {
+                  final chapterId = (chapter['id'] ?? '').toString();
+                  final chapterNumber = (chapter['chapter'] ?? '').toString();
+
                   setState(() {
                     _isLoadingChapter = true;
-                    _selectedChapterId = chapter['id'];
+                    _selectedChapterId = chapterId;
                   });
 
-                  await Provider.of<FontProvider>(context, listen: false).SaveSingleSelectedChapterId(bookDetails['id'],chapter['id'], chapter['chapter']);
+                  await Provider.of<FontProvider>(context, listen: false)
+                      .SaveSingleSelectedChapterId(
+                        bookDetails['id'],
+                        chapterId,
+                        chapterNumber,
+                      );
 
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -673,17 +685,20 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   );
 
                   try {
+                    final _fp = Provider.of<FontProvider>(context, listen: false);
                     final fontApi = widget.scrapper
-                        ?? Provider.of<FontProvider>(context, listen: false).selectedFontApi;
-                    await for (final chapterData in fontApi.getChapter(chapter['id'], bookDetails['id'])) {
+                        ?? _fp.findScrapperForBook(bookDetails)
+                        ?? _fp.selectedFontApi;
+                    await for (final chapterData in fontApi.getChapter(chapterId, bookDetails['id'])) {
                       ScaffoldMessenger.of(context).hideCurrentSnackBar();
                       Navigator.push(context, MaterialPageRoute(builder: (context) => ChapterBookScreen(
                         bookTitle: bookDetails['title'],
                         chapterId: chapterData['chapterID'],
                         chapterTitle: chapter['title'],
                         mangaID: bookDetails['id'],
-                        chapterNumber: chapter['chapter'],
+                        chapterNumber: chapterNumber,
                         chapterWebViewUrl: chapterData['chapterWebviewUrl'],
+                        scrapper: fontApi,
                       )));
                       break;
                     }
@@ -823,6 +838,30 @@ Future<webview_windows.WebviewController> _initializeWebviewController() async {
   final controller = webview_windows.WebviewController();
   await controller.initialize();
   return controller;
+}
+
+/// Constrói o label do capítulo tratando os diferentes formatos de scrapper:
+///   MangaDex : title pode ser vazio,  chapter = '1'   → 'Chapter 1'
+///   LuraToons: title é vazio,         chapter = '1.0' → 'Chapter 1.0'
+///   MediocreScan: title = 'Capítulo 1', chapter = null → 'Capítulo 1'
+String _buildChapterLabel(Map chapter) {
+  final title = chapter['title']?.toString().trim() ?? '';
+  final num   = chapter['chapter']?.toString().trim() ?? '';
+  if (title.isNotEmpty && num.isNotEmpty) return '$title - Chapter $num';
+  if (title.isNotEmpty) return title;
+  if (num.isNotEmpty)   return 'Chapter $num';
+  return 'Chapter ?';
+}
+
+/// Extrai o nome de um campo de pessoa que pode vir em formatos distintos:
+///   - String direta: 'Brandon Chen'         → retorna a própria string
+///   - Map com 'name': {'name': 'X', ...}    → retorna map['name']
+///   - null                                  → retorna null
+String? _extractPersonName(dynamic value) {
+  if (value == null) return null;
+  if (value is String) return value.isEmpty ? null : value;
+  if (value is Map) return value['name']?.toString();
+  return value.toString();
 }
 
 String _formatDate(String? date) {

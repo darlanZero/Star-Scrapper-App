@@ -88,6 +88,36 @@ class FontProvider with ChangeNotifier {
   List<Map<String, dynamic>> get readBooks => _readBooks;
   Fonte get selectedFont => _fonts.firstWhere((font) => font.isActive, orElse: () => _fonts.first);
   Scrapper get selectedFontApi => selectedFont.api;
+
+  /// Detecta o scrapper correto para um livro a partir da URL da capa (ou link).
+  ///
+  /// Útil quando [BookDetailsScreen] é aberto sem um scrapper explícito
+  /// (ex.: ao abrir da biblioteca/favoritos). Evita usar [selectedFontApi]
+  /// incorretamente quando a fonte ativa não é a que gerou o livro.
+  ///
+  /// Estratégia: verifica se a URL da capa contém o domínio de cada fonte,
+  /// usando [ScrapperProfile.baseUrl] ou o domínio do favicon da fonte.
+  Scrapper? findScrapperForBook(Map<String, dynamic> book) {
+    final coverUrl = (book['coverImageUrl'] ?? book['link'] ?? '').toString();
+    if (coverUrl.isEmpty) return null;
+
+    for (final font in _fonts) {
+      // 1. Tenta via baseUrl do ScrapperProfile (LuraToons, MediocreScan, etc.)
+      final baseUrl = font.api.scrapperProfile?.baseUrl ?? '';
+      if (baseUrl.isNotEmpty) {
+        final baseDomain = Uri.tryParse(baseUrl)?.host ?? '';
+        if (baseDomain.isNotEmpty && coverUrl.contains(baseDomain)) {
+          return font.api;
+        }
+      }
+      // 2. Fallback: domínio do favicon da fonte (cobre MangaDex e outros sem profile)
+      final imageDomain = Uri.tryParse(font.image)?.host ?? '';
+      if (imageDomain.isNotEmpty && coverUrl.contains(imageDomain)) {
+        return font.api;
+      }
+    }
+    return null;
+  }
   Map<String, List<Map<String, String>>> get selectedChapterIds => _selectedChapterIds;
   Map<String, Map<String, String>> get lastReadedChapterId => _lastReadedChapterId;
 

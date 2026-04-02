@@ -58,7 +58,11 @@ class LuraToonsScrapper extends BaseHtmlScrapper {
 
     buildDetailUrl: (id, base) => '$base/api/obra/$id/',
     buildChapterUrl: (id, base) => '$base/$id/',
-    buildListUrl: (filter, page, base) => '$base/api/obras/',
+    // popular → /api/obras/   |   recent → /api/main/ (campo lancamentos)
+    buildListUrl: (filter, page, base) =>
+        filter.toLowerCase() == 'recent'
+            ? '$base/api/main/'
+            : '$base/api/obras/',
     extractId: (url) {
       try {
         final uri = Uri.parse(url);
@@ -109,24 +113,61 @@ class LuraToonsScrapper extends BaseHtmlScrapper {
         .toList();
   }
 
+  /// Busca obras populares.
+  ///
+  /// Confirmado via DevTools (abril 2026):
+  ///   • `/api/obras/`   → ordem popular (padrão da API, 268 obras)
   Future<List<Map<String, dynamic>>> _fetchObras() async {
     final data = await _jsonGet('$_base/api/obras/');
     return _normalizeObras((data['obras'] ?? []) as List<dynamic>);
+  }
+
+  /// Busca lançamentos recentes via `/api/main/`.
+  ///
+  /// Confirmado via DevTools (abril 2026):
+  ///   • `/api/main/` → `lancamentos` = obras ordenadas pela data do último
+  ///     capítulo publicado (16 itens, mesma fonte da seção "Lançamentos" do site).
+  ///   • Nenhum parâmetro de `/api/obras/?order=...` replica essa ordenação —
+  ///     todos retornam a ordem "mais lidos" (top_10).
+  ///
+  /// Shape do item: `{id, title, capa, slug, caps: [{date, num, slug}]}`
+  Future<List<Map<String, dynamic>>> _fetchLancamentos() async {
+    final data = await _jsonGet('$_base/api/main/');
+    final lancamentos = (data['lancamentos'] ?? []) as List<dynamic>;
+    return lancamentos
+        .map((o) {
+          final item = o as Map<String, dynamic>;
+          final slug = item['slug']?.toString() ?? '';
+          if (slug.isEmpty) return null;
+          // 'caps' contém os capítulos recentes — guardamos o mais novo para exibição
+          final caps = (item['caps'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          final latestCap = caps.isNotEmpty ? caps.first : null;
+          return <String, dynamic>{
+            'id': slug,
+            'title': item['title']?.toString() ?? '',
+            'coverImageUrl': _absoluteCover(item['capa']?.toString() ?? ''),
+            'latestChapter': latestCap != null ? 'Cap. ${latestCap['num']}' : '',
+            'latestChapterDate': latestCap?['date']?.toString() ?? '',
+            'type': 'manga',
+          };
+        })
+        .whereType<Map<String, dynamic>>()
+        .toList();
   }
 
   // ─── Contrato Scrapper ────────────────────────────────────────────────────
 
   @override
   Future<List<dynamic>> getAll(String filter) async {
-    final all = await _fetchObras();
-    _cachedObras = all;
-    if (filter.toLowerCase() == 'recent') {
-      // /api/recentes/ não existe — ordena por id descrescente (mais recente primeiro).
-      final sorted = [...all];
-      sorted.sort((a, b) => (b['id'] as String).compareTo(a['id'] as String));
-      return sorted;
+    final isRecent = filter.toLowerCase() == 'recent';
+    if (isRecent) {
+      // Usa /api/main/ → lancamentos: obras por data do último capítulo publicado
+      return _fetchLancamentos();
     }
-    return all; // popular = ordem padrão da API
+    // Popular: listagem completa na ordem padrão da API
+    final obras = await _fetchObras();
+    _cachedObras = obras;
+    return obras;
   }
 
   @override

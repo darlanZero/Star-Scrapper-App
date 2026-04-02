@@ -11,7 +11,9 @@ import 'package:star_scrapper_app/classes/Scrappers/engine/session_manager.dart'
 ///
 /// Scrapper para https://mediocrescan.com (MediocreToons)
 ///
-/// Stack: Next.js 14 (App Router), REST API separada em https://api.mediocrescan.com
+/// Stack: Next.js 14 (App Router), REST API separada.
+/// Host atual observado: https://api.mediocretoons.net
+/// Host legado: https://api.mediocrescan.com (fallback de compatibilidade)
 ///
 /// Autenticação:
 ///   Next.js com Cloudflare Turnstile → login sempre via WebView.
@@ -30,12 +32,18 @@ import 'package:star_scrapper_app/classes/Scrappers/engine/session_manager.dart'
 ///   https://cdn.mediocrescan.com/obras/{obra_id}/capitulos/{numero}/{src}
 class MediocreScanScrapper extends Scrapper {
   static const String _base = 'https://mediocrescan.com';
-  static const String _apiBase = 'https://api.mediocrescan.com';
+  static const List<String> _apiBases = <String>[
+    'https://api.mediocretoons.net',
+    'https://api.mediocrescan.com',
+  ];
+  static const String _primaryApiBase = 'https://api.mediocretoons.net';
   static const String _cdnBase = 'https://cdn.mediocrescan.com';
 
   Map<String, String> _cookies = {};
   String? _bearerToken;
   int _currentPage = 1;
+  String _currentFilter = '';
+  final Set<String> _seenBookIds = <String>{};
 
   // ─── Perfil (para AuthWebViewScreen) ──────────────────────────────────────
 
@@ -107,11 +115,131 @@ class MediocreScanScrapper extends Scrapper {
           'Authorization': 'Bearer $_bearerToken',
       };
 
+  Map<String, String> get _publicHeaders => {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+            'AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, */*',
+        'Accept-Language': 'pt-BR,pt;q=0.9',
+        'Referer': _base,
+      };
+
   // ─── HTTP ─────────────────────────────────────────────────────────────────
 
   Future<http.Response> _apiGet(String url) async {
     await _ensureSession();
     return http.get(Uri.parse(url), headers: _authHeaders);
+  }
+
+  Future<http.Response> _apiGetPublic(String url) async {
+    return http.get(Uri.parse(url), headers: _publicHeaders);
+  }
+
+  Future<http.Response> _apiGetWithRetry(
+    String url, {
+    int maxAttempts = 2,
+    bool usePublicHeaders = false,
+  }) async {
+    Object? lastError;
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        final res = usePublicHeaders ? await _apiGetPublic(url) : await _apiGet(url);
+        final transient = res.statusCode == 502 ||
+            res.statusCode == 503 ||
+            res.statusCode == 504;
+        if (!transient || attempt == maxAttempts) {
+          return res;
+        }
+      } catch (e) {
+        lastError = e;
+        if (attempt == maxAttempts) rethrow;
+      }
+      await Future.delayed(const Duration(milliseconds: 350));
+    }
+    throw Exception('HTTP retry failed for $url ${lastError ?? ''}'.trim());
+  }
+
+  Future<http.Response> _apiGetPath(
+    String pathWithQuery, {
+    bool usePublicHeaders = false,
+  }) async {
+    Exception? lastError;
+    for (final base in _apiBases) {
+      final url = '$base$pathWithQuery';
+      try {
+        final res = await _apiGetWithRetry(
+          url,
+          usePublicHeaders: usePublicHeaders,
+        );
+        final isTransient =
+            res.statusCode == 502 || res.statusCode == 503 || res.statusCode == 504;
+        if (isTransient) {
+          lastError = Exception('HTTP ${res.statusCode} ao acessar $url');
+          continue;
+        }
+        return res;
+      } catch (e) {
+        lastError = Exception(e.toString());
+      }
+    }
+    throw lastError ?? Exception('Falha ao acessar API da MediocreScan');
+  }
+
+  List<dynamic> _extractItems(dynamic decoded) {
+    if (decoded is List) return decoded;
+    if (decoded is Map<String, dynamic>) {
+      final data = decoded['data'];
+      if (data is List) return data;
+    }
+    return <dynamic>[];
+  }
+
+  Future<List<dynamic>> _fetchBooksPage({
+    required String filter,
+    required int page,
+  }) async {
+    final isRecent = filter.toLowerCase() == 'recent';
+
+    // "recent" deve usar apenas fontes de ATUALIZADOS (não catálogo/popular).
+    // A rota usada pelo front é /obras/recentes (e /obras/home como fallback).
+    final candidates = isRecent
+        ? <String>[
+            '/obras/home',
+            '/obras/home',
+          ]
+      : <String>['/obras/buscar?q=&limite=24&pagina=$page'];
+
+    Exception? lastHttpError;
+    for (final endpoint in candidates) {
+      try {
+        final res = await _apiGetPath(endpoint);
+        _assertAuth(res);
+        final decoded = jsonDecode(res.body);
+        final items = _extractItems(decoded);
+        return items.map(_normalizeBook).toList();
+      } catch (e) {
+        if (e.toString().contains('authentication_required')) rethrow;
+
+        if (endpoint.contains('/obras/recentes') || endpoint.contains('/obras/home')) {
+          try {
+            final publicRes = await _apiGetPath(
+              endpoint,
+              usePublicHeaders: true,
+            );
+            _assertAuth(publicRes);
+            final decoded = jsonDecode(publicRes.body);
+            final items = _extractItems(decoded);
+            return items.map(_normalizeBook).toList();
+          } catch (_) {
+            // Mantém erro original para o loop de candidates registrar/debugar.
+          }
+        }
+
+        lastHttpError = Exception(e.toString());
+        debugPrint('[MediocreScan] endpoint falhou: $endpoint -> $e');
+      }
+    }
+
+    throw lastHttpError ?? Exception('Falha ao carregar listagem da MediocreScan');
   }
 
   void _assertAuth(http.Response res) {
@@ -134,7 +262,7 @@ class MediocreScanScrapper extends Scrapper {
   String _coverUrl(dynamic id, dynamic imagem) {
     final imgStr = imagem?.toString() ?? '';
     if (imgStr.isEmpty) return '';
-    return '$_apiBase/storage/obras/$id/$imgStr?w=400';
+    return '$_primaryApiBase/storage/obras/$id/$imgStr?w=400';
   }
 
   String _numToString(dynamic numero) {
@@ -152,13 +280,21 @@ class MediocreScanScrapper extends Scrapper {
   Map<String, dynamic> _normalizeBook(dynamic raw) {
     final m = raw as Map<String, dynamic>;
     final id = m['id'];
+    final rawStatus = m['status'];
+    final statusText = rawStatus is Map<String, dynamic>
+        ? (rawStatus['nome'] ?? '').toString()
+        : (rawStatus ?? '').toString();
+
+    final latestChapter =
+        m['capitulo_numero']?.toString() ?? m['total_capitulos']?.toString() ?? '';
+
     return {
       'id': id.toString(),
       'title': (m['nome'] ?? '').toString(),
       'coverImageUrl': _coverUrl(id, m['imagem']),
-      'status': (m['status'] ?? '').toString(),
+      'status': statusText,
       'type': 'manga',
-      'latestChapter': m['capitulo_numero']?.toString() ?? '',
+      'latestChapter': latestChapter,
     };
   }
 
@@ -177,10 +313,58 @@ class MediocreScanScrapper extends Scrapper {
         return {
           'id': ch['id'].toString(),
           'title': nome.isNotEmpty ? nome : 'Capítulo $numStr',
+          'chapter': numStr,
+          'volume': ch['volume']?.toString(),
+          'pages': ch['paginas'] ?? (ch['tem_paginas'] == true ? '?' : null),
+          'uploader': (ch['equipe']?['nome'] ?? ch['usuario']?['nome'] ?? '').toString(),
+          'publishedAt': ch['lancado_em']?.toString() ?? '',
           'translatedLanguage': 'pt-br',
         };
       }).toList(),
     };
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchAllChapters(String mangaID) async {
+    const int limit = 50;
+    int page = 1;
+    final List<Map<String, dynamic>> chapters = <Map<String, dynamic>>[];
+
+    while (true) {
+      final res = await _apiGetPath('/capitulos?obr_id=$mangaID&page=$page&limite=$limit');
+      _assertAuth(res);
+      final decoded = jsonDecode(res.body);
+      final items = _extractItems(decoded).cast<dynamic>();
+      if (items.isEmpty) break;
+
+      for (final item in items) {
+        final ch = item as Map<String, dynamic>;
+        final numStr = _numToString(ch['numero']);
+        final nome = ch['nome']?.toString() ?? '';
+        chapters.add({
+          'id': ch['id'].toString(),
+          'title': nome.isNotEmpty ? nome : 'Capítulo $numStr',
+          'chapter': numStr,
+          'volume': ch['volume']?.toString(),
+          'pages': ch['paginas'] ?? (ch['tem_paginas'] == true ? '?' : null),
+          'uploader': (ch['equipe']?['nome'] ?? ch['usuario']?['nome'] ?? '').toString(),
+          'publishedAt': ch['lancado_em']?.toString() ?? '',
+          'translatedLanguage': 'pt-br',
+        });
+      }
+
+      bool hasNext = false;
+      if (decoded is Map<String, dynamic>) {
+        final pagination = decoded['pagination'];
+        if (pagination is Map<String, dynamic>) {
+          hasNext = pagination['hasNextPage'] == true;
+        }
+      }
+
+      if (!hasNext && items.length < limit) break;
+      page++;
+    }
+
+    return chapters;
   }
 
   // ─── Scrapper contract ────────────────────────────────────────────────────
@@ -188,15 +372,15 @@ class MediocreScanScrapper extends Scrapper {
   @override
   Future<List<dynamic>> getAll(String filter) async {
     _currentPage = 1;
-    final endpoint = filter.toLowerCase() == 'recent'
-        ? '$_apiBase/obras/novos?limite=24&pagina=1'
-        : '$_apiBase/obras/recentes?limite=24&pagina=1';
+    _currentFilter = filter.toLowerCase();
+    _seenBookIds.clear();
     try {
-      final res = await _apiGet(endpoint);
-      _assertAuth(res);
-      final data = jsonDecode(res.body) as Map<String, dynamic>;
-      final items = (data['data'] ?? []) as List;
-      return items.map(_normalizeBook).toList();
+      final firstPage = await _fetchBooksPage(filter: filter, page: 1);
+      for (final b in firstPage) {
+        final id = (b['id'] ?? '').toString();
+        if (id.isNotEmpty) _seenBookIds.add(id);
+      }
+      return firstPage;
     } catch (e) {
       if (e.toString().contains('authentication_required')) rethrow;
       debugPrint('[MediocreScan] getAll erro: $e');
@@ -206,16 +390,22 @@ class MediocreScanScrapper extends Scrapper {
 
   @override
   Future<List<dynamic>> loadMore(String filter) async {
+    if (_currentFilter != filter.toLowerCase()) {
+      _currentFilter = filter.toLowerCase();
+      _currentPage = 0;
+      _seenBookIds.clear();
+    }
     _currentPage++;
-    final endpoint = filter.toLowerCase() == 'recent'
-        ? '$_apiBase/obras/novos?limite=24&pagina=$_currentPage'
-        : '$_apiBase/obras/recentes?limite=24&pagina=$_currentPage';
     try {
-      final res = await _apiGet(endpoint);
-      _assertAuth(res);
-      final data = jsonDecode(res.body) as Map<String, dynamic>;
-      final items = (data['data'] ?? []) as List;
-      return items.map(_normalizeBook).toList();
+      final pageItems = await _fetchBooksPage(filter: filter, page: _currentPage);
+      final deduped = <dynamic>[];
+      for (final b in pageItems) {
+        final id = (b['id'] ?? '').toString();
+        if (id.isEmpty || _seenBookIds.contains(id)) continue;
+        _seenBookIds.add(id);
+        deduped.add(b);
+      }
+      return deduped;
     } catch (e) {
       if (e.toString().contains('authentication_required')) rethrow;
       debugPrint('[MediocreScan] loadMore erro: $e');
@@ -225,13 +415,13 @@ class MediocreScanScrapper extends Scrapper {
 
   @override
   Future<List<dynamic>> searchTitle(String title) async {
-    final url =
-        '$_apiBase/obras/buscar?q=${Uri.encodeComponent(title)}&limite=24&pagina=1';
+    final path =
+        '/obras/buscar?q=${Uri.encodeComponent(title)}&limite=24&pagina=1';
     try {
-      final res = await _apiGet(url);
+      final res = await _apiGetPath(path);
       _assertAuth(res);
-      final data = jsonDecode(res.body) as Map<String, dynamic>;
-      final items = (data['data'] ?? []) as List;
+      final decoded = jsonDecode(res.body);
+      final items = _extractItems(decoded);
       return items.map(_normalizeBook).toList();
     } catch (e) {
       if (e.toString().contains('authentication_required')) rethrow;
@@ -242,12 +432,21 @@ class MediocreScanScrapper extends Scrapper {
 
   @override
   Future<dynamic> getBookDetails(String mangaID) async {
-    final url = '$_apiBase/obras/$mangaID';
+    final path = '/obras/$mangaID';
     try {
-      final res = await _apiGet(url);
+      final res = await _apiGetPath(path);
       _assertAuth(res);
-      final data = jsonDecode(res.body) as Map<String, dynamic>;
-      return _normalizeBookDetails(data);
+      final decoded = jsonDecode(res.body);
+      final data = decoded is Map<String, dynamic>
+          ? ((decoded['data'] is Map<String, dynamic>)
+              ? decoded['data'] as Map<String, dynamic>
+              : decoded)
+          : <String, dynamic>{};
+
+      final normalized = _normalizeBookDetails(data);
+      final allChapters = await _fetchAllChapters(mangaID);
+      normalized['chapters'] = allChapters;
+      return normalized;
     } catch (e) {
       if (e.toString().contains('authentication_required')) rethrow;
       rethrow;
@@ -259,9 +458,9 @@ class MediocreScanScrapper extends Scrapper {
     String chapterID,
     String mangaID,
   ) async* {
-    final url = '$_apiBase/capitulos/$chapterID';
+    final path = '/capitulos/$chapterID';
     try {
-      final res = await _apiGet(url);
+      final res = await _apiGetPath(path);
       _assertAuth(res);
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       final paginas = (data['paginas'] ?? []) as List;
