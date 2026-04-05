@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
@@ -172,13 +173,17 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
                 ),
                 itemCount: booksInTab.length,
                 itemBuilder: (context, index) {
+                  final book = booksInTab[index];
+                  final scrapper = fontProvider.findScrapperForBook(book) ?? fontProvider.selectedFontApi;
+                  final coverUrl = scrapper.getCoverImageUrl(book);
                   return InkWell(
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => BookDetailsScreen(
-                            bookDetails: booksInTab[index],
+                            bookDetails: book,
+                            scrapper: scrapper,
                           ),
                         ),
                       );
@@ -192,7 +197,7 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
                         child: Container(
                           color: Colors.black.withOpacity(0.5),
                           child: Text(
-                            booksInTab[index]['title']!,
+                            (book['title'] ?? '').toString(),
                             style: const TextStyle(
                               color: Colors.white70,
                               fontWeight: FontWeight.bold,
@@ -210,9 +215,14 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
-                        child: Image.network(
-                          booksInTab[index]['coverImageUrl'] ?? 'https://via.placeholder.com/150',
+                        child: CachedNetworkImage(
+                          imageUrl: coverUrl,
+                          httpHeaders: scrapper.imageHeaders,
                           fit: BoxFit.cover,
+                          errorWidget: (context, _, __) => Container(
+                            color: Colors.grey.shade900,
+                            child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                          ),
                         ),
                       ),
                     ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.dart';
@@ -40,23 +41,31 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                 itemCount: readedBooks.length,
                 itemBuilder: (context, index) {
                   final book = readedBooks[index];
+                  final scrapper = fontProvider.findScrapperForBook(book) ?? fontProvider.selectedFontApi;
                   final bookId = book['id'] as String?;
                   final lastChapter = bookId != null
                       ? fontProvider.lastReadedChapterId[bookId]
                       : null;
                   final chapterTitle = lastChapter?['title'] ?? 'N/A';
+                  final coverUrl = scrapper.getCoverImageUrl(book);
+                  final imageHeaders = scrapper.imageHeaders;
 
                   return InkWell(
                     onTap: () => Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => BookDetailsScreen(bookDetails: book),
+                      builder: (_) => BookDetailsScreen(bookDetails: book, scrapper: scrapper),
                     )),
                     child: Stack(
                       children: [
-                        Image.network(
-                          fontProvider.selectedFontApi.getCoverImageUrl(book),
+                        CachedNetworkImage(
+                          imageUrl: coverUrl,
+                          httpHeaders: imageHeaders,
                           fit: BoxFit.cover,
                           width: double.infinity,
                           height: double.infinity,
+                          errorWidget: (context, _, __) => Container(
+                            color: Colors.grey.shade900,
+                            child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                          ),
                         ),
                         Positioned(
                           top: 10,
@@ -84,6 +93,7 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                 itemCount: readedBooks.length,
                 itemBuilder: (context, index) {
                   final book = readedBooks[index];
+                  final scrapper = fontProvider.findScrapperForBook(book) ?? fontProvider.selectedFontApi;
                   final bookId = book['id'] as String?;
                   final lastChapter = bookId != null
                       ? fontProvider.lastReadedChapterId[bookId]
@@ -92,31 +102,43 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                   final selectedChapters = bookId != null
                       ? (fontProvider.selectedChapterIds[bookId] ?? [])
                       : <Map<String, String>>[];
+                  final coverUrl = scrapper.getCoverImageUrl(book);
+                  final imageHeaders = scrapper.imageHeaders;
 
                   return InkWell(
                     onTap: () => Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => BookDetailsScreen(bookDetails: book),
+                      builder: (_) => BookDetailsScreen(bookDetails: book, scrapper: scrapper),
                     )),
                     child: Card(
                     margin: const EdgeInsets.symmetric(vertical: 8.0),
                     child: Stack(
                       children: [
-                        Image.network(
-                          fontProvider.selectedFontApi.getCoverImageUrl(book),
+                        CachedNetworkImage(
+                          imageUrl: coverUrl,
+                          httpHeaders: imageHeaders,
                           fit: BoxFit.cover,
                           width: double.infinity,
                           height: 200,
                           color: Colors.black.withOpacity(0.5),
                           colorBlendMode: BlendMode.darken,
+                          errorWidget: (context, _, __) => Container(
+                            color: Colors.grey.shade900,
+                            child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                          ),
                         ),
                         Positioned(
                           top: 10,
                           left: 10,
-                          child: Image.network(
-                            fontProvider.selectedFontApi.getCoverImageUrl(book),
+                          child: CachedNetworkImage(
+                            imageUrl: coverUrl,
+                            httpHeaders: imageHeaders,
                             fit: BoxFit.cover,
                             width: 50,
                             height: 50,
+                            errorWidget: (context, _, __) => Container(
+                              color: Colors.grey.shade900,
+                              child: const Icon(Icons.broken_image_outlined, size: 16, color: Colors.grey),
+                            ),
                           ),
                         ),
                         Positioned(
@@ -126,7 +148,7 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                fontProvider.selectedFontApi.getTitle(book),
+                                scrapper.getTitle(book),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 18,

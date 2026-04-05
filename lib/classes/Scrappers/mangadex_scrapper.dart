@@ -98,17 +98,36 @@ import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 
   @override
   String getCoverImageUrl(dynamic bookDetails) {
-    String coverFileName = bookDetails['coverArt']['fileName'] ?? '';  
-    String mangaId = bookDetails['id'];  
-    return coverFileName.isNotEmpty  
-        ? 'https://uploads.mangadex.org/covers/$mangaId/$coverFileName'  
-        : 'https://via.placeholder.com/150';  
+    final directUrl = (bookDetails is Map)
+        ? (bookDetails['coverImageUrl']?.toString() ?? '')
+        : '';
+    if (directUrl.isNotEmpty) return directUrl;
+
+    final coverArt = (bookDetails is Map && bookDetails['coverArt'] is Map)
+        ? (bookDetails['coverArt'] as Map)
+        : null;
+    final coverFileName = coverArt?['fileName']?.toString() ?? '';
+    final mangaId = (bookDetails is Map) ? (bookDetails['id']?.toString() ?? '') : '';
+
+    if (coverFileName.isNotEmpty && mangaId.isNotEmpty) {
+      return 'https://uploads.mangadex.org/covers/$mangaId/$coverFileName';
+    }
+    return 'https://via.placeholder.com/150';
   }  
 
   @override
   String getBookId(dynamic bookDetails) {
     return bookDetails['id'];  
   }    
+
+  @override
+  Map<String, String> get imageHeaders => {
+    'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+        '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+    'Referer': 'https://mangadex.org/',
+  };
 
   @override
   Future<dynamic> getBookDetails(String mangaID) async {

@@ -12,6 +12,7 @@ abstract class Scrapper {
   Future<List<dynamic>> searchTitle(String title);
   String getTitle(dynamic bookDetails);
   String getCoverImageUrl(dynamic bookDetails);
+  Map<String, String> get imageHeaders => const {};
   String getBookId(dynamic bookDetails);
 
   // ─── Autenticação (opcional — implementado por scrapers protegidos) ────────

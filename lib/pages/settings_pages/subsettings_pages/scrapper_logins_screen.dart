@@ -69,12 +69,12 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
       builder: (ctx) => AlertDialog(
         title: Text('Logout de ${font.name}'),
         content: const Text(
-          'Isso removerá a sessão salva. Você precisará fazer login novamente para acessar o conteúdo.',
+          'This will remove the saved session for this scrapper. Are you sure you want to logout?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -143,9 +143,9 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Gerencie os logins dos sites que requerem autenticação. '
-                            'Os tokens são armazenados localmente no dispositivo. '
-                            'Faça logout para remover um token expirado ou comprometido.',
+                            'Manage the logins for sites that require authentication. '
+                            'Tokens are stored locally on the device. '
+                            'Logout to remove an expired or compromised token.',
                             style: TextStyle(
                               color: subtitleColor,
                               fontSize: 13,
@@ -162,7 +162,7 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
                   if (authFonts.isEmpty)
                     Center(
                       child: Text(
-                        'Nenhum scrapper com autenticação configurado.',
+                        'No scrappers with authentication configured.',
                         style: TextStyle(color: subtitleColor),
                       ),
                     )
@@ -223,7 +223,7 @@ class _ScrapperLoginCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = isLoggedIn ? Colors.green : Colors.orange;
-    final statusLabel = isLoggedIn ? 'Conectado' : 'Desconectado';
+    final statusLabel = isLoggedIn ? 'Connected' : 'Disconnected';
     final sessionKeys = session.keys.toList();
 
     return Container(
@@ -363,7 +363,7 @@ class _ScrapperLoginCard extends StatelessWidget {
                   child: ElevatedButton.icon(
                     onPressed: onLogin,
                     icon: const Icon(Icons.login, size: 16),
-                    label: const Text('Fazer Login'),
+                    label: const Text('Complete Login'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: theme.selectedTheme.primaryColor,
                       foregroundColor: Colors.white,
@@ -376,7 +376,7 @@ class _ScrapperLoginCard extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: onLogin,
                     icon: const Icon(Icons.refresh, size: 16),
-                    label: const Text('Renovar sessão'),
+                    label: const Text('Renew Session'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: textColor,
                       side: BorderSide(color: theme.selectedTheme.dividerColor),

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -607,6 +608,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     final api = widget.selectedFont.api;
     final String title = api.getTitle(bookDetails);
     final String imageUrl = api.getCoverImageUrl(bookDetails);
+    final imageHeaders = api.imageHeaders;
     final String mangaId = api.getBookId(bookDetails);
     final fontProvider = Provider.of<FontProvider>(context, listen: false);
     final bool isBookFavorited = fontProvider.isFavorited(bookDetails);
@@ -650,20 +652,29 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
             borderRadius: BorderRadius.circular(10),
             child: Stack(
               children: [
-                Image.network(
-                  imageUrl,
+                CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  httpHeaders: imageHeaders,
+                  fit: BoxFit.cover,
+                  width: MediaQuery.of(context).size.width,
+                  height: MediaQuery.of(context).size.width,
                   color: isBookFavorited ? Colors.black.withOpacity(0.5) : null,
                   colorBlendMode:
                       isBookFavorited ? BlendMode.srcOver : BlendMode.dstATop,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Image.network(
-                      'https://via.placeholder.com/150',
-                      fit: BoxFit.cover,
-                    );
-                  },
-                  width: MediaQuery.of(context).size.width,
-                  height: MediaQuery.of(context).size.width,
+                  placeholder: (context, _) => Container(
+                    color: Colors.grey.shade900,
+                    child: const Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  ),
+                  errorWidget: (context, _, __) => Container(
+                    color: Colors.grey.shade900,
+                    child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                  ),
                 ),
                 if (isBookFavorited)
                   const Positioned(
