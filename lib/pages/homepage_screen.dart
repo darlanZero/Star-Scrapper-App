@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.dart';
@@ -14,15 +15,18 @@ class HomePageScreen extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin {
+  static const String _sortPrefKey = 'home_sort_option';
   late TabController _tabController;
   late TabsState _tabsState;
   late FontProvider _favoritedBooksState;
+  _HomeSortOption _sortOption = _HomeSortOption.addedLast;
 
   @override
   void initState() {
     super.initState();
     final tabsState = Provider.of<TabsState>(context, listen: false);
     _tabController = TabController(length: tabsState.libraryTabs.length, vsync: this);
+    _loadSortPreference();
   }
 
   @override
@@ -129,29 +133,44 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
           ),
         ),
       ),
-      body: FutureBuilder<void>(
-        future: _tabsState.tabsLoaded,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else {
-            return TabBarView(
-              controller: _tabController,
-              children: _tabsState.libraryTabs.map((tabName) {
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: _buildBooksGrid(tabName),
+      body: Stack(
+        children: [
+          FutureBuilder<void>(
+            future: _tabsState.tabsLoaded,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else {
+                return TabBarView(
+                  controller: _tabController,
+                  children: _tabsState.libraryTabs.map((tabName) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: _buildBooksGrid(tabName),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  }).toList(),
                 );
-              }).toList(),
-            );
-          }
-        },
+              }
+            },
+          ),
+          Positioned(
+            left: 18,
+            bottom: 24,
+            child: FloatingActionButton.small(
+              heroTag: 'home_sort_fab',
+              onPressed: _showSortSheet,
+              backgroundColor: const Color.fromARGB(210, 52, 34, 120),
+              tooltip: 'Sort books',
+              child: const Icon(Icons.sort_rounded),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -159,7 +178,7 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
   Widget _buildBooksGrid(String tabName) {
     return Consumer<FontProvider>(
       builder: (context, fontProvider, child) {
-        final booksInTab = fontProvider.getBooksInTab(tabName);
+        final booksInTab = _sortBooks(fontProvider.getBooksInTab(tabName));
         return Center(
           child: booksInTab.isEmpty
             ? ClipRRect(
@@ -271,4 +290,119 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
       },
     );
   }
+
+  List<Map<String, dynamic>> _sortBooks(List<Map<String, dynamic>> books) {
+    final sorted = List<Map<String, dynamic>>.from(books);
+    switch (_sortOption) {
+      case _HomeSortOption.alphabetical:
+        sorted.sort((a, b) => _bookTitle(a).compareTo(_bookTitle(b)));
+        break;
+      case _HomeSortOption.alphabeticalReverse:
+        sorted.sort((a, b) => _bookTitle(b).compareTo(_bookTitle(a)));
+        break;
+      case _HomeSortOption.addedFirst:
+        // Ordem original vinda do provider.
+        break;
+      case _HomeSortOption.addedLast:
+        return sorted.reversed.toList();
+      case _HomeSortOption.updatedRecent:
+        sorted.sort((a, b) => _bookUpdatedEpoch(b).compareTo(_bookUpdatedEpoch(a)));
+        break;
+      case _HomeSortOption.updatedOldest:
+        sorted.sort((a, b) => _bookUpdatedEpoch(a).compareTo(_bookUpdatedEpoch(b)));
+        break;
+    }
+    return sorted;
+  }
+
+  String _bookTitle(Map<String, dynamic> book) =>
+      (book['title'] ?? '').toString().toLowerCase();
+
+  int _bookUpdatedEpoch(Map<String, dynamic> book) {
+    final candidates = <String?>[
+      book['updatedAt']?.toString(),
+      book['latestChapterDate']?.toString(),
+      book['publishedAt']?.toString(),
+      book['createdAt']?.toString(),
+    ];
+
+    final chapters = book['chapters'];
+    if (chapters is List) {
+      for (final ch in chapters) {
+        if (ch is Map) {
+          candidates.add(ch['updatedAt']?.toString());
+          candidates.add(ch['publishedAt']?.toString());
+          candidates.add(ch['createdAt']?.toString());
+        }
+      }
+    }
+
+    int best = 0;
+    for (final c in candidates) {
+      if (c == null || c.isEmpty) continue;
+      final parsed = DateTime.tryParse(c);
+      if (parsed == null) continue;
+      final ms = parsed.millisecondsSinceEpoch;
+      if (ms > best) best = ms;
+    }
+    return best;
+  }
+
+  void _showSortSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: _HomeSortOption.values.map((opt) {
+              return RadioListTile<_HomeSortOption>(
+                value: opt,
+                groupValue: _sortOption,
+                title: Text(opt.label),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() => _sortOption = value);
+                  _saveSortPreference(value);
+                  Navigator.pop(context);
+                },
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _loadSortPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(_sortPrefKey);
+    if (stored == null) return;
+    final parsed = _HomeSortOption.values.firstWhere(
+      (v) => v.name == stored,
+      orElse: () => _HomeSortOption.addedLast,
+    );
+    if (!mounted) return;
+    setState(() => _sortOption = parsed);
+  }
+
+  Future<void> _saveSortPreference(_HomeSortOption option) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_sortPrefKey, option.name);
+  }
+}
+
+enum _HomeSortOption {
+  alphabetical('Alfabético (A-Z)'),
+  alphabeticalReverse('Alfabético invertido (Z-A)'),
+  addedFirst('Adicionados primeiro'),
+  addedLast('Adicionados por último'),
+  updatedRecent('Atualizados recentemente'),
+  updatedOldest('Atualizados por último');
+
+  const _HomeSortOption(this.label);
+  final String label;
 }
