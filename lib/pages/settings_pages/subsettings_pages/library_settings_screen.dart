@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
+import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/library_backup_restore_screen.dart';
 import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/library_items_screen.dart';
 import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/library_tabs_settings_screen.dart';
 
@@ -126,6 +127,52 @@ class _LibrarySettingsScreenState extends State<LibrarySettingsScreen> {
                       ]
                     )
                   )
+                ],
+              ),
+            ),
+
+            Divider(
+              color: theme.selectedTheme.textTheme.displayMedium?.color,
+              thickness: 2,
+              indent: 16,
+              endIndent: 16,
+              height: 1,
+            ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const LibraryBackupRestoreScreen(),
+                        ),
+                      );
+                    },
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.backup_rounded,
+                          color: theme.selectedTheme.textTheme.displayMedium?.color,
+                          size: MediaQuery.of(context).size.width >= 600 ? 30 : 20,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Backup & Restore',
+                          style: TextStyle(
+                            fontSize: MediaQuery.of(context).size.width >= 600 ? 16 : 12,
+                            fontWeight: FontWeight.normal,
+                            color: theme.selectedTheme.textTheme.displayMedium?.color,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             )

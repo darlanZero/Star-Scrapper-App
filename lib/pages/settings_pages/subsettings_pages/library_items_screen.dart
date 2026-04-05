@@ -15,14 +15,23 @@ class _LibraryItemsSettingsScreenState extends State<LibraryItemsSettingsScreen>
   final List<String> updateIntervals = ['2 hours', '5 hours', '12 hours', '24 hours'];
   String selectedUpdateInterval = '2 hours';
   Map<String, bool> tabsSelection = {};
+  bool trackerEnabled = true;
+  bool runningNow = false;
 
   @override
   void initState() {
     super.initState();
+    final fontProvider = Provider.of<FontProvider>(context, listen: false);
     final tabsState = Provider.of<TabsState>(context, listen: false);
     tabsState.libraryTabs.forEach((tab) {
-      tabsSelection[tab] = true;
+      tabsSelection[tab] = fontProvider.tabsToUpdate.contains(tab);
     });
+    trackerEnabled = fontProvider.trackerEnabled;
+    final hours = fontProvider.updateInterval.inHours;
+    if (hours == 2) selectedUpdateInterval = '2 hours';
+    if (hours == 5) selectedUpdateInterval = '5 hours';
+    if (hours == 12) selectedUpdateInterval = '12 hours';
+    if (hours == 24) selectedUpdateInterval = '24 hours';
   }
 
   void _saveSettings() {
@@ -54,6 +63,24 @@ class _LibraryItemsSettingsScreenState extends State<LibraryItemsSettingsScreen>
 
     fontProvider.setTabsToUpdate(selectedTabs);
 
+  }
+
+  Future<void> _runNow() async {
+    setState(() => runningNow = true);
+    try {
+      await Provider.of<FontProvider>(context, listen: false).runTrackerNow();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tracker executado com sucesso.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Falha ao executar tracker: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => runningNow = false);
+    }
   }
 
 
@@ -91,8 +118,24 @@ class _LibraryItemsSettingsScreenState extends State<LibraryItemsSettingsScreen>
         iconTheme: IconThemeData(color: theme.selectedTheme.textTheme.titleMedium?.color),
       ),
 
-      body: ListView(
+      body: Consumer<FontProvider>(
+        builder: (context, fp, _) => ListView(
         children: [
+          SwitchListTile(
+            title: Text(
+              'Enable Chapter Tracker',
+              style: TextStyle(
+                color: theme.selectedTheme.textTheme.titleMedium?.color,
+                fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            value: trackerEnabled,
+            onChanged: (value) {
+              setState(() => trackerEnabled = value);
+              fp.setTrackerEnabled(value);
+            },
+          ),
           ListTile(
             title: Text(
               'Update Interval',
@@ -141,6 +184,19 @@ class _LibraryItemsSettingsScreenState extends State<LibraryItemsSettingsScreen>
               }).toList(),
             ),
           ),
+          ListTile(
+            title: Text(
+              'Last Check',
+              style: TextStyle(
+                color: theme.selectedTheme.textTheme.titleMedium?.color,
+                fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: Text(
+              fp.trackerLastCheckedAt?.toString() ?? 'Never',
+            ),
+          ),
           ElevatedButton(
             onPressed: _saveSettings,
             child: Text(
@@ -152,8 +208,20 @@ class _LibraryItemsSettingsScreenState extends State<LibraryItemsSettingsScreen>
               )
             ),
           ),
+          const SizedBox(height: 8),
+          ElevatedButton.icon(
+            onPressed: runningNow ? null : _runNow,
+            icon: runningNow
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh_rounded),
+            label: const Text('Check Now'),
+          ),
         ],
-      ),
+      )),
     );
   }
 }

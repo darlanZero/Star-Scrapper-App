@@ -62,6 +62,9 @@ class FontProvider with ChangeNotifier {
   //Tabs
   Duration _updateInterval = Duration(hours: 24);
   Set<String> _tabsToUpdate = {};
+  bool _trackerEnabled = true;
+  int _trackerLastCheckedAtMs = 0;
+  Map<String, String> _lastKnownLatestChapterTokenByBook = {};
   Cron? _cron;
   late TabsState _tabsState;
 
@@ -72,6 +75,7 @@ class FontProvider with ChangeNotifier {
     _loadReadBooks();
 
     _loadUpdateSettings();
+    _loadTrackerState();
 
     loadSelectedChapterId();
     loadLastReadedChapterId();
@@ -123,6 +127,10 @@ class FontProvider with ChangeNotifier {
 
   Duration get updateInterval => _updateInterval;
   Set<String> get tabsToUpdate => _tabsToUpdate;
+  bool get trackerEnabled => _trackerEnabled;
+  DateTime? get trackerLastCheckedAt => _trackerLastCheckedAtMs == 0
+      ? null
+      : DateTime.fromMillisecondsSinceEpoch(_trackerLastCheckedAtMs);
 
   void toggleFontState(Fonte font) {
     font.isActive = !font.isActive;
@@ -142,8 +150,11 @@ class FontProvider with ChangeNotifier {
     int favIndex = _favoritedBooks.indexWhere((book) => book['id'] == bookId);
     if (favIndex != -1) {
       final currentTabs = _bookTabs(_favoritedBooks[favIndex]);
+      final currentSubTabsByPrimary = _bookSubTabsByPrimary(_favoritedBooks[favIndex]);
       updatedBookDetails['tabs'] = currentTabs;
+      updatedBookDetails['subTabsByPrimary'] = currentSubTabsByPrimary;
       updatedBookDetails.remove('tab');
+      updatedBookDetails.remove('subTabs');
       _favoritedBooks[favIndex] = updatedBookDetails;
       _saveFavoritedBooks();
     }
@@ -168,6 +179,18 @@ class FontProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void setTrackerEnabled(bool value) {
+    _trackerEnabled = value;
+    _saveUpdateSettings();
+    if (value) {
+      _scheduleAutomaticUpdates();
+    } else {
+      _cron?.close();
+      _cron = null;
+    }
+    notifyListeners();
+  }
+
   String _getCronExpression(Duration interval) {
     if (interval.inHours == 24) {
       return '0 0 * * *';
@@ -177,6 +200,7 @@ class FontProvider with ChangeNotifier {
   }
 
   void _scheduleAutomaticUpdates() {
+    if (!_trackerEnabled) return;
     _cron?.close();
 
     _cron = Cron();
@@ -192,6 +216,7 @@ class FontProvider with ChangeNotifier {
 
   void setTabsToUpdate(Set<String> tabs) {
     _tabsToUpdate = tabs;
+    _saveUpdateSettings();
     notifyListeners();
   }
 
@@ -199,24 +224,47 @@ class FontProvider with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     prefs.setInt('updateIntervalHours', _updateInterval.inHours);
     prefs.setStringList('tabsToUpdate', _tabsToUpdate.toList());
+    prefs.setBool('trackerEnabled', _trackerEnabled);
   }
 
   void _clearUpdateSettings() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('updateIntervalHours');
     await prefs.remove('tabsToUpdate');
+    await prefs.remove('trackerEnabled');
   }
 
-  void _loadUpdateSettings() async {
+  Future<void> _loadUpdateSettings() async {
     final prefs = await SharedPreferences.getInstance();
 
     int hours = prefs.getInt('updateIntervalHours') ?? 24;
     _updateInterval = Duration(hours: hours);
     List<String> tabs = prefs.getStringList('tabsToUpdate') ?? [];
     _tabsToUpdate = Set.from(tabs);
+    _trackerEnabled = prefs.getBool('trackerEnabled') ?? true;
 
     _scheduleAutomaticUpdates();
     notifyListeners();
+  }
+
+  Future<void> _loadTrackerState() async {
+    final prefs = await SharedPreferences.getInstance();
+    _trackerLastCheckedAtMs = prefs.getInt('trackerLastCheckedAtMs') ?? 0;
+    final raw = prefs.getString('lastKnownLatestChapterTokenByBook') ?? '{}';
+    final Map<String, dynamic> decoded = jsonDecode(raw);
+    _lastKnownLatestChapterTokenByBook = decoded.map(
+      (key, value) => MapEntry(key, value.toString()),
+    );
+    notifyListeners();
+  }
+
+  Future<void> _saveTrackerState() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('trackerLastCheckedAtMs', _trackerLastCheckedAtMs);
+    await prefs.setString(
+      'lastKnownLatestChapterTokenByBook',
+      jsonEncode(_lastKnownLatestChapterTokenByBook),
+    );
   }
 
   void setBooksInTab(String tab, List<Map<String, dynamic>> books) {
@@ -248,12 +296,29 @@ class FontProvider with ChangeNotifier {
     if (index != -1) {
       final stored = Map<String, dynamic>.from(_favoritedBooks[index]);
       final currentTabs = _bookTabs(stored);
+      final currentSubTabsByPrimary = _bookSubTabsByPrimary(stored);
       updatedBook['tabs'] = currentTabs;
+      updatedBook['subTabsByPrimary'] = currentSubTabsByPrimary;
       updatedBook.remove('tab');
       _favoritedBooks[index] = updatedBook;
       _saveFavoritedBooks();
       notifyListeners();
     }
+  }
+
+  void _replaceBookPreservingOrganization(Map<String, dynamic> updatedBook) {
+    final bookId = updatedBook['id']?.toString() ?? '';
+    if (bookId.isEmpty) return;
+
+    final index = _favoritedBooks.indexWhere((book) => book['id'].toString() == bookId);
+    if (index == -1) return;
+
+    final stored = Map<String, dynamic>.from(_favoritedBooks[index]);
+    updatedBook['tabs'] = _bookTabs(stored);
+    updatedBook['subTabsByPrimary'] = _bookSubTabsByPrimary(stored);
+    updatedBook.remove('tab');
+    updatedBook.remove('subTabs');
+    _favoritedBooks[index] = updatedBook;
   }
 
   Future<void> _showUpdatedNotification(List<Map<String, dynamic>> updatedBooks) async {
@@ -282,31 +347,63 @@ class FontProvider with ChangeNotifier {
   }
 
   Future<void> _updateLibraryBooks() async {
+    if (!_trackerEnabled) return;
+
     List<Map<String, dynamic>> allUpdatedBooks = [];
+    final Map<String, Map<String, dynamic>> booksToTrackById = {};
 
-    for (String tab in _tabsToUpdate) {
-      List<Map<String, dynamic>> booksInTab = getBooksInTab(tab);
-
-      for (var book in booksInTab) {
-        String bookId = book['id'];
-
-        List<Map<String, String>> readChapters = _selectedChapterIds[bookId] ?? [];
-        Map<String, dynamic> updatedBookDetails = await selectedFontApi.getBookDetails(bookId);
-
-        if (updatedBookDetails != null) {
-          updateBookInTab(tab, updatedBookDetails);
-          _selectedChapterIds[bookId] = readChapters;
-          await saveSelectedChapterId(bookId, readChapters);
-
-          allUpdatedBooks.add(updatedBookDetails);
+    for (final tab in _tabsToUpdate) {
+      for (final book in getBooksInTab(tab)) {
+        final id = book['id']?.toString() ?? '';
+        if (id.isNotEmpty) {
+          booksToTrackById[id] = book;
         }
       }
     }
+
+    for (final entry in booksToTrackById.entries) {
+      final bookId = entry.key;
+      final book = entry.value;
+      final currentToken = _lastKnownLatestChapterTokenByBook[bookId] ??
+          _extractLatestChapterToken(book);
+
+      final readChapters = _selectedChapterIds[bookId] ?? <Map<String, String>>[];
+
+      try {
+        final scrapper = findScrapperForBook(book) ?? selectedFontApi;
+        final updatedBookDetails = await scrapper.getBookDetails(bookId);
+        final latestToken = _extractLatestChapterToken(updatedBookDetails);
+
+        _replaceBookPreservingOrganization(updatedBookDetails);
+        _selectedChapterIds[bookId] = readChapters;
+
+        if (latestToken.isNotEmpty) {
+          _lastKnownLatestChapterTokenByBook[bookId] = latestToken;
+        }
+
+        if (currentToken.isNotEmpty &&
+            latestToken.isNotEmpty &&
+            currentToken != latestToken) {
+          allUpdatedBooks.add(updatedBookDetails);
+        }
+      } catch (e) {
+        // keep loop resilient for background tracker
+      }
+    }
+
+    _trackerLastCheckedAtMs = DateTime.now().millisecondsSinceEpoch;
+    await _saveFavoritedBooks();
+    await _saveSelectedChapterIdsSilently();
+    await _saveTrackerState();
 
     if (allUpdatedBooks.isNotEmpty) {
       await _showUpdatedNotification(allUpdatedBooks);
     }
     notifyListeners();
+  }
+
+  Future<void> runTrackerNow() async {
+    await _updateLibraryBooks();
   }
 
   //General Functions
@@ -329,7 +426,7 @@ class FontProvider with ChangeNotifier {
   List<Fonte> get activeFonts => _fonts.where((font) => font.isActive).toList();
   List<Fonte> get inactiveFonts => _fonts.where((font) => !font.isActive).toList();
 
-  void _loadFonts() async {
+  Future<void> _loadFonts() async {
     final prefs = await SharedPreferences.getInstance();
     final activeFontNames = prefs.getStringList('activeFonts') ?? [];
     for (var font in _fonts) {
@@ -338,14 +435,14 @@ class FontProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void _saveFonts() async {
+  Future<void> _saveFonts() async {
     final prefs = await SharedPreferences.getInstance();
     final activeFontNames = _fonts.where((font) => font.isActive).map((font) => font.name).toList();
     prefs.setStringList('activeFonts', activeFontNames);
   }
 
   // Favorited Books
-  void _loadFavoritedBooks() async {
+  Future<void> _loadFavoritedBooks() async {
     final prefs = await SharedPreferences.getInstance();
     final favoritedBooks = prefs.getStringList('favoritedBooks') ?? [];
     _favoritedBooks = favoritedBooks.map((book) {
@@ -369,13 +466,13 @@ class FontProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void _saveFavoritedBooks() async {
+  Future<void> _saveFavoritedBooks() async {
     final prefs = await SharedPreferences.getInstance();
     final favoritedBooks = _favoritedBooks.map((book) => jsonEncode(book)).toList();
     prefs.setStringList('favoritedBooks', favoritedBooks);
   }
 
-  void clearSelectedChapterIds() async {
+  Future<void> clearSelectedChapterIds() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('selectedChapterIds');
   }
@@ -409,6 +506,11 @@ class FontProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _saveSelectedChapterIdsSilently() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selectedChapterIds', jsonEncode(_selectedChapterIds));
+  }
+
   SaveSingleSelectedChapterId(String bookId,String chapterId, String chapterTitle) async {
     _selectedChapterIds[bookId] ??= [];
    bool chapterExists = _selectedChapterIds[bookId]!.any((chapter) => chapter['id'] == chapterId);
@@ -423,7 +525,7 @@ class FontProvider with ChangeNotifier {
 
   //Readed books
 
-  void _loadReadBooks() async {
+  Future<void> _loadReadBooks() async {
     final prefs = await SharedPreferences.getInstance();
     final readBooks = prefs.getStringList('readBooks') ?? [];
     _readBooks = readBooks.map((book) {
@@ -436,7 +538,7 @@ class FontProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void _saveReadBooks() async {
+  Future<void> _saveReadBooks() async {
     final prefs = await SharedPreferences.getInstance();
     final readBooks = _readBooks.map((book) => jsonEncode(book)).toList();
     prefs.setStringList('readBooks', readBooks);
@@ -450,7 +552,7 @@ class FontProvider with ChangeNotifier {
     }
   }
 
-  void clearLastReadedChapterId() async {
+  Future<void> clearLastReadedChapterId() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('lastReadedChapterId');
   }
@@ -493,6 +595,57 @@ class FontProvider with ChangeNotifier {
     final legacy = book['tab'];
     if (legacy is String) return [legacy];
     return ['Reading'];
+  }
+
+  Future<void> refreshFromStorage() async {
+    await _loadFonts();
+    await _loadFavoritedBooks();
+    await _loadReadBooks();
+    await _loadUpdateSettings();
+    await _loadTrackerState();
+    await loadSelectedChapterId();
+    await loadLastReadedChapterId();
+    notifyListeners();
+  }
+
+  String _extractLatestChapterToken(Map<String, dynamic> bookDetails) {
+    final chapters = bookDetails['chapters'];
+    if (chapters is! List || chapters.isEmpty) return '';
+
+    int bestEpoch = 0;
+    String bestId = '';
+
+    for (final raw in chapters) {
+      if (raw is! Map) continue;
+      final chapter = Map<String, dynamic>.from(raw);
+      final id = (chapter['id'] ?? '').toString();
+      final candidates = <String?>[
+        chapter['updatedAt']?.toString(),
+        chapter['publishedAt']?.toString(),
+        chapter['createdAt']?.toString(),
+      ];
+      int epoch = 0;
+      for (final c in candidates) {
+        if (c == null || c.isEmpty) continue;
+        final dt = DateTime.tryParse(c);
+        if (dt != null && dt.millisecondsSinceEpoch > epoch) {
+          epoch = dt.millisecondsSinceEpoch;
+        }
+      }
+      if (epoch > bestEpoch) {
+        bestEpoch = epoch;
+        bestId = id;
+      }
+    }
+
+    if (bestId.isEmpty) {
+      final first = chapters.first;
+      if (first is Map && first['id'] != null) {
+        bestId = first['id'].toString();
+      }
+    }
+
+    return '$bestId@$bestEpoch';
   }
 
   Map<String, List<String>> _bookSubTabsByPrimary(Map<String, dynamic> book) {

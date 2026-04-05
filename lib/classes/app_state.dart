@@ -228,6 +228,11 @@ class TabsState extends ChangeNotifier  {
     notifyListeners();
   }
 
+  Future<void> reloadLibraryStructure() async {
+    _tabsLoaded = _loadLibraryStructure();
+    await _tabsLoaded;
+  }
+
   void _saveLibraryStructure() async {
     final prefs = await SharedPreferences.getInstance();
     prefs.setStringList('libraryTabs', _libraryTabs);
