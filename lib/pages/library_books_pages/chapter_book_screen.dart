@@ -41,12 +41,14 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   bool _showControls = false;
   int _currentPage = 0;
   bool _isPaginatedView = false;
+  bool _reverseReading = false;
   List<String> _chapterImages = [];
   final List<GlobalKey> _imageItemKeys = [];
   StreamSubscription<Map<String, dynamic>>? _chapterImagesSubscription;
   bool _showWebView = false;
   int? _pendingRestorePage;
   bool _recalcScheduled = false;
+  Timer? _controlsAutoHideTimer;
 
   late PageController? _pageController;
   late ScrollController _scrollController;
@@ -77,6 +79,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
           _currentPage = _pageController!.page?.round() ?? 0;
         });
       });
+      _setControlsVisible(true);
       setState(() {});
     });
   }
@@ -108,6 +111,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
 
   @override
   void dispose() {
+    _controlsAutoHideTimer?.cancel();
     _saveReadingProgress();
     _scrollController.dispose();
     _pageController?.dispose();
@@ -131,18 +135,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
 
   void _onScroll() {
     _scheduleScrollProgressRecalc();
-
-    if (_scrollController.position.userScrollDirection ==
-        ScrollDirection.reverse && _showControls) {
-      setState(() {
-        _showControls = false;
-      });
-    } else if (_scrollController.position.userScrollDirection ==
-        ScrollDirection.forward && !_showControls) {
-      setState(() {
-        _showControls = true;
-      });
-    }
+    if (_showControls) _scheduleControlsAutoHide();
   }
 
   void _scheduleScrollProgressRecalc() {
@@ -206,10 +199,105 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   void _toggleView() {
     setState(() {
       _isPaginatedView = !_isPaginatedView;
-      _pageController = PageController(
-          initialPage: _currentPage,
-          viewportFraction: _isPaginatedView ? 1.0 : 1.0);
+      _pageController?.dispose();
+      _pageController = PageController(initialPage: _currentPage, viewportFraction: 1.0);
     });
+    _scheduleControlsAutoHide();
+  }
+
+  void _setControlsVisible(bool visible) {
+    if (!mounted) return;
+    setState(() => _showControls = visible);
+    if (visible) {
+      _scheduleControlsAutoHide();
+    } else {
+      _controlsAutoHideTimer?.cancel();
+    }
+  }
+
+  void _scheduleControlsAutoHide() {
+    _controlsAutoHideTimer?.cancel();
+    _controlsAutoHideTimer = Timer(const Duration(seconds: 2), () {
+      if (!mounted || _showWebView) return;
+      setState(() => _showControls = false);
+    });
+  }
+
+  Future<void> _jumpToPage(int target) async {
+    if (_chapterImages.isEmpty) return;
+    final index = target.clamp(0, _chapterImages.length - 1);
+    setState(() => _currentPage = index);
+
+    if (_isPaginatedView) {
+      _pageController?.jumpToPage(index);
+      return;
+    }
+    if (index < _imageItemKeys.length) {
+      final ctx = _imageItemKeys[index].currentContext;
+      if (ctx != null) {
+        await Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          alignment: 0,
+        );
+      }
+    }
+  }
+
+  void _showReaderPreferences() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF151026),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Reader preferences',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                    const SizedBox(height: 10),
+                    SwitchListTile(
+                      value: _isPaginatedView,
+                      onChanged: (v) {
+                        setModalState(() => _isPaginatedView = v);
+                        setState(() {
+                          _isPaginatedView = v;
+                          _pageController?.dispose();
+                          _pageController =
+                              PageController(initialPage: _currentPage, viewportFraction: 1.0);
+                        });
+                      },
+                      title: const Text('Paginated mode', style: TextStyle(color: Colors.white)),
+                      activeColor: Colors.deepPurpleAccent,
+                    ),
+                    SwitchListTile(
+                      value: _reverseReading,
+                      onChanged: (v) {
+                        setModalState(() => _reverseReading = v);
+                        setState(() => _reverseReading = v);
+                      },
+                      title: const Text('Reverse reading direction', style: TextStyle(color: Colors.white)),
+                      activeColor: Colors.deepPurpleAccent,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _downloadImage(String imagePath) async {  
@@ -359,6 +447,10 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
         backgroundColor: Color.fromARGB(158, 60, 16, 180),
         elevation: 0,
         actions: [  
+          IconButton(
+            icon: const Icon(Icons.tune_rounded),
+            onPressed: _showReaderPreferences,
+          ),
           IconButton(  
             icon: Icon(Icons.open_in_new_rounded),  
             onPressed: () => {
@@ -381,9 +473,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
       body: _showWebView ? _buildWebView(context) : GestureDetector(
         
         onTap: () {
-          setState(() {
-            _showControls = !_showControls;
-          });
+          _setControlsVisible(!_showControls);
         },
         onLongPress: () {
           if (_chapterImages.isEmpty) return;
@@ -406,7 +496,9 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
               setState(() {
                 _currentPage = index;
               });
+              _scheduleControlsAutoHide();
             },
+            reverse: _reverseReading,
 
             scrollBehavior: ScrollBehavior(
               
@@ -424,6 +516,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
           ) :
           ListView.builder(
             controller: _scrollController,
+            reverse: _reverseReading,
             itemCount: _chapterImages.length,
             itemBuilder: (context, index) {
               return Container(
@@ -440,92 +533,123 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
       ),
       floatingActionButton: _showControls
           ? FloatingActionButton(
-              onPressed: () => _saveReadingProgress(),
+              onPressed: () async {
+                await _saveReadingProgress();
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Reading progress saved'),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              },
               child: Icon(Icons.save),
             )
           : null,
       bottomNavigationBar: _showControls
-          ? BottomAppBar(
-              color: Color.fromARGB(174, 53, 13, 180),
-              shape: const CircularNotchedRectangle(),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.auto_mode_rounded),
-                    onPressed: () async {
-                      final previousChapterStream = _activeScrapper.retrieveLastChapter(widget.chapterId, widget.mangaID);
-                      bool hasPreviousChapter = false;
-
-                     await for (var previousChapterData in previousChapterStream) {
-                        if (previousChapterData['type'] == 'image') {
-                          hasPreviousChapter = true;
-                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => ChapterBookScreen(
-                            bookTitle: widget.bookTitle,
-                            chapterId: previousChapterData['chapterID'],
-                            mangaID: widget.mangaID,
-                            chapterTitle: previousChapterData['title'],
-                            chapterNumber: previousChapterData['chapter'],
-                            chapterWebViewUrl: previousChapterData['chapterWebviewUrl'],
-                            scrapper: _activeScrapper,
-                          )));
-                          break;
-                        } else if (previousChapterData['type'] == 'error') {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(previousChapterData['message']),
+          ? SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color.fromARGB(185, 42, 19, 107),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white.withOpacity(0.15)),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_chapterImages.length > 1)
+                            Slider(
+                              value: _currentPage.clamp(0, _chapterImages.length - 1).toDouble(),
+                              min: 0,
+                              max: (_chapterImages.length - 1).toDouble(),
+                              activeColor: Colors.white,
+                              inactiveColor: Colors.white24,
+                              onChanged: (v) => _jumpToPage(v.round()),
                             ),
-                          );
-                          break;
-                        }
-                      }
-                    }
-                      
-                  ),
-                  Text(
-                    '${_currentPage + 1}/${_chapterImages.length}',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontWeight: FontWeight.bold,
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(6, 0, 6, 4),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.skip_previous_rounded),
+                                  onPressed: () async {
+                                    final previousChapterStream = _activeScrapper
+                                        .retrieveLastChapter(widget.chapterId, widget.mangaID);
+                                    await for (var previousChapterData in previousChapterStream) {
+                                      if (previousChapterData['type'] == 'image') {
+                                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => ChapterBookScreen(
+                                          bookTitle: widget.bookTitle,
+                                          chapterId: previousChapterData['chapterID'],
+                                          mangaID: widget.mangaID,
+                                          chapterTitle: previousChapterData['title'],
+                                          chapterNumber: previousChapterData['chapter'],
+                                          chapterWebViewUrl: previousChapterData['chapterWebviewUrl'],
+                                          scrapper: _activeScrapper,
+                                        )));
+                                        break;
+                                      } else if (previousChapterData['type'] == 'error') {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text(previousChapterData['message'])),
+                                        );
+                                        break;
+                                      }
+                                    }
+                                  },
+                                ),
+                                Text(
+                                  '${_chapterImages.isEmpty ? 0 : _currentPage + 1}/${_chapterImages.length} • ${_chapterImages.isEmpty ? 0 : (((_currentPage + 1) / _chapterImages.length) * 100).round()}%',
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(_isPaginatedView
+                                      ? Icons.view_agenda_rounded
+                                      : Icons.view_carousel_rounded),
+                                  onPressed: _toggleView,
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.skip_next_rounded),
+                                  onPressed: () async {
+                                    final nextChapterStream = _activeScrapper
+                                        .retrieveNextChapter(widget.chapterId, widget.mangaID);
+                                    await for (var nextChapterData in nextChapterStream) {
+                                      if (nextChapterData['type'] == 'image') {
+                                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => ChapterBookScreen(
+                                          bookTitle: widget.bookTitle,
+                                          chapterId: nextChapterData['chapterID'],
+                                          mangaID: widget.mangaID,
+                                          chapterTitle: nextChapterData['title'],
+                                          chapterNumber: nextChapterData['chapter'],
+                                          chapterWebViewUrl: nextChapterData['chapterWebviewUrl'],
+                                          scrapper: _activeScrapper,
+                                        )));
+                                        break;
+                                      } else if (nextChapterData['type'] == 'error') {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text(nextChapterData['message'])),
+                                        );
+                                        break;
+                                      }
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  IconButton(
-                    icon: Icon(_isPaginatedView
-                        ? Icons.view_agenda_rounded
-                        : Icons.view_carousel_rounded),
-                    onPressed: () => _toggleView(),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.arrow_forward_ios_rounded),
-                    onPressed: () async {
-                      final nextChapterStream = _activeScrapper.retrieveNextChapter(widget.chapterId, widget.mangaID);
-                      bool hasNextChapter = false;
-
-                     await for (var nextChapterData in nextChapterStream) {
-                        if (nextChapterData['type'] == 'image') {
-                          hasNextChapter = true;
-                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => ChapterBookScreen(
-                            bookTitle: widget.bookTitle,
-                            chapterId: nextChapterData['chapterID'],
-                            mangaID: widget.mangaID,
-                            chapterTitle: nextChapterData['title'],
-                            chapterNumber: nextChapterData['chapter'],
-                            chapterWebViewUrl: nextChapterData['chapterWebviewUrl'],
-                            scrapper: _activeScrapper,
-                          )));
-                          break;
-                        } else if (nextChapterData['type'] == 'error') {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(nextChapterData['message']),
-                            ),
-                          );
-                          break;
-                        }
-                      }
-                    },
-                  ),
-                ],
+                ),
               ),
             )
           : null,
