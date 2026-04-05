@@ -6,7 +6,7 @@ Heavily inspired by [MangaDex](https://mangadex.org/) and Mihon, with its own ap
 
 ## Banner
 
-![Star Scrapper App Banner](https://pixeldrain.com/d/me/utilitaries/Starsscrapper/Banner/1775403379926.png)
+![Star Scrapper App Banner](https://pixeldrain.com/api/filesystem/me/utilitaries/Starsscrapper/Banner/1775403379926.png)
 
 ## Why Star Scrapper App?
 
