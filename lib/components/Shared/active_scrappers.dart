@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';  
-import 'package:flutter_svg/flutter_svg.dart';  
 import 'package:provider/provider.dart';  
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
@@ -66,9 +65,77 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
     });  
   }  
 
-  bool isSvgImage(String url) {  
-    return url.toLowerCase().endsWith('.svg');  
-  }  
+  Widget _buildOutdatedDummy(double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade800,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Icon(
+        Icons.public_off_rounded,
+        size: size * 0.75,
+        color: Colors.white70,
+      ),
+    );
+  }
+
+  Widget _buildSafeFontIcon(Fonte font, {double size = 25}) {
+    final status = Provider.of<FontProvider>(context, listen: false)
+        .getFontHostStatus(font.name);
+    if (status == FontHostStatus.outdated) return _buildOutdatedDummy(size);
+
+    return Image.network(
+      font.image,
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) => _buildOutdatedDummy(size),
+    );
+  }
+
+  Widget _buildStatusBadge(Fonte font) {
+    final status = Provider.of<FontProvider>(context, listen: false)
+        .getFontHostStatus(font.name);
+    String label;
+    Color color;
+    switch (status) {
+      case FontHostStatus.online:
+        label = 'ONLINE';
+        color = Colors.green;
+        break;
+      case FontHostStatus.outdated:
+        label = 'OUTDATED';
+        color = Colors.redAccent;
+        break;
+      case FontHostStatus.checking:
+        label = 'CHECKING';
+        color = Colors.orangeAccent;
+        break;
+      case FontHostStatus.unknown:
+        label = 'UNKNOWN';
+        color = Colors.grey;
+        break;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(0.6)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 9,
+          color: color,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
 
   Widget _buildFontTile(Fonte font) {  
     final isMobile = MediaQuery.of(context).size.width < 600;
@@ -138,27 +205,33 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
                 children: [
                   Row(
                     children: [
-                      isSvgImage(font.image)
-                          ? SvgPicture.network(font.image, width: 22, height: 22)
-                          : Image.network(font.image, width: 22, height: 22),
+                      _buildSafeFontIcon(font, size: 22),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Text(
-                          font.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: Colors.green,
-                            shadows: [
-                              Shadow(
-                                offset: Offset(1.0, 1.0),
-                                blurRadius: 3.0,
-                                color: Color.fromARGB(255, 65, 62, 62),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                font.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: Colors.green,
+                                  shadows: [
+                                    Shadow(
+                                      offset: Offset(1.0, 1.0),
+                                      blurRadius: 3.0,
+                                      color: Color.fromARGB(255, 65, 62, 62),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(width: 6),
+                            _buildStatusBadge(font),
+                          ],
                         ),
                       ),
                       pinButton,
@@ -175,27 +248,33 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
               )
             : Row(
                 children: [
-                  isSvgImage(font.image)
-                      ? SvgPicture.network(font.image, width: 25, height: 25)
-                      : Image.network(font.image, width: 25, height: 25),
+                  _buildSafeFontIcon(font, size: 25),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      font.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: fontSize,
-                        color: Colors.green,
-                        shadows: const [
-                          Shadow(
-                            offset: Offset(1.0, 1.0),
-                            blurRadius: 3.0,
-                            color: Color.fromARGB(255, 65, 62, 62),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            font.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: fontSize,
+                              color: Colors.green,
+                              shadows: const [
+                                Shadow(
+                                  offset: Offset(1.0, 1.0),
+                                  blurRadius: 3.0,
+                                  color: Color.fromARGB(255, 65, 62, 62),
+                                ),
+                              ],
+                            ),
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 8),
+                        _buildStatusBadge(font),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 8),

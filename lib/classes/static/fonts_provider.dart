@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:cron/cron.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 import 'package:star_scrapper_app/classes/Scrappers/mangadex_scrapper.dart';
@@ -11,6 +13,8 @@ import 'package:star_scrapper_app/classes/Scrappers/sites/luratoons_scrapper.dar
 import 'package:star_scrapper_app/classes/Scrappers/sites/mediocrescan_scrapper.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';
+
+enum FontHostStatus { unknown, checking, online, outdated }
 
 class FontProvider with ChangeNotifier {
   List<Fonte> _fonts = [
@@ -65,6 +69,11 @@ class FontProvider with ChangeNotifier {
   bool _trackerEnabled = true;
   int _trackerLastCheckedAtMs = 0;
   Map<String, String> _lastKnownLatestChapterTokenByBook = {};
+  Map<String, FontHostStatus> _fontHostStatusByName = {};
+  bool _fontHostAutoCheckEnabled = true;
+  Duration _fontHostCheckInterval = const Duration(hours: 6);
+  int _fontHostLastCheckedAtMs = 0;
+  Timer? _fontHostTimer;
   Cron? _cron;
   late TabsState _tabsState;
 
@@ -76,6 +85,7 @@ class FontProvider with ChangeNotifier {
 
     _loadUpdateSettings();
     _loadTrackerState();
+    _loadFontHostSettings();
 
     loadSelectedChapterId();
     loadLastReadedChapterId();
@@ -131,6 +141,16 @@ class FontProvider with ChangeNotifier {
   DateTime? get trackerLastCheckedAt => _trackerLastCheckedAtMs == 0
       ? null
       : DateTime.fromMillisecondsSinceEpoch(_trackerLastCheckedAtMs);
+  bool get fontHostAutoCheckEnabled => _fontHostAutoCheckEnabled;
+  Duration get fontHostCheckInterval => _fontHostCheckInterval;
+  DateTime? get fontHostLastCheckedAt => _fontHostLastCheckedAtMs == 0
+      ? null
+      : DateTime.fromMillisecondsSinceEpoch(_fontHostLastCheckedAtMs);
+  Map<String, FontHostStatus> get fontHostStatuses =>
+      Map<String, FontHostStatus>.from(_fontHostStatusByName);
+
+  FontHostStatus getFontHostStatus(String fontName) =>
+      _fontHostStatusByName[fontName] ?? FontHostStatus.unknown;
 
   void toggleFontState(Fonte font) {
     font.isActive = !font.isActive;
@@ -256,6 +276,152 @@ class FontProvider with ChangeNotifier {
       (key, value) => MapEntry(key, value.toString()),
     );
     notifyListeners();
+  }
+
+  Future<void> _loadFontHostSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    _fontHostAutoCheckEnabled = prefs.getBool('fontHostAutoCheckEnabled') ?? true;
+    _fontHostCheckInterval = Duration(
+      minutes: prefs.getInt('fontHostCheckIntervalMinutes') ?? 360,
+    );
+    _fontHostLastCheckedAtMs = prefs.getInt('fontHostLastCheckedAtMs') ?? 0;
+    final raw = prefs.getString('fontHostStatusByName') ?? '{}';
+    final Map<String, dynamic> decoded = jsonDecode(raw);
+    _fontHostStatusByName = decoded.map(
+      (key, value) => MapEntry(key, _fontHostStatusFromString(value.toString())),
+    );
+
+    for (final f in _fonts) {
+      final status = _fontHostStatusByName[f.name] ?? FontHostStatus.unknown;
+      f.isOutdated = status == FontHostStatus.outdated;
+    }
+
+    _scheduleFontHostChecks();
+    if (_fontHostAutoCheckEnabled && _fontHostStatusByName.isEmpty) {
+      checkAllFontsHostsNow();
+    }
+    notifyListeners();
+  }
+
+  Future<void> _saveFontHostSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('fontHostAutoCheckEnabled', _fontHostAutoCheckEnabled);
+    await prefs.setInt('fontHostCheckIntervalMinutes', _fontHostCheckInterval.inMinutes);
+    await prefs.setInt('fontHostLastCheckedAtMs', _fontHostLastCheckedAtMs);
+    await prefs.setString(
+      'fontHostStatusByName',
+      jsonEncode(
+        _fontHostStatusByName.map(
+          (key, value) => MapEntry(key, _fontHostStatusToString(value)),
+        ),
+      ),
+    );
+  }
+
+  FontHostStatus _fontHostStatusFromString(String value) {
+    switch (value) {
+      case 'checking':
+        return FontHostStatus.checking;
+      case 'online':
+        return FontHostStatus.online;
+      case 'outdated':
+        return FontHostStatus.outdated;
+      default:
+        return FontHostStatus.unknown;
+    }
+  }
+
+  String _fontHostStatusToString(FontHostStatus status) {
+    switch (status) {
+      case FontHostStatus.checking:
+        return 'checking';
+      case FontHostStatus.online:
+        return 'online';
+      case FontHostStatus.outdated:
+        return 'outdated';
+      case FontHostStatus.unknown:
+        return 'unknown';
+    }
+  }
+
+  void _scheduleFontHostChecks() {
+    _fontHostTimer?.cancel();
+    if (!_fontHostAutoCheckEnabled) return;
+    _fontHostTimer = Timer.periodic(_fontHostCheckInterval, (_) {
+      checkAllFontsHostsNow();
+    });
+  }
+
+  void setFontHostAutoCheckEnabled(bool value) {
+    _fontHostAutoCheckEnabled = value;
+    _scheduleFontHostChecks();
+    _saveFontHostSettings();
+    notifyListeners();
+  }
+
+  void setFontHostCheckInterval(Duration interval) {
+    _fontHostCheckInterval = interval;
+    _scheduleFontHostChecks();
+    _saveFontHostSettings();
+    notifyListeners();
+  }
+
+  Future<void> checkAllFontsHostsNow() async {
+    for (final font in _fonts) {
+      _fontHostStatusByName[font.name] = FontHostStatus.checking;
+    }
+    notifyListeners();
+
+    for (final font in _fonts) {
+      final uri = _resolveFontHealthUri(font);
+      if (uri == null) {
+        _fontHostStatusByName[font.name] = FontHostStatus.outdated;
+        font.isOutdated = true;
+        continue;
+      }
+
+      final ok = await _isHostReachable(uri);
+      _fontHostStatusByName[font.name] =
+          ok ? FontHostStatus.online : FontHostStatus.outdated;
+      font.isOutdated = !ok;
+    }
+
+    _fontHostLastCheckedAtMs = DateTime.now().millisecondsSinceEpoch;
+    await _saveFontHostSettings();
+    notifyListeners();
+  }
+
+  Uri? _resolveFontHealthUri(Fonte font) {
+    final fromProfile = font.api.scrapperProfile?.baseUrl ?? '';
+    if (fromProfile.isNotEmpty) {
+      final uri = Uri.tryParse(fromProfile);
+      if (uri != null && uri.hasScheme && uri.host.isNotEmpty) return uri;
+    }
+
+    final fromImage = Uri.tryParse(font.image);
+    if (fromImage != null && fromImage.host.isNotEmpty) {
+      return Uri(
+        scheme: fromImage.scheme.isEmpty ? 'https' : fromImage.scheme,
+        host: fromImage.host,
+        path: '/',
+      );
+    }
+
+    return null;
+  }
+
+  Future<bool> _isHostReachable(Uri uri) async {
+    try {
+      final head = await http.head(uri).timeout(const Duration(seconds: 8));
+      if (head.statusCode > 0 && head.statusCode < 500) return true;
+    } catch (_) {}
+
+    try {
+      final get = await http.get(uri).timeout(const Duration(seconds: 8));
+      if (get.statusCode > 0 && get.statusCode < 500) return true;
+    } catch (_) {}
+
+    return false;
   }
 
   Future<void> _saveTrackerState() async {
@@ -603,9 +769,17 @@ class FontProvider with ChangeNotifier {
     await _loadReadBooks();
     await _loadUpdateSettings();
     await _loadTrackerState();
+    await _loadFontHostSettings();
     await loadSelectedChapterId();
     await loadLastReadedChapterId();
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _fontHostTimer?.cancel();
+    _cron?.close();
+    super.dispose();
   }
 
   String _extractLatestChapterToken(Map<String, dynamic> bookDetails) {

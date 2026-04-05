@@ -4,6 +4,7 @@ import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/config/themes.dart';
 import 'package:star_scrapper_app/components/UI/theme_preview_widgets.dart';
 import 'package:star_scrapper_app/components/Shared/settings_nav_item.dart';
+import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/fonts_hosts_settings_screen.dart';
 import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/library_settings_screen.dart';
 import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/scrapper_logins_screen.dart';
 
@@ -46,6 +47,18 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const LibrarySettingsScreen()),
+                  ),
+                ),
+                SizedBox(height: 12),
+                SettingsNavItem(
+                  icon: Icons.cloud_sync_rounded,
+                  label: 'Fonts',
+                  theme: theme,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FontsHostsSettingsScreen(),
+                    ),
                   ),
                 ),
                 SizedBox(height: 12),
