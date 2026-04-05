@@ -485,12 +485,15 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
         }
 
         // ── Sem dados ────────────────────────────────────────────────────────
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+        if (!snapshot.hasData || allBooksData.isEmpty) {
           return const Center(child: Text('No data available'));
         }
 
         // ── Grid de livros ───────────────────────────────────────────────────
-        final books = snapshot.data!;
+        // allBooksData é a fonte de verdade: contém página 1 (via _fetchBooks)
+        // + todas as páginas adicionais (via _loadMoreBooks). Não usar snapshot.data!
+        // pois o Future já completou e nunca reflete as páginas seguintes.
+        final books = allBooksData;
         return Column(
           children: [
             Expanded(
