@@ -6,7 +6,7 @@ Heavily inspired by [MangaDex](https://mangadex.org/) and Mihon, with its own ap
 
 ## Banner
 
-![Star Scrapper App Banner](https://pixeldrain.com/api/filesystem/me/utilitaries/Starsscrapper/Banner/1775403379926.png)
+[Banner image link](https://pixeldrain.com/d/me/utilitaries/Starsscrapper/Banner/1775403379926.png)
 
 ## Why Star Scrapper App?
 
@@ -105,19 +105,19 @@ Heavily inspired by [MangaDex](https://mangadex.org/) and Mihon, with its own ap
 
 ### Reading Page
 
-![Reading Page](https://pixeldrain.com/d/me/utilitaries/Starsscrapper/Screenshot_2026-04-05-12-28-08-506_com.example.star_scrapper_app.jpg)
+[Reading Page image link](https://pixeldrain.com/d/me/utilitaries/Starsscrapper/Screenshot_2026-04-05-12-28-08-506_com.example.star_scrapper_app.jpg)
 
 ### Download Fonts Page
 
-![Download Fonts Page](https://pixeldrain.com/d/me/utilitaries/Starsscrapper/Screenshot_2026-04-05-12-28-21-198_com.example.star_scrapper_app.jpg)
+[Download Fonts Page image link](https://pixeldrain.com/d/me/utilitaries/Starsscrapper/Screenshot_2026-04-05-12-28-21-198_com.example.star_scrapper_app.jpg)
 
 ### Fonts List Page
 
-![Fonts List Page](https://pixeldrain.com/d/me/utilitaries/Starsscrapper/Screenshot_2026-04-05-12-28-25-131_com.example.star_scrapper_app.jpg)
+[Fonts List Page image link](https://pixeldrain.com/d/me/utilitaries/Starsscrapper/Screenshot_2026-04-05-12-28-25-131_com.example.star_scrapper_app.jpg)
 
 ### Search Books Page
 
-![Search Books Page](https://pixeldrain.com/d/me/utilitaries/Starsscrapper/Screenshot_2026-04-05-12-28-31-113_com.example.star_scrapper_app.jpg)
+[Search Books Page image link](https://pixeldrain.com/d/me/utilitaries/Starsscrapper/Screenshot_2026-04-05-12-28-31-113_com.example.star_scrapper_app.jpg)
 
 ## Getting Started
 
