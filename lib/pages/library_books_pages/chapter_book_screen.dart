@@ -41,10 +41,12 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   bool _showControls = false;
   int _currentPage = 0;
   bool _isPaginatedView = false;
-  List<double> _pageHeights = [];
   List<String> _chapterImages = [];
+  final List<GlobalKey> _imageItemKeys = [];
   StreamSubscription<Map<String, dynamic>>? _chapterImagesSubscription;
   bool _showWebView = false;
+  int? _pendingRestorePage;
+  bool _recalcScheduled = false;
 
   late PageController? _pageController;
   late ScrollController _scrollController;
@@ -64,7 +66,6 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _loadReadingProgress();
       await _loadChapterImages();
-      await _calculatePageHeights();
       _scrollController.addListener(() {
         _onScroll();
       });
@@ -86,7 +87,9 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
         if (imageData['type'] == 'image') {
           setState(() {
             _chapterImages.add(imageData['imagePath']);
+            _imageItemKeys.add(GlobalKey());
           });
+          _tryRestoreScrollPosition();
         } else if (imageData['type'] == 'info') {
           _chapterWebViewUrl = imageData['chapterWebviewUrl'];
         }
@@ -103,27 +106,9 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
     );
   }
 
-  Future<void> _calculatePageHeights() async {
-    for (String imagePath in _chapterImages) {
-      final image = await _getImageSize(imagePath);
-      _pageHeights.add(image.height.toDouble());
-    }
-  }
-
-  Future<Size> _getImageSize(String path) async {
-    final Completer<Size> completer = Completer();
-    final image = Image.file(File(path));
-    image.image.resolve(const ImageConfiguration()).addListener(
-      ImageStreamListener((ImageInfo info, bool _) {
-        completer.complete(Size(
-            info.image.width.toDouble(), info.image.height.toDouble()));
-      }),
-    );
-    return completer.future;
-  }
-
   @override
   void dispose() {
+    _saveReadingProgress();
     _scrollController.dispose();
     _pageController?.dispose();
     _chapterImagesSubscription?.cancel();
@@ -133,6 +118,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   Future<void> _loadReadingProgress() async {
     final prefs = await SharedPreferences.getInstance();
     final savedPage = prefs.getInt('reading_progress_${widget.chapterId}') ?? 0;
+    _pendingRestorePage = savedPage;
     setState(() {
       _currentPage = savedPage;
     });
@@ -144,18 +130,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   }
 
   void _onScroll() {
-    double scrollOffset = _scrollController.offset;
-    double cumulativeHeight = 0.0;
-
-    for (int i = 0; i < _pageHeights.length; i++) {
-      cumulativeHeight += _pageHeights[i];
-      if (scrollOffset < cumulativeHeight) {
-        setState(() {
-          _currentPage = i;
-        });
-        break;
-      }
-    }
+    _scheduleScrollProgressRecalc();
 
     if (_scrollController.position.userScrollDirection ==
         ScrollDirection.reverse && _showControls) {
@@ -168,6 +143,64 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
         _showControls = true;
       });
     }
+  }
+
+  void _scheduleScrollProgressRecalc() {
+    if (_isPaginatedView || _recalcScheduled) return;
+    _recalcScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _recalcScheduled = false;
+      _recalculateCurrentPageFromViewport();
+    });
+  }
+
+  void _recalculateCurrentPageFromViewport() {
+    if (!mounted || _chapterImages.isEmpty || _isPaginatedView) return;
+
+    final viewportHeight = MediaQuery.of(context).size.height;
+    final probeY = viewportHeight * 0.35;
+    int bestIndex = _currentPage.clamp(0, _chapterImages.length - 1).toInt();
+    double bestDistance = double.infinity;
+
+    for (var i = 0; i < _imageItemKeys.length; i++) {
+      final ctx = _imageItemKeys[i].currentContext;
+      if (ctx == null) continue;
+      final render = ctx.findRenderObject();
+      if (render is! RenderBox) continue;
+
+      final top = render.localToGlobal(Offset.zero).dy;
+      final center = top + (render.size.height / 2);
+      final distance = (center - probeY).abs();
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIndex = i;
+      }
+    }
+
+    if (bestIndex != _currentPage) {
+      setState(() {
+        _currentPage = bestIndex;
+      });
+    }
+  }
+
+  void _tryRestoreScrollPosition() {
+    if (_isPaginatedView || _pendingRestorePage == null) return;
+    final target = _pendingRestorePage!;
+    if (target < 0 || target >= _imageItemKeys.length) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _pendingRestorePage == null) return;
+      final targetContext = _imageItemKeys[target].currentContext;
+      if (targetContext == null) return;
+
+      Scrollable.ensureVisible(
+        targetContext,
+        duration: Duration.zero,
+        alignment: 0,
+      );
+      _pendingRestorePage = null;
+    });
   }
 
   void _toggleView() {
@@ -352,7 +385,11 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
             _showControls = !_showControls;
           });
         },
-        onLongPress: () => _showImageOptions(_chapterImages[_currentPage]),
+        onLongPress: () {
+          if (_chapterImages.isEmpty) return;
+          final safeIndex = _currentPage.clamp(0, _chapterImages.length - 1).toInt();
+          _showImageOptions(_chapterImages[safeIndex]);
+        },
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -389,9 +426,12 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
             controller: _scrollController,
             itemCount: _chapterImages.length,
             itemBuilder: (context, index) {
-              return Image.file(
-                File(_chapterImages[index]),
-                fit: BoxFit.contain,
+              return Container(
+                key: _imageItemKeys[index],
+                child: Image.file(
+                  File(_chapterImages[index]),
+                  fit: BoxFit.contain,
+                ),
               );
             },
           ),
