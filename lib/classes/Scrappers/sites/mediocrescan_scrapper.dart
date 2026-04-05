@@ -21,12 +21,16 @@ import 'package:star_scrapper_app/classes/Scrappers/engine/session_manager.dart'
 ///   Após a WebView capturar os cookies, usa o Bearer token para a API.
 ///
 /// Endpoints confirmados (inspeção DevTools — março 2026):
-///   GET  /obras/recentes?limite=24&pagina=N       → listagem pública
+///   GET  /obras/atualizados?limite=24&pagina=N    → recentemente atualizados (requer auth)
+///   GET  /obras/recentes?limite=24&pagina=N       → recentemente adicionados (público)
 ///   GET  /obras/novos?limite=24&pagina=N          → novos (requer auth)
 ///   GET  /obras/buscar?q={q}&limite=24&pagina=N   → busca
 ///   GET  /obras/{id}                              → detalhe da obra
 ///   GET  /capitulos?obr_id={id}&page=N&limite=50  → capítulos da obra
 ///   GET  /capitulos/{id}                          → detalhe + páginas
+///
+/// CDN de capas:
+///   https://cdn.mediocretoons.site/obras/{id}/{hash}.webp
 ///
 /// Imagens de capítulo:
 ///   https://cdn.mediocrescan.com/obras/{obra_id}/capitulos/{numero}/{src}
@@ -38,6 +42,7 @@ class MediocreScanScrapper extends Scrapper {
   ];
   static const String _primaryApiBase = 'https://api.mediocretoons.net';
   static const String _cdnBase = 'https://cdn.mediocrescan.com';
+  static const String _coverCdnBase = 'https://cdn.mediocretoons.site';
 
   Map<String, String> _cookies = {};
   String? _bearerToken;
@@ -98,12 +103,25 @@ class MediocreScanScrapper extends Scrapper {
     await SessionManager.clearSession(siteKey);
   }
 
+  /// Carrega cookies/token do [SessionManager] para a memória se ainda não carregados.
   Future<void> _ensureSession() async {
     if (_cookies.isEmpty) {
       _cookies = await SessionManager.loadCookies(siteKey);
       _bearerToken = _cookies['token'];
+      debugPrint(
+        '[MediocreScan] _ensureSession → '
+        '${_cookies.length} cookies, '
+        'authenticated=$isAuthenticated',
+      );
     }
   }
+
+  /// Restaura a sessão persistida para a memória antes das requests da biblioteca.
+  ///
+  /// Chamado por [FontBooksGalleryScreen] ao abrir o scrapper, garantindo que os
+  /// tokens armazenados no [SessionManager] estejam disponíveis para a primeira request.
+  @override
+  Future<void> restoreSession() => _ensureSession();
 
   Map<String, String> get _authHeaders => {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
@@ -193,53 +211,147 @@ class MediocreScanScrapper extends Scrapper {
     return <dynamic>[];
   }
 
+  // ─── RSC fetch de "Recentemente Atualizados" ─────────────────────────────
+  //
+  // A página mediocrescan.com/atualizados usa Next.js App Router com streaming.
+  // O HTML inicial é apenas um skeleton vazio — as obras chegam via React Server
+  // Components (RSC), acessível com o parâmetro `_rsc=<token>` e header `RSC: 1`.
+  //
+  // O Next.js server chama api.mediocretoons.net/obras/atualizados com chave de
+  // serviço (não token de usuário), então não há requisito de auth do lado cliente.
+  //
+  // Estrutura da linha RSC com obras (confirmada via DevTools):
+  //   2:["$","$Ld",null,{"obras":[
+  //     {"id":2330,"nome":"...","imagem":"hash.webp","capitulo_numero":32,
+  //      "capitulos":[{"id":509151,"numero":32,"nome":"Capítulo 32",...},...]}
+  //   ],"totalPaginas":89}]
+
+  Future<List<dynamic>> _fetchAtualizadosRsc(int page) async {
+    // Token de cache-busting (qualquer string aleatória)
+    final rscToken = DateTime.now().millisecondsSinceEpoch.toRadixString(36);
+    final url = '$_base/atualizados?pagina=$page&_rsc=$rscToken';
+
+    // Cookies de sessão (melhora cache hit no servidor se logado)
+    await _ensureSession();
+    final cookieHeader = SessionManager.buildCookieHeader(_cookies);
+
+    final res = await http.get(
+      Uri.parse(url),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+            'AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/x-component, */*',
+        'RSC': '1',
+        'Next-Router-State-Tree':
+            '%5B%22%22%2C%7B%22children%22%3A%5B%22(main)%22%2C%7B%22children'
+            '%22%3A%5B%22atualizados%22%2C%7B%22children%22%3A%5B%22__PAGE__%22'
+            '%2C%7B%7D%5D%7D%5D%7D%5D%7D%5D',
+        'Referer': _base,
+        if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+      },
+    );
+
+    if (res.statusCode == 503) {
+      throw Exception('Serviço temporariamente indisponível (503)');
+    }
+    if (res.statusCode != 200) {
+      throw Exception('RSC fetch falhou: HTTP ${res.statusCode}');
+    }
+
+    return _parseRscObras(res.body, page);
+  }
+
+  List<dynamic> _parseRscObras(String rscBody, int page) {
+    // O payload RSC é newline-delimited. Procurar a linha com "obras":[
+    for (final line in rscBody.split('\n')) {
+      final obrasIdx = line.indexOf('"obras":[');
+      if (obrasIdx == -1) continue;
+
+      // Recuar até o { que abre o objeto pai de "obras"
+      var objStart = obrasIdx - 1;
+      while (objStart >= 0 && line[objStart] != '{') {
+        objStart--;
+      }
+      if (objStart < 0) continue;
+
+      // O objeto termina antes do ] final do wrapper RSC (ex: ...}])
+      // Usar o último } da linha como fim do JSON
+      final objEnd = line.lastIndexOf('}');
+      if (objEnd <= objStart) continue;
+
+      final jsonStr = line.substring(objStart, objEnd + 1);
+
+      try {
+        final parsed = jsonDecode(jsonStr) as Map<String, dynamic>;
+        final obras = parsed['obras'] as List?;
+        if (obras == null || obras.isEmpty) {
+          debugPrint('[MediocreScan] RSC p$page → lista vazia');
+          return [];
+        }
+        final result = obras.map(_normalizeRscObra).toList();
+        debugPrint('[MediocreScan] RSC p$page → ${result.length} obras');
+        return result;
+      } catch (e) {
+        debugPrint('[MediocreScan] RSC parse erro: $e');
+      }
+    }
+
+    debugPrint('[MediocreScan] RSC p$page → nenhuma linha com obras encontrada');
+    return [];
+  }
+
+  Map<String, dynamic> _normalizeRscObra(dynamic raw) {
+    final m = raw as Map<String, dynamic>;
+    final id = m['id']?.toString() ?? '';
+    final imagem = m['imagem']?.toString() ?? '';
+    final capitulos = (m['capitulos'] as List?) ?? [];
+
+    // Capítulo mais recente
+    final capNumStr = m['capitulo_numero'] != null
+        ? _numToString(m['capitulo_numero'])
+        : '';
+    String latestChapter = capNumStr;
+    String latestChapterId = '';
+    if (capitulos.isNotEmpty) {
+      final cap = capitulos.first as Map<String, dynamic>;
+      latestChapterId = cap['id']?.toString() ?? '';
+      if (latestChapter.isEmpty) {
+        latestChapter = _numToString(cap['numero']);
+      }
+    }
+
+    return {
+      'id': id,
+      'title': (m['nome'] ?? '').toString(),
+      'coverImageUrl': imagem.isNotEmpty
+          ? '$_coverCdnBase/obras/$id/$imagem'
+          : '',
+      'status': '',
+      'type': 'manga',
+      'latestChapter': latestChapter,
+      'latestChapterId': latestChapterId,
+    };
+  }
+
   Future<List<dynamic>> _fetchBooksPage({
     required String filter,
     required int page,
   }) async {
     final isRecent = filter.toLowerCase() == 'recent';
 
-    // "recent" deve usar apenas fontes de ATUALIZADOS (não catálogo/popular).
-    // A rota usada pelo front é /obras/recentes (e /obras/home como fallback).
-    final candidates = isRecent
-        ? <String>[
-            '/obras/home',
-            '/obras/home',
-          ]
-      : <String>['/obras/buscar?q=&limite=24&pagina=$page'];
-
-    Exception? lastHttpError;
-    for (final endpoint in candidates) {
-      try {
-        final res = await _apiGetPath(endpoint);
-        _assertAuth(res);
-        final decoded = jsonDecode(res.body);
-        final items = _extractItems(decoded);
-        return items.map(_normalizeBook).toList();
-      } catch (e) {
-        if (e.toString().contains('authentication_required')) rethrow;
-
-        if (endpoint.contains('/obras/recentes') || endpoint.contains('/obras/home')) {
-          try {
-            final publicRes = await _apiGetPath(
-              endpoint,
-              usePublicHeaders: true,
-            );
-            _assertAuth(publicRes);
-            final decoded = jsonDecode(publicRes.body);
-            final items = _extractItems(decoded);
-            return items.map(_normalizeBook).toList();
-          } catch (_) {
-            // Mantém erro original para o loop de candidates registrar/debugar.
-          }
-        }
-
-        lastHttpError = Exception(e.toString());
-        debugPrint('[MediocreScan] endpoint falhou: $endpoint -> $e');
-      }
+    if (isRecent) {
+      // RSC fetch de mediocrescan.com/atualizados
+      // (endpoint REST /obras/atualizados requer token de servidor — inacessível via token de usuário)
+      // O Next.js server chama a API com sua própria chave de serviço; o RSC retorna as obras diretamente.
+      return _fetchAtualizadosRsc(page);
     }
 
-    throw lastHttpError ?? Exception('Falha ao carregar listagem da MediocreScan');
+    // Popular / outros → API REST pública
+    final res = await _apiGetPath('/obras/buscar?q=&limite=24&pagina=$page');
+    _assertAuth(res);
+    final decoded = jsonDecode(res.body);
+    final items = _extractItems(decoded);
+    return items.map(_normalizeBook).toList();
   }
 
   void _assertAuth(http.Response res) {
@@ -249,10 +361,12 @@ class MediocreScanScrapper extends Scrapper {
     if (res.statusCode != 200 && res.statusCode != 201) {
       throw Exception('HTTP ${res.statusCode} ao acessar ${res.request?.url}');
     }
-    // Resposta 200 mas com payload de erro de auth (token ausente/inválido)
+    // Resposta 200 mas com payload de erro de auth (token ausente/inválido/expirado)
     // Verificação via startsWith para evitar falsos positivos em conteúdo de mangás
     if (res.body.startsWith('{"message":"Token') ||
-        res.body.startsWith('{"statusCode":401')) {
+        res.body.startsWith('{"statusCode":401') ||
+        res.body.startsWith('{"message":"Não autorizado') ||
+        res.body.startsWith('{"message":"N\\u00e3o autorizado')) {
       throw Exception('authentication_required');
     }
   }
@@ -262,7 +376,10 @@ class MediocreScanScrapper extends Scrapper {
   String _coverUrl(dynamic id, dynamic imagem) {
     final imgStr = imagem?.toString() ?? '';
     if (imgStr.isEmpty) return '';
-    return '$_primaryApiBase/storage/obras/$id/$imgStr?w=400';
+    // CDN primário: cdn.mediocretoons.site/obras/{id}/{hash}
+    // Fallback legado: api.mediocretoons.net/storage/obras/{id}/{imagem}
+    if (imgStr.startsWith('http')) return imgStr;
+    return '$_coverCdnBase/obras/$id/$imgStr';
   }
 
   String _numToString(dynamic numero) {

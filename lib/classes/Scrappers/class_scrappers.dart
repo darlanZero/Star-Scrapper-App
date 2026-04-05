@@ -1,4 +1,5 @@
 import 'package:star_scrapper_app/classes/Scrappers/engine/scrapper_profile.dart';
+import 'package:star_scrapper_app/classes/Scrappers/engine/session_manager.dart';
 
 abstract class Scrapper {
   // ─── Contrato de conteúdo ─────────────────────────────────────────────────
@@ -18,6 +19,32 @@ abstract class Scrapper {
   /// Perfil de configuração do scrapper (auth, seletores, URL builders).
   /// Retorna null para scrapers que não usam [ScrapperProfile].
   ScrapperProfile? get scrapperProfile => null;
+
+  /// Chave única de armazenamento de sessão (snake_case).
+  /// Derivada automaticamente do nome do [scrapperProfile].
+  /// Scrapers que precisam de chave customizada devem fazer override.
+  String get siteKey =>
+      scrapperProfile?.name.toLowerCase().replaceAll(RegExp(r'[\s\-]+'), '_') ?? '';
+
+  /// Indica se há uma sessão/token ativa em memória.
+  /// Override nos scrapers que mantêm token em memória.
+  bool get isAuthenticated => false;
+
+  /// Verifica se há sessão persistida no disco para este scrapper.
+  Future<bool> hasStoredSession() async {
+    if (siteKey.isEmpty) return false;
+    return SessionManager.hasSession(siteKey);
+  }
+
+  /// Restaura a sessão persistida para a memória do scrapper (se ainda não carregada).
+  ///
+  /// Deve ser chamado ao entrar na biblioteca do scrapper, antes de qualquer request,
+  /// para garantir que tokens/cookies armazenados em [SessionManager] sejam carregados
+  /// e usados nas chamadas subsequentes sem precisar de um round-trip de autenticação.
+  ///
+  /// Implementação padrão: no-op.
+  /// Scrapers que mantêm sessão em memória (ex.: MediocreScan) devem fazer override.
+  Future<void> restoreSession() async {}
 
   /// Autentica com credenciais diretas (email/senha) via HTTP form.
   ///

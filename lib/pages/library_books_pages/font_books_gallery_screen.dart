@@ -31,6 +31,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   late Future<List<dynamic>> _bookFuture;
   late ScrollController _scrollController;
   bool _isLoadingMore = false;
+  bool _hasMore = true;
   bool _authRequired = false;
   List<dynamic> allBooksData = [];
 
@@ -42,7 +43,6 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    _scrollController.addListener(_onScroll);
     currentView = widget.initialView;
     _loadBooks();
   }
@@ -50,16 +50,9 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   void _loadBooks() {
     setState(() {
       _authRequired = false;
+      _hasMore = true;
       _bookFuture = _fetchBooks();
     });
-  }
-
-  void _onScroll() {
-    if (_scrollController.position.pixels ==
-            _scrollController.position.maxScrollExtent &&
-        !_isLoadingMore) {
-      _loadMoreBooks();
-    }
   }
 
   @override
@@ -71,19 +64,38 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
 
   Future<List<dynamic>> _fetchBooks() async {
     final api = widget.selectedFont.api;
+    // Restaura sessão persistida (cookies/tokens do SessionManager) antes de qualquer
+    // request. No-op para scrapers que não usam SessionManager (ex.: Luratoons via WebView).
+    await api.restoreSession();
     final booksData = await api.getAll(currentView);
     setState(() => allBooksData = booksData);
     return booksData;
   }
 
   Future<void> _loadMoreBooks() async {
+    if (_isLoadingMore || !_hasMore) return;
     setState(() => _isLoadingMore = true);
-    final api = widget.selectedFont.api;
-    final moreBooksData = await api.loadMore(currentView);
-    setState(() {
-      _isLoadingMore = false;
-      allBooksData = List.from(allBooksData)..addAll(moreBooksData);
-    });
+    try {
+      final api = widget.selectedFont.api;
+      final moreBooksData = await api.loadMore(currentView);
+      if (!mounted) return;
+      setState(() {
+        _isLoadingMore = false;
+        if (moreBooksData.isEmpty) {
+          // Scrapper retornou lista vazia → chegamos na última página
+          _hasMore = false;
+        } else {
+          allBooksData = List.from(allBooksData)..addAll(moreBooksData);
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
+      if (_isAuthError(e)) {
+        // Sessão expirou durante paginação → redireciona para tela de login
+        _loadBooks();
+      }
+    }
   }
 
   // ─── Auth helpers ──────────────────────────────────────────────────────────
@@ -479,28 +491,62 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
 
         // ── Grid de livros ───────────────────────────────────────────────────
         final books = snapshot.data!;
-        return NotificationListener<ScrollNotification>(
-          onNotification: (scrollInfo) {
-            if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent &&
-                !_isLoadingMore) {
-              _loadMoreBooks();
-            }
-            return false;
-          },
-          child: GridView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.all(8.0),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: MediaQuery.of(context).size.width >= 600 ? 4 : 2,
-              mainAxisSpacing: 8.0,
-              crossAxisSpacing: 8.0,
+        return Column(
+          children: [
+            Expanded(
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (scrollInfo) {
+                  // Dispara loadMore quando estiver a 200px do fim (antes de bater no fundo)
+                  final nearEnd = scrollInfo.metrics.pixels >=
+                      scrollInfo.metrics.maxScrollExtent - 200;
+                  if (nearEnd && !_isLoadingMore && _hasMore) {
+                    _loadMoreBooks();
+                  }
+                  return false;
+                },
+                child: GridView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(8.0),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: MediaQuery.of(context).size.width >= 600 ? 4 : 2,
+                    mainAxisSpacing: 8.0,
+                    crossAxisSpacing: 8.0,
+                  ),
+                  itemCount: books.length,
+                  itemBuilder: (context, index) {
+                    final isFavorited = fontProvider.isFavorited(books[index]);
+                    return _buildBookTile(books[index], theme, isFavorited);
+                  },
+                ),
+              ),
             ),
-            itemCount: books.length,
-            itemBuilder: (context, index) {
-              final isFavorited = fontProvider.isFavorited(books[index]);
-              return _buildBookTile(books[index], theme, isFavorited);
-            },
-          ),
+
+            // ── Footer de paginação ──────────────────────────────────────────
+            if (_isLoadingMore)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 12),
+                    Text('Carregando mais...', style: TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              )
+            else if (!_hasMore && books.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text(
+                  '— fim da lista —',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                ),
+              ),
+          ],
         );
       },
     );

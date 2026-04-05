@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/pages/settings_pages/about_application_screen.dart';
+import 'package:star_scrapper_app/pages/settings_pages/account_settings_screen.dart';
 import 'package:star_scrapper_app/pages/settings_pages/general_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -58,7 +59,7 @@ class _SettingsScreenState extends State<SettingsScreen> with TickerProviderStat
         controller: _tabController,
         children: const [
           Center(child: GeneralSettingsScreen()),
-          Center(child: Text('Account')),
+          Center(child: AccountSettingsScreen()),
           Center(child: AboutApplicationScreen()),
         ]
       );

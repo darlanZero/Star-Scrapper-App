@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/config/themes.dart';
 import 'package:star_scrapper_app/components/UI/theme_preview_widgets.dart';
+import 'package:star_scrapper_app/components/Shared/settings_nav_item.dart';
 import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/library_settings_screen.dart';
+import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/scrapper_logins_screen.dart';
 
 class GeneralSettingsScreen extends StatefulWidget {
   const GeneralSettingsScreen({super.key});
@@ -34,38 +36,21 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
           SizedBox(height: 20),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LibrarySettingsScreen()),
-                    );
-                  },
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.library_books,
-                        color: theme.selectedTheme.textTheme.displayMedium?.color,
-                        size: MediaQuery.of(context).size.width >= 600 ? 30 : 20,
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        'Library',
-                        style: TextStyle(
-                          fontSize: MediaQuery.of(context).size.width >= 600 ? 16 : 12, 
-                          fontWeight: FontWeight.bold,
-                          color: theme.selectedTheme.textTheme.displayMedium?.color,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                SettingsNavItem(
+                  icon: Icons.library_books,
+                  label: 'Library',
+                  theme: theme,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LibrarySettingsScreen()),
                   ),
-                )
-              ]
-            )
+                ),
+                SizedBox(height: 12),
+              ],
+            ),
           ),
 
           SizedBox(height: 20),
