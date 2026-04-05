@@ -495,11 +495,63 @@ class FontProvider with ChangeNotifier {
     return ['Reading'];
   }
 
+  Map<String, List<String>> _bookSubTabsByPrimary(Map<String, dynamic> book) {
+    final raw = book['subTabsByPrimary'];
+    if (raw is Map) {
+      return raw.map((key, value) {
+        if (value is List) {
+          return MapEntry(key.toString(), value.map((e) => e.toString()).toList());
+        }
+        return MapEntry(key.toString(), <String>[]);
+      });
+    }
+
+    // fallback legado: subTabs global para todas as tabs atuais
+    final legacy = <String>[];
+    final rawLegacy = book['subTabs'];
+    if (rawLegacy is List) {
+      legacy.addAll(rawLegacy.map((e) => e.toString()));
+    } else if (book['isRead'] == true) {
+      legacy.add('Read');
+    } else {
+      legacy.add('Unread');
+    }
+
+    final byPrimary = <String, List<String>>{};
+    final tabs = _bookTabs(book);
+    for (final tab in tabs) {
+      byPrimary[tab] = List<String>.from(legacy.isEmpty ? ['Unread'] : legacy);
+    }
+    return byPrimary;
+  }
+
+  List<String> _bookSubTabsForPrimary(Map<String, dynamic> book, String primaryTab) {
+    final byPrimary = _bookSubTabsByPrimary(book);
+    final fromBook = byPrimary[primaryTab];
+    if (fromBook != null && fromBook.isNotEmpty) return List<String>.from(fromBook);
+    final fallback = _tabsState.getDefaultSubTabForPrimary(primaryTab);
+    return fallback.isEmpty ? <String>[] : <String>[fallback];
+  }
+
   List<Map<String, dynamic>> getBooksInTab(String tabName) {
     if (_tabsState.libraryTabs.contains(tabName)) {
       return _favoritedBooks.where((book) => _bookTabs(book).contains(tabName)).toList();
     }
     return [];
+  }
+
+  List<Map<String, dynamic>> getBooksInSubTab(String subTabName) {
+    return _favoritedBooks.where((book) {
+      final byPrimary = _bookSubTabsByPrimary(book);
+      return byPrimary.values.any((subTabs) => subTabs.contains(subTabName));
+    }).toList();
+  }
+
+  List<Map<String, dynamic>> getBooksByTabAndSubTab(String tabName, String subTabName) {
+    return _favoritedBooks.where((book) {
+      return _bookTabs(book).contains(tabName) &&
+          _bookSubTabsForPrimary(book, tabName).contains(subTabName);
+    }).toList();
   }
 
   void addBookToTab(String tabName, Map<String, dynamic> book) {
@@ -512,13 +564,25 @@ class FontProvider with ChangeNotifier {
       final stored = Map<String, dynamic>.from(_favoritedBooks[existingIndex]);
       final tabs = _bookTabs(stored);
       if (!tabs.contains(effectiveTab)) tabs.add(effectiveTab);
+      final byPrimary = _bookSubTabsByPrimary(stored);
+      final defaultSub = _tabsState.getDefaultSubTabForPrimary(effectiveTab);
+      byPrimary.putIfAbsent(effectiveTab, () {
+        return defaultSub.isEmpty ? <String>[] : <String>[defaultSub];
+      });
       stored['tabs'] = tabs;
+      stored['subTabsByPrimary'] = byPrimary;
       stored.remove('tab');
+      stored.remove('subTabs');
       _favoritedBooks[existingIndex] = stored;
     } else {
       final bookCopy = Map<String, dynamic>.from(book);
+      final defaultSub = _tabsState.getDefaultSubTabForPrimary(effectiveTab);
       bookCopy['tabs'] = [effectiveTab];
+      bookCopy['subTabsByPrimary'] = {
+        effectiveTab: defaultSub.isEmpty ? <String>[] : <String>[defaultSub],
+      };
       bookCopy.remove('tab');
+      bookCopy.remove('subTabs');
       _favoritedBooks.add(bookCopy);
     }
     _saveFavoritedBooks();
@@ -532,11 +596,14 @@ class FontProvider with ChangeNotifier {
     final stored = Map<String, dynamic>.from(_favoritedBooks[index]);
     final tabs = _bookTabs(stored);
     tabs.remove(tabName);
+    final byPrimary = _bookSubTabsByPrimary(stored);
+    byPrimary.remove(tabName);
 
     if (tabs.isEmpty) {
       _favoritedBooks.removeAt(index);
     } else {
       stored['tabs'] = tabs;
+      stored['subTabsByPrimary'] = byPrimary;
       stored.remove('tab');
       _favoritedBooks[index] = stored;
     }
@@ -550,14 +617,24 @@ class FontProvider with ChangeNotifier {
   }
 
   void renameTabBooks(String oldName, String newName) {
+    renamePrimaryTabBooks(oldName, newName);
+  }
+
+  void renamePrimaryTabBooks(String oldName, String newName) {
     for (int i = 0; i < _favoritedBooks.length; i++) {
       final book = Map<String, dynamic>.from(_favoritedBooks[i]);
       final tabs = _bookTabs(book);
       final idx = tabs.indexOf(oldName);
       if (idx != -1) {
         tabs[idx] = newName;
+        final byPrimary = _bookSubTabsByPrimary(book);
+        final oldSubTabs = byPrimary[oldName] ?? <String>[];
+        byPrimary.remove(oldName);
+        byPrimary[newName] = List<String>.from(oldSubTabs);
         book['tabs'] = tabs;
+        book['subTabsByPrimary'] = byPrimary;
         book.remove('tab');
+        book.remove('subTabs');
         _favoritedBooks[i] = book;
       }
     }
@@ -572,10 +649,135 @@ class FontProvider with ChangeNotifier {
       if (tabs.contains(removedTab)) {
         tabs.remove(removedTab);
         if (tabs.isEmpty) tabs.add(defaultTab);
+        final byPrimary = _bookSubTabsByPrimary(book);
+        final removedSubTabs = byPrimary.remove(removedTab) ?? <String>[];
+        byPrimary.putIfAbsent(defaultTab, () => List<String>.from(removedSubTabs));
         book['tabs'] = tabs;
+        book['subTabsByPrimary'] = byPrimary;
         book.remove('tab');
+        book.remove('subTabs');
         _favoritedBooks[i] = book;
       }
+    }
+    _saveFavoritedBooks();
+    notifyListeners();
+  }
+
+  void addBookToSubTab(String primaryTab, String subTabName, Map<String, dynamic> book) {
+    final availableSubTabs = _tabsState.getSubTabsForPrimary(primaryTab);
+    final effectiveSubTab = availableSubTabs.contains(subTabName)
+        ? subTabName
+        : (availableSubTabs.isNotEmpty ? availableSubTabs.first : subTabName);
+
+    final existingIndex = _favoritedBooks.indexWhere((b) => b['id'] == book['id']);
+    if (existingIndex != -1) {
+      final stored = Map<String, dynamic>.from(_favoritedBooks[existingIndex]);
+      final tabs = _bookTabs(stored);
+      if (!tabs.contains(primaryTab)) tabs.add(primaryTab);
+
+      final byPrimary = _bookSubTabsByPrimary(stored);
+      final subTabs = byPrimary[primaryTab] ?? <String>[];
+      if (!subTabs.contains(effectiveSubTab)) subTabs.add(effectiveSubTab);
+      byPrimary[primaryTab] = subTabs;
+      stored['subTabsByPrimary'] = byPrimary;
+      stored['tabs'] = tabs;
+      _favoritedBooks[existingIndex] = stored;
+    } else {
+      final bookCopy = Map<String, dynamic>.from(book);
+      bookCopy['tabs'] = [primaryTab];
+      bookCopy['subTabsByPrimary'] = {primaryTab: [effectiveSubTab]};
+      _favoritedBooks.add(bookCopy);
+    }
+    _saveFavoritedBooks();
+    notifyListeners();
+  }
+
+  void removeBookFromSubTab(String primaryTab, String subTabName, Map<String, dynamic> book) {
+    final index = _favoritedBooks.indexWhere((b) => b['id'] == book['id']);
+    if (index == -1) return;
+
+    final stored = Map<String, dynamic>.from(_favoritedBooks[index]);
+    final byPrimary = _bookSubTabsByPrimary(stored);
+    final subTabs = List<String>.from(byPrimary[primaryTab] ?? const <String>[]);
+    subTabs.remove(subTabName);
+
+    if (subTabs.isEmpty) {
+      final fallback = _tabsState.getDefaultSubTabForPrimary(primaryTab);
+      if (fallback.isNotEmpty) {
+        subTabs.add(fallback);
+      }
+    }
+
+    byPrimary[primaryTab] = subTabs;
+    stored['subTabsByPrimary'] = byPrimary;
+    stored['tabs'] = _bookTabs(stored);
+    _favoritedBooks[index] = stored;
+    _saveFavoritedBooks();
+    notifyListeners();
+  }
+
+  void renameSubTabBooks(String primaryTab, String oldName, String newName) {
+    for (int i = 0; i < _favoritedBooks.length; i++) {
+      final book = Map<String, dynamic>.from(_favoritedBooks[i]);
+      final byPrimary = _bookSubTabsByPrimary(book);
+      final subTabs = List<String>.from(byPrimary[primaryTab] ?? const <String>[]);
+      final idx = subTabs.indexOf(oldName);
+      if (idx != -1) {
+        subTabs[idx] = newName;
+        byPrimary[primaryTab] = subTabs;
+        book['subTabsByPrimary'] = byPrimary;
+        book['tabs'] = _bookTabs(book);
+        _favoritedBooks[i] = book;
+      }
+    }
+    _saveFavoritedBooks();
+    notifyListeners();
+  }
+
+  void remapBooksFromRemovedSubTab(
+    String primaryTab,
+    String removedSubTab,
+    String defaultSubTab,
+  ) {
+    for (int i = 0; i < _favoritedBooks.length; i++) {
+      final book = Map<String, dynamic>.from(_favoritedBooks[i]);
+      final byPrimary = _bookSubTabsByPrimary(book);
+      final subTabs = List<String>.from(byPrimary[primaryTab] ?? const <String>[]);
+      if (subTabs.contains(removedSubTab)) {
+        subTabs.remove(removedSubTab);
+        if (subTabs.isEmpty && defaultSubTab.isNotEmpty) subTabs.add(defaultSubTab);
+        byPrimary[primaryTab] = subTabs;
+        book['subTabsByPrimary'] = byPrimary;
+        book['tabs'] = _bookTabs(book);
+        _favoritedBooks[i] = book;
+      }
+    }
+    _saveFavoritedBooks();
+    notifyListeners();
+  }
+
+  void nestPrimaryAsSubTab(String oldPrimaryTab, String targetPrimary) {
+    for (int i = 0; i < _favoritedBooks.length; i++) {
+      final book = Map<String, dynamic>.from(_favoritedBooks[i]);
+      final tabs = _bookTabs(book);
+      final byPrimary = _bookSubTabsByPrimary(book);
+
+      if (!tabs.contains(oldPrimaryTab)) continue;
+
+      tabs.remove(oldPrimaryTab);
+      if (!tabs.contains(targetPrimary)) tabs.add(targetPrimary);
+
+      final movedSubTabs = byPrimary.remove(oldPrimaryTab) ?? <String>[oldPrimaryTab];
+      final currentTarget = byPrimary[targetPrimary] ?? <String>[];
+      for (final sub in movedSubTabs) {
+        if (!currentTarget.contains(sub)) currentTarget.add(sub);
+      }
+      if (!currentTarget.contains(oldPrimaryTab)) currentTarget.add(oldPrimaryTab);
+      byPrimary[targetPrimary] = currentTarget;
+
+      book['tabs'] = tabs;
+      book['subTabsByPrimary'] = byPrimary;
+      _favoritedBooks[i] = book;
     }
     _saveFavoritedBooks();
     notifyListeners();

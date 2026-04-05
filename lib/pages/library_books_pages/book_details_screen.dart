@@ -231,36 +231,115 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
       final initialTabs = rawTabs is List
           ? List<String>.from(rawTabs)
           : (storedBook['tab'] is String ? [storedBook['tab'] as String] : <String>['Reading']);
+      final rawSubTabsByPrimary = storedBook['subTabsByPrimary'];
+      final Map<String, List<String>> initialSubTabsByPrimary = {};
+      if (rawSubTabsByPrimary is Map) {
+        rawSubTabsByPrimary.forEach((key, value) {
+          if (value is List) {
+            initialSubTabsByPrimary[key.toString()] =
+                value.map((e) => e.toString()).toList();
+          }
+        });
+      } else {
+        for (final tab in initialTabs) {
+          final fallback = tabsState.getDefaultSubTabForPrimary(tab);
+          initialSubTabsByPrimary[tab] = fallback.isEmpty ? <String>[] : <String>[fallback];
+        }
+      }
 
       showDialog(
         context: context,
         builder: (BuildContext context) {
           List<String> selectedTabs = List.from(initialTabs);
+          final Map<String, List<String>> selectedSubTabsByPrimary =
+              Map<String, List<String>>.from(initialSubTabsByPrimary);
           return StatefulBuilder(
             builder: (context, setDialogState) {
               return AlertDialog(
-                title: const Text('Gerenciar Tabs'),
+                title: const Text('Gerenciar Organização'),
                 content: SingleChildScrollView(
                   child: ListBody(
-                    children: tabsState.libraryTabs.map((libraryTab) {
-                      return CheckboxListTile(
-                        title: Text(libraryTab),
-                        value: selectedTabs.contains(libraryTab),
-                        onChanged: (bool? checked) {
-                          setDialogState(() {
-                            if (checked == true) {
-                              if (!selectedTabs.contains(libraryTab)) {
-                                selectedTabs.add(libraryTab);
-                                fontProvider.addBookToTab(libraryTab, bookDetails);
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 4),
+                        child: Text('Tabs'),
+                      ),
+                      ...tabsState.libraryTabs.map((libraryTab) {
+                        return CheckboxListTile(
+                          title: Text(libraryTab),
+                          value: selectedTabs.contains(libraryTab),
+                          onChanged: (bool? checked) {
+                            setDialogState(() {
+                              if (checked == true) {
+                                if (!selectedTabs.contains(libraryTab)) {
+                                  selectedTabs.add(libraryTab);
+                                  fontProvider.addBookToTab(libraryTab, bookDetails);
+                                  selectedSubTabsByPrimary.putIfAbsent(
+                                    libraryTab,
+                                    () {
+                                      final fallback = tabsState.getDefaultSubTabForPrimary(libraryTab);
+                                      return fallback.isEmpty ? <String>[] : <String>[fallback];
+                                    },
+                                  );
+                                }
+                              } else if (selectedTabs.length > 1) {
+                                selectedTabs.remove(libraryTab);
+                                fontProvider.removeBookFromTab(libraryTab, bookDetails);
                               }
-                            } else if (selectedTabs.length > 1) {
-                              selectedTabs.remove(libraryTab);
-                              fontProvider.removeBookFromTab(libraryTab, bookDetails);
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
+                            });
+                          },
+                        );
+                      }).toList(),
+                      const SizedBox(height: 8),
+                      ...selectedTabs.expand((primaryTab) {
+                        final subTabs = tabsState.getSubTabsForPrimary(primaryTab);
+                        final selectedSubTabs =
+                            selectedSubTabsByPrimary[primaryTab] ?? <String>[];
+
+                        return <Widget>[
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text('Subtabs de "$primaryTab"'),
+                          ),
+                          if (subTabs.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.only(left: 12, bottom: 8),
+                              child: Text('Sem subtabs para esta tab primária.'),
+                            ),
+                          ...subTabs.map((subTab) {
+                            return CheckboxListTile(
+                              title: Text(subTab),
+                              value: selectedSubTabs.contains(subTab),
+                              onChanged: (bool? checked) {
+                                setDialogState(() {
+                                  final current =
+                                      selectedSubTabsByPrimary[primaryTab] ?? <String>[];
+                                  if (checked == true) {
+                                    if (!current.contains(subTab)) {
+                                      current.add(subTab);
+                                      fontProvider.addBookToSubTab(
+                                        primaryTab,
+                                        subTab,
+                                        bookDetails,
+                                      );
+                                    }
+                                  } else if (current.length > 1) {
+                                    current.remove(subTab);
+                                    fontProvider.removeBookFromSubTab(
+                                      primaryTab,
+                                      subTab,
+                                      bookDetails,
+                                    );
+                                  }
+                                  selectedSubTabsByPrimary[primaryTab] = current;
+                                });
+                              },
+                            );
+                          }),
+                          const SizedBox(height: 8),
+                        ];
+                      }),
+                    ],
                   ),
                 ),
                 actions: [

@@ -11,7 +11,21 @@ class LibraryTabsSettingsScreen extends StatefulWidget {
 }
 
 class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
-  TextEditingController _textcontroller = TextEditingController();
+  final TextEditingController _tabController = TextEditingController();
+  final Map<String, TextEditingController> _subTabControllers = {};
+
+  TextEditingController _controllerForPrimary(String primary) {
+    return _subTabControllers.putIfAbsent(primary, TextEditingController.new);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    for (final controller in _subTabControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
 
 
   @override
@@ -51,82 +65,230 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
       body: Consumer<TabsState>(
         builder: (context, tabsState, child) {
           final fontProvider = Provider.of<FontProvider>(context, listen: false);
-          return Column(
+          return ListView(
+            padding: const EdgeInsets.all(16),
             children: [
-              Expanded(
-                child: ReorderableListView(
-                  onReorder: (oldIndex, newIndex) {
-                    tabsState.reorderLibraryTabs(oldIndex, newIndex);
-                  },
-
-                  children: [
-                    for (int index = 0; index < tabsState.libraryTabs.length; index++)
-                      ListTile(
-                        key: ValueKey(tabsState.libraryTabs[index]),
-                        title: Text(
-                          tabsState.libraryTabs[index],
-                          style: TextStyle(
-                            color: theme.selectedTheme.textTheme.displayLarge?.color,
-                            fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
-                            fontWeight: FontWeight.bold,
-                          )
-                        ),
-                        trailing: IconButton(
-                          icon: Icon(Icons.delete),
-                          onPressed: () {
-                            tabsState.removeLibraryTab(index,fontProvider);
-                          },
-                        ),
-                        onTap: () async {
-                          final newName = await _showRenameDialog(context, tabsState.libraryTabs[index]);
-                          if (newName != null) {
-                            tabsState.renameLibraryTab(index, newName, fontProvider);
-                          }
-                        },
-                      )
-                  ],
-                ),
-              ),
-
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _textcontroller,
-                        decoration:  InputDecoration(
-                          hintText: 'Add new tab name',
-                          hintStyle: TextStyle(
-                            color: theme.selectedTheme.textTheme.displayLarge?.color,
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey[800],
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        style: TextStyle(
-                          color: theme.selectedTheme.textTheme.displayLarge?.color,
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _tabController,
+                      decoration: InputDecoration(
+                        hintText: 'Add primary tab',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                     ),
-                    IconButton(
-                      icon: Icon(Icons.add, color: Colors.green,),
-                      onPressed: () {
-                        if (_textcontroller.text.isNotEmpty) {
-                          tabsState.addLibraryTab(_textcontroller.text);
-                          _textcontroller.clear();
-                        }
-                      },
-                    )
-                  ],
-                ),
-              )
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add, color: Colors.green),
+                    onPressed: () {
+                      final text = _tabController.text.trim();
+                      if (text.isEmpty) return;
+                      tabsState.addLibraryTab(text);
+                      _tabController.clear();
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Tip: long-press and drag a primary tab onto another to nest it as subtab.',
+                style: TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 12),
+              ReorderableListView(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                onReorder: tabsState.reorderLibraryTabs,
+                children: [
+                  for (int i = 0; i < tabsState.libraryTabs.length; i++)
+                    _buildPrimaryNode(
+                      key: ValueKey('primary-${tabsState.libraryTabs[i]}'),
+                      primaryTab: tabsState.libraryTabs[i],
+                      tabsState: tabsState,
+                      fontProvider: fontProvider,
+                    ),
+                ],
+              ),
             ],
           );
         }
       ),
+    );
+  }
+
+  Widget _buildPrimaryNode({
+    required Key key,
+    required String primaryTab,
+    required TabsState tabsState,
+    required FontProvider fontProvider,
+  }) {
+    final theme = Provider.of<ThemeProvider>(context, listen: false);
+    final subTabs = tabsState.getSubTabsForPrimary(primaryTab);
+    final subTabController = _controllerForPrimary(primaryTab);
+
+    return DragTarget<String>(
+      key: key,
+      onWillAccept: (data) => data != null && data != primaryTab,
+      onAccept: (data) {
+        tabsState.nestPrimaryTabAsSubTab(
+          tabToNest: data,
+          targetPrimary: primaryTab,
+          fontProvider: fontProvider,
+        );
+      },
+      builder: (context, candidateData, rejectedData) {
+        final highlighted = candidateData.isNotEmpty;
+        return Card(
+      color: Colors.white.withOpacity(0.04),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LongPressDraggable<String>(
+              data: primaryTab,
+              feedback: Material(
+                color: Colors.transparent,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: theme.selectedTheme.cardTheme.color?.withOpacity(0.9) ??
+                        const Color(0xFF2A1C46),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(primaryTab),
+                ),
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: highlighted
+                      ? Colors.green.withOpacity(0.12)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ListTile(
+                  dense: true,
+                  title: Text(
+                    primaryTab,
+                    style: TextStyle(
+                      color: theme.selectedTheme.textTheme.titleMedium?.color,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  leading: const Icon(Icons.drag_indicator),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: () async {
+                          final newName = await _showRenameDialog(context, primaryTab);
+                          if (newName != null && newName.trim().isNotEmpty) {
+                            final index = tabsState.libraryTabs.indexOf(primaryTab);
+                            if (index != -1) {
+                              tabsState.renameLibraryTab(
+                                index,
+                                newName.trim(),
+                                fontProvider,
+                              );
+                            }
+                          }
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () {
+                          final index = tabsState.libraryTabs.indexOf(primaryTab);
+                          if (index != -1) {
+                            tabsState.removeLibraryTab(index, fontProvider);
+                          }
+                        },
+                      ),
+                      ReorderableDragStartListener(
+                        index: tabsState.libraryTabs.indexOf(primaryTab),
+                        child: const Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: Icon(Icons.menu),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (subTabs.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              ...subTabs.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final subTab = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.only(left: 32),
+                  child: ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.subdirectory_arrow_right),
+                    title: Text(subTab),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit),
+                          onPressed: () async {
+                            final newName = await _showRenameDialog(context, subTab);
+                            if (newName != null && newName.trim().isNotEmpty) {
+                              tabsState.renameSubTabInPrimary(
+                                primaryTab,
+                                idx,
+                                newName.trim(),
+                                fontProvider,
+                              );
+                            }
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () {
+                            tabsState.removeSubTabFromPrimary(primaryTab, idx, fontProvider);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: subTabController,
+                    decoration: InputDecoration(
+                      hintText: 'Add subtab to "$primaryTab"',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add, color: Colors.green),
+                  onPressed: () {
+                    final text = subTabController.text.trim();
+                    if (text.isEmpty) return;
+                    tabsState.addSubTabToPrimary(primaryTab, text);
+                    subTabController.clear();
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+      },
     );
   }
 }
