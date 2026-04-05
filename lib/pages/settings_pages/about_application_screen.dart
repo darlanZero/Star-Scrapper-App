@@ -147,77 +147,69 @@ class AboutApplicationScreen extends StatelessWidget {
     final theme = Provider.of<ThemeProvider>(context);
     return Scaffold(
       backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'About StarsScrapper', 
-              style: TextStyle(
-                color: theme.selectedTheme.textTheme.titleSmall?.color,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Roboto',
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
+          child: Column(
+            children: [
+              Text(
+                'About StarsScrapper',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: theme.selectedTheme.textTheme.titleSmall?.color,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Roboto',
+                ),
               ),
-            ),
-
-            aboutApplicationCardComponent(),
-            SizedBox(height: 20),
-
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Center(
-                  child: Text(
-                    'Our Socials',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontFamily: 'Roboto',
-                    ),
+              const SizedBox(height: 12),
+              aboutApplicationCardComponent(),
+              const SizedBox(height: 20),
+              Text(
+                'Our Socials',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontFamily: 'Roboto',
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: Icon(FontAwesomeIcons.github),
+                    color: Colors.blue,
+                    onPressed: () {
+                      launchUrl(Uri.parse('https://github.com/darlanZero/Star-Scrapper-App'));
+                    },
                   ),
-                ),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: Icon(FontAwesomeIcons.github),
-                      color: Colors.blue,
-                      onPressed: () {
-                        launchUrl(Uri.parse('https://github.com/darlanZero/Star-Scrapper-App'));
-                      },
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.link_rounded),
-                      color: Colors.purple,
-                      onPressed: () {
-                        launchUrl(Uri.parse('https://star-scrapper.com'));
-                      },
-                    ),
-                  ]
-                ),
-              ],
-            ),
-
-
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                _checkForUpdates(context);
-              },
-              style: ElevatedButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: Colors.blue,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                visualDensity: VisualDensity.compact,
+                  IconButton(
+                    icon: Icon(Icons.link_rounded),
+                    color: Colors.purple,
+                    onPressed: () {
+                      launchUrl(Uri.parse('https://star-scrapper.com'));
+                    },
+                  ),
+                ],
               ),
-              child: const Text('Check for updates'),
-            ),
-          ],
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  _checkForUpdates(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.blue,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: const Text('Check for updates'),
+              ),
+            ],
+          ),
         ),
       ),
     );

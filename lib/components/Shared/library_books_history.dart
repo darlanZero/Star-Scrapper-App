@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
@@ -54,35 +55,55 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                     onTap: () => Navigator.push(context, MaterialPageRoute(
                       builder: (_) => BookDetailsScreen(bookDetails: book, scrapper: scrapper),
                     )),
-                    child: Stack(
-                      children: [
-                        CachedNetworkImage(
-                          imageUrl: coverUrl,
-                          httpHeaders: imageHeaders,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                          errorWidget: (context, _, __) => Container(
-                            color: Colors.grey.shade900,
-                            child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          CachedNetworkImage(
+                            imageUrl: coverUrl,
+                            httpHeaders: imageHeaders,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                            errorWidget: (context, _, __) => Container(
+                              color: Colors.grey.shade900,
+                              child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                            ),
                           ),
-                        ),
-                        Positioned(
-                          top: 10,
-                          right: 10,
-                          child: Container(
-                            padding: const EdgeInsets.all(8.0),
+                          const DecoratedBox(
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.5),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              'Cap. $chapterTitle',
-                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Colors.transparent, Color.fromARGB(200, 0, 0, 0)],
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                          Positioned(
+                            top: 10,
+                            right: 10,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.35),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.white.withOpacity(0.2)),
+                                  ),
+                                  child: Text(
+                                    'Cap. $chapterTitle',
+                                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },
@@ -109,78 +130,128 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                     onTap: () => Navigator.push(context, MaterialPageRoute(
                       builder: (_) => BookDetailsScreen(bookDetails: book, scrapper: scrapper),
                     )),
-                    child: Card(
-                    margin: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Stack(
-                      children: [
-                        CachedNetworkImage(
-                          imageUrl: coverUrl,
-                          httpHeaders: imageHeaders,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: 200,
-                          color: Colors.black.withOpacity(0.5),
-                          colorBlendMode: BlendMode.darken,
-                          errorWidget: (context, _, __) => Container(
-                            color: Colors.grey.shade900,
-                            child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: Colors.white.withOpacity(0.12)),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color.fromARGB(100, 0, 0, 0),
+                            blurRadius: 20,
+                            offset: Offset(0, 10),
                           ),
-                        ),
-                        Positioned(
-                          top: 10,
-                          left: 10,
-                          child: CachedNetworkImage(
-                            imageUrl: coverUrl,
-                            httpHeaders: imageHeaders,
-                            fit: BoxFit.cover,
-                            width: 50,
-                            height: 50,
-                            errorWidget: (context, _, __) => Container(
-                              color: Colors.grey.shade900,
-                              child: const Icon(Icons.broken_image_outlined, size: 16, color: Colors.grey),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: Stack(
+                          children: [
+                            CachedNetworkImage(
+                              imageUrl: coverUrl,
+                              httpHeaders: imageHeaders,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: 200,
+                              color: Colors.black.withOpacity(0.5),
+                              colorBlendMode: BlendMode.darken,
+                              errorWidget: (context, _, __) => Container(
+                                color: Colors.grey.shade900,
+                                child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                              ),
                             ),
-                          ),
-                        ),
-                        Positioned(
-                          top: 10,
-                          left: 70,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                scrapper.getTitle(book),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                            const DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Color.fromARGB(50, 106, 65, 255),
+                                    Color.fromARGB(160, 0, 0, 0),
+                                  ],
                                 ),
                               ),
-                              Text(
-                                'Cap. $chapterTitle',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
+                            ),
+                            Positioned(
+                              top: 14,
+                              left: 14,
+                              child: CachedNetworkImage(
+                                imageUrl: coverUrl,
+                                httpHeaders: imageHeaders,
+                                fit: BoxFit.cover,
+                                width: 56,
+                                height: 76,
+                                errorWidget: (context, _, __) => Container(
+                                  color: Colors.grey.shade900,
+                                  child: const Icon(Icons.broken_image_outlined, size: 16, color: Colors.grey),
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                            Positioned(
+                              top: 14,
+                              left: 82,
+                              right: 14,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    scrapper.getTitle(book),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 19,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(12),
+                                      color: Colors.black.withOpacity(0.35),
+                                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                                    ),
+                                    child: Text(
+                                      'Last: Cap. $chapterTitle',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 10,
+                              left: 10,
+                              right: 10,
+                              child: Wrap(
+                                spacing: 8.0,
+                                runSpacing: 8.0,
+                                children: selectedChapters.map((chapter) {
+                                  final title = chapter['title'] ?? 'N/A';
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.16),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      'Chap. $title',
+                                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ],
                         ),
-                        Positioned(
-                          bottom: 10,
-                          left: 10,
-                          right: 10,
-                          child: Wrap(
-                            spacing: 8.0,
-                            children: selectedChapters.map((chapter) {
-                              final title = chapter['title'] ?? 'N/A';
-                              return Chip(label: Text('Chap. $title'));
-                            }).toList(),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),  // fecha Card
-                  );  // fecha InkWell
+                  );
                 },
               );
             }

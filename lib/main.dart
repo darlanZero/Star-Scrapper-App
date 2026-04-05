@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:desktop_webview_window/desktop_webview_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -89,41 +90,13 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         backgroundColor: theme.selectedTheme.appBarTheme.backgroundColor,
         titleSpacing: 0.0,
         elevation: 0,
-        title: LayoutBuilder(
-          builder: (context, constraints) {
-            if (MediaQuery.of(context).size.width >= 600) {
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Image.asset('lib/assets/starscrapper.png', width: 56, height: 56, fit: BoxFit.contain),
-                  Expanded(
-                    child: Text(
-                      widget.title,
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color.fromARGB(255, 224, 224, 224),
-                        fontSize: 22.0,
-                        fontWeight: FontWeight.bold,
-                        shadows: [
-                          Shadow(color: Colors.blue, offset: Offset(1.0, 1.0), blurRadius: 3.0),
-                          Shadow(color: Colors.red, offset: Offset(1.0, 1.0), blurRadius: 3.0),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 56),
-                ],
-              );
-            } else {
-              return Image.asset(
-                'lib/assets/starscrapper.png',
-                width: 56,
-                height: 56,
-                fit: BoxFit.contain,
-              );
-            }
-          },
+        title: Center(
+          child: Image.asset(
+            'lib/assets/starscrapper.png',
+            width: 42,
+            height: 42,
+            fit: BoxFit.contain,
+          ),
         ),
         centerTitle: true,
         shape: const RoundedRectangleBorder(
@@ -140,30 +113,45 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         children: _pages,
       ),
 
-      bottomNavigationBar: StylishBottomBar(
-        items: [
-          BottomBarItem(icon: Icon(Icons.home, color: Colors.teal), title: Text('Library'), selectedColor: Colors.teal),
-          BottomBarItem(icon: Icon(Icons.format_list_bulleted), title: Text('Scrappers')),
-          BottomBarItem(icon: Icon(Icons.settings), title: Text('settings')),
-        ],
-        currentIndex: Provider.of<AppState>(context).currentIndex,
-        onTap: (index) {
-          Provider.of<AppState>(context, listen: false).setIndex(index);
-          Provider.of<TabsState>(context, listen: false).setActivePageIndex(index);
-        },
-        option: AnimatedBarOptions(
-          opacity: 1.0,
-          inkColor: Colors.black,
-          iconSize: 30,
-          barAnimation: BarAnimation.fade,
-          iconStyle: IconStyle.animated,
-          padding: EdgeInsets.all(10),
-          inkEffect: true,
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+            child: Container(
+              decoration: BoxDecoration(
+                color: theme.selectedTheme.bottomNavigationBarTheme.backgroundColor?.withOpacity(0.75),
+                border: Border.all(color: Colors.white.withOpacity(0.12)),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: StylishBottomBar(
+                items: [
+                  BottomBarItem(icon: Icon(Icons.home, color: Colors.teal), title: Text('Library'), selectedColor: Colors.teal),
+                  BottomBarItem(icon: Icon(Icons.format_list_bulleted), title: Text('Scrappers')),
+                  BottomBarItem(icon: Icon(Icons.settings), title: Text('settings')),
+                ],
+                currentIndex: Provider.of<AppState>(context).currentIndex,
+                onTap: (index) {
+                  Provider.of<AppState>(context, listen: false).setIndex(index);
+                  Provider.of<TabsState>(context, listen: false).setActivePageIndex(index);
+                },
+                option: AnimatedBarOptions(
+                  opacity: 1.0,
+                  inkColor: Colors.black,
+                  iconSize: 28,
+                  barAnimation: BarAnimation.fade,
+                  iconStyle: IconStyle.animated,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  inkEffect: true,
+                ),
+                hasNotch: false,
+                backgroundColor: Colors.transparent,
+                borderRadius: BorderRadius.circular(24),
+              ),
+            ),
+          ),
         ),
-        hasNotch: true,
-        notchStyle: NotchStyle.circle,
-        backgroundColor: theme.selectedTheme.bottomNavigationBarTheme.backgroundColor,
-        borderRadius: BorderRadius.circular(20),
       ),
     
       floatingActionButton: FloatingActionButton(

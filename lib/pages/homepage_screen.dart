@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
@@ -22,25 +23,6 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
     super.initState();
     final tabsState = Provider.of<TabsState>(context, listen: false);
     _tabController = TabController(length: tabsState.libraryTabs.length, vsync: this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      tabsState.addListener(_updateLibraryTabs);
-      tabsState.setAppBarBottom(0,
-        PreferredSize(
-          preferredSize: Size.fromHeight(10.0),
-          child: Text(
-            'Library',
-            style: TextStyle(
-              color: Colors.lightGreen,
-              fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
-              fontWeight: FontWeight.bold,
-              shadows: <Shadow>[
-                Shadow(color: Colors.black, blurRadius: 10.0),
-              ],
-            ),
-          )
-        )
-      );
-    });
   }
 
   @override
@@ -70,37 +52,74 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     final theme = Provider.of<ThemeProvider>(context);
+    final appBarBase = theme.selectedTheme.appBarTheme.backgroundColor ??
+        theme.selectedTheme.primaryColor;
+    final scaffoldBase = theme.selectedTheme.scaffoldBackgroundColor;
+    final accent = theme.selectedTheme.textTheme.titleMedium?.color ?? const Color(0xFF82EA64);
+
+    Color blend(Color a, Color b, double t) {
+      return Color.lerp(a, b, t) ?? a;
+    }
+
     return Scaffold(
       backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: theme.selectedTheme.appBarTheme.backgroundColor,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
-        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        toolbarHeight: 0,
         bottom: PreferredSize(
-          preferredSize: Size.fromHeight(10.0),
+          preferredSize: const Size.fromHeight(56),
           child: Consumer<TabsState>(
             builder: (context, tabsState, child) {
               return FutureBuilder<void>(
                 future: tabsState.tabsLoaded,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return CircularProgressIndicator();
+                    return const SizedBox(
+                      height: 52,
+                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    );
                   } else {
-                    return TabBar(
-                      controller: _tabController,
-                      tabs: tabsState.libraryTabs.map((tabName) => Tab(text: tabName)).toList(),
-                      isScrollable: true,
-                      splashBorderRadius: BorderRadius.circular(10),
-                      automaticIndicatorColorAdjustment: true,
-                      tabAlignment: TabAlignment.center,
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 16),
-                      labelStyle: TextStyle(
-                        color: Colors.lightGreen,
-                        fontWeight: FontWeight.bold,
-                        fontSize: MediaQuery.of(context).size.width >= 600 ? 16 : 12,
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: blend(appBarBase, scaffoldBase, 0.35).withOpacity(0.45),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.white.withOpacity(0.10)),
+                            ),
+                            child: TabBar(
+                              controller: _tabController,
+                              tabs: tabsState.libraryTabs
+                                  .map((tabName) => Tab(text: tabName))
+                                  .toList(),
+                              isScrollable: true,
+                              dividerColor: Colors.transparent,
+                              splashBorderRadius: BorderRadius.circular(10),
+                              indicatorSize: TabBarIndicatorSize.tab,
+                              indicator: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                gradient: LinearGradient(
+                                  colors: [
+                                    blend(accent, appBarBase, 0.45),
+                                    blend(accent, scaffoldBase, 0.25),
+                                  ],
+                                ),
+                              ),
+                              labelColor: Colors.white,
+                              unselectedLabelColor: Colors.white70,
+                              labelStyle: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: MediaQuery.of(context).size.width >= 600 ? 14 : 12,
+                              ),
+                              labelPadding: const EdgeInsets.symmetric(horizontal: 10),
+                            ),
+                          ),
+                        ),
                       ),
                     );
                   }
@@ -114,28 +133,20 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
         future: _tabsState.tabsLoaded,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator());
           } else {
             return TabBarView(
               controller: _tabController,
               children: _tabsState.libraryTabs.map((tabName) {
-                return Column(
-                  children: [
-                    const SizedBox(height: 20),
-                    Text(
-                      tabName, 
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: theme.selectedTheme.textTheme.titleSmall?.color
-                      )
-                    ),
-                    const SizedBox(height: 20),
-                    Expanded(
-                      child: _buildBooksGrid(tabName),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: _buildBooksGrid(tabName),
+                      ),
+                    ],
+                  ),
                 );
               }).toList(),
             );
@@ -151,25 +162,42 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
         final booksInTab = fontProvider.getBooksInTab(tabName);
         return Center(
           child: booksInTab.isEmpty
-            ? Card(
-                color: Colors.deepPurple.withOpacity(0.5),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Icon(Icons.library_books, size: 50, color: Colors.grey),
-                      Text('Your library is empty, try adding some books!', style: TextStyle(color: Colors.grey)),
-                    ],
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      color: Colors.white.withOpacity(0.06),
+                      border: Border.all(color: Colors.white.withOpacity(0.12)),
+                    ),
+                    child: const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.library_books_outlined, size: 46, color: Colors.white60),
+                        SizedBox(height: 8),
+                        Text(
+                          'Your library is empty, try adding some books!',
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               )
             : GridView.builder(
-                padding: const EdgeInsets.all(8.0),
+                padding: const EdgeInsets.all(4),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: MediaQuery.of(context).size.width >= 600 ? 4 : 2,
-                  mainAxisSpacing: 8.0,
-                  crossAxisSpacing: 8.0,
+                  crossAxisCount: MediaQuery.of(context).size.width >= 1100
+                      ? 6
+                      : MediaQuery.of(context).size.width >= 700
+                          ? 4
+                          : 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 0.7,
                 ),
                 itemCount: booksInTab.length,
                 itemBuilder: (context, index) {
@@ -189,40 +217,50 @@ class _HomePageState extends State<HomePageScreen> with TickerProviderStateMixin
                       );
                     },
                     child: GridTile(
-                      footer: ClipRRect(
-                        borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(8.0),
-                          bottomRight: Radius.circular(8.0),
-                        ),
-                        child: Container(
-                          color: Colors.black.withOpacity(0.5),
-                          child: Text(
-                            (book['title'] ?? '').toString(),
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black,
-                                  offset: Offset(1, 1),
-                                  blurRadius: 2,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: CachedNetworkImage(
-                          imageUrl: coverUrl,
-                          httpHeaders: scrapper.imageHeaders,
-                          fit: BoxFit.cover,
-                          errorWidget: (context, _, __) => Container(
-                            color: Colors.grey.shade900,
-                            child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
-                          ),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            CachedNetworkImage(
+                              imageUrl: coverUrl,
+                              httpHeaders: scrapper.imageHeaders,
+                              fit: BoxFit.cover,
+                              errorWidget: (context, _, __) => Container(
+                                color: Colors.grey.shade900,
+                                child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                              ),
+                            ),
+                            const DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Color.fromARGB(35, 0, 0, 0),
+                                    Color.fromARGB(185, 0, 0, 0),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              left: 10,
+                              right: 10,
+                              bottom: 10,
+                              child: Text(
+                                (book['title'] ?? '').toString(),
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 24,
+                                  shadows: [Shadow(color: Colors.black, blurRadius: 8)],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),

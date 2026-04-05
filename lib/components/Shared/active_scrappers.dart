@@ -71,88 +71,143 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
   }  
 
   Widget _buildFontTile(Fonte font) {  
-    return ListTile(  
-      leading: Row(  
-        mainAxisSize: MainAxisSize.min,  
-        children: [  
-          isSvgImage(font.image)  
-              ? SvgPicture.network(font.image, width: 25, height: 25)  
-              : Image.network(font.image, width: 25, height: 25),  
-          SizedBox(width: 10),  
-          Text(
-            font.name, 
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: MediaQuery.of(context).size.width >= 600 ? 16 : 12,
-              color: Colors.green,
-              shadows: const <Shadow>[  
-                Shadow(  
-                  offset: Offset(1.0, 1.0),  
-                  blurRadius: 3.0,  
-                  color: Color.fromARGB(255, 65, 62, 62),  
-                ),
-              ],  
-            ) 
-          ),  
-        ],  
-      ),  
-      trailing: Row(  
-        mainAxisSize: MainAxisSize.min,  
-        children: [  
-          OutlinedButton(  
-            onPressed: () {  
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => FontBooksGalleryScreen(
-                    initialView: 'popular',
-                    selectedFont: font,
-                  ),
-                ),
-              );
-            },  
-            child: Text(
-              'Popular', 
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: MediaQuery.of(context).size.width >= 600 ? 16 : 12,
-                color: Colors.deepPurple.shade400,  
-              )
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    final fontSize = isMobile ? 12.0 : 16.0;
+
+    final popularButton = OutlinedButton(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => FontBooksGalleryScreen(
+              initialView: 'popular',
+              selectedFont: font,
             ),
-              
-          ),  
-          SizedBox(width: 10),  
-          OutlinedButton(  
-            onPressed: () {  
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => FontBooksGalleryScreen(
-                    initialView: 'recent',
-                    selectedFont: font,
+          ),
+        );
+      },
+      child: Text(
+        'Popular',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: fontSize,
+          color: Colors.deepPurple.shade400,
+        ),
+      ),
+    );
+
+    final recentButton = OutlinedButton(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => FontBooksGalleryScreen(
+              initialView: 'recent',
+              selectedFont: font,
+            ),
+          ),
+        );
+      },
+      child: Text(
+        'Recent',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: fontSize,
+          color: Colors.deepPurple.shade400,
+        ),
+      ),
+    );
+
+    final pinButton = IconButton(
+      icon: Icon(
+        pinnedFonts.contains(font) ? Icons.push_pin : Icons.push_pin_outlined,
+      ),
+      onPressed: () => togglePinned(font),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.08)),
+        ),
+        child: isMobile
+            ? Column(
+                children: [
+                  Row(
+                    children: [
+                      isSvgImage(font.image)
+                          ? SvgPicture.network(font.image, width: 22, height: 22)
+                          : Image.network(font.image, width: 22, height: 22),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          font.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Colors.green,
+                            shadows: [
+                              Shadow(
+                                offset: Offset(1.0, 1.0),
+                                blurRadius: 3.0,
+                                color: Color.fromARGB(255, 65, 62, 62),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      pinButton,
+                    ],
                   ),
-                ),
-              );
-            },  
-            child: Text(
-              'Recent',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: MediaQuery.of(context).size.width >= 600 ? 16 : 12, 
-                color: Colors.deepPurple.shade400,  
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.start,
+                    children: [popularButton, recentButton],
+                  ),
+                ],
               )
-            ),  
-          ),  
-          SizedBox(width: 10),  
-          IconButton(  
-            icon: Icon(  
-              pinnedFonts.contains(font) ? Icons.push_pin : Icons.push_pin_outlined,  
-            ),  
-            onPressed: () => togglePinned(font),  
-          ),  
-        ],  
-      ),  
-    );  
+            : Row(
+                children: [
+                  isSvgImage(font.image)
+                      ? SvgPicture.network(font.image, width: 25, height: 25)
+                      : Image.network(font.image, width: 25, height: 25),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      font.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: fontSize,
+                        color: Colors.green,
+                        shadows: const [
+                          Shadow(
+                            offset: Offset(1.0, 1.0),
+                            blurRadius: 3.0,
+                            color: Color.fromARGB(255, 65, 62, 62),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  popularButton,
+                  const SizedBox(width: 8),
+                  recentButton,
+                  const SizedBox(width: 8),
+                  pinButton,
+                ],
+              ),
+      ),
+    );
   }  
 
   @override  
