@@ -1,6 +1,9 @@
 ﻿import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 import 'package:star_scrapper_app/classes/Scrappers/engine/scrapper_profile.dart';
 import 'package:star_scrapper_app/classes/Scrappers/engine/session_manager.dart';
@@ -392,6 +395,13 @@ class MediocreScanScrapper extends Scrapper {
     return numero.toString();
   }
 
+  double _numToDouble(dynamic numero) {
+    if (numero == null) return 0;
+    if (numero is num) return numero.toDouble();
+    final normalized = numero.toString().replaceAll(',', '.');
+    return double.tryParse(normalized) ?? 0;
+  }
+
   // ─── Normalização ─────────────────────────────────────────────────────────
 
   Map<String, dynamic> _normalizeBook(dynamic raw) {
@@ -576,6 +586,7 @@ class MediocreScanScrapper extends Scrapper {
     String mangaID,
   ) async* {
     final path = '/capitulos/$chapterID';
+    final chapterWebviewUrl = '$_base/capitulo/$chapterID';
     try {
       final res = await _apiGetPath(path);
       _assertAuth(res);
@@ -584,27 +595,52 @@ class MediocreScanScrapper extends Scrapper {
       final obra = data['obra'] as Map<String, dynamic>?;
       final obraId = obra?['obr_id']?.toString() ?? mangaID;
       final numStr = _numToString(data['numero']);
-
-      final images = paginas
-          .map((p) {
-            final src = (p as Map<String, dynamic>)['src']?.toString() ?? '';
-            if (src.isEmpty) return '';
-            return '$_cdnBase/obras/$obraId/capitulos/$numStr/$src';
-          })
-          .where((u) => u.isNotEmpty)
-          .toList();
+      final chapterTitle = (data['nome']?.toString().trim().isNotEmpty == true)
+          ? data['nome'].toString().trim()
+          : 'Capítulo $numStr';
 
       yield {
+        'type': 'info',
         'chapterID': chapterID,
-        'chapterWebviewUrl': '$_base/capitulo/$chapterID',
-        'images': images,
+        'chapterWebviewUrl': chapterWebviewUrl,
+        'title': chapterTitle,
+        'chapter': numStr,
       };
+
+      final appDocDir = await getApplicationDocumentsDirectory();
+      final tempChapterDir = p.join(appDocDir.path, 'temp', 'mediocrescan', chapterID);
+      await Directory(tempChapterDir).create(recursive: true);
+
+      for (var i = 0; i < paginas.length; i++) {
+        final src = (paginas[i] as Map<String, dynamic>)['src']?.toString() ?? '';
+        if (src.isEmpty) continue;
+
+        final imageUrl = '$_cdnBase/obras/$obraId/capitulos/$numStr/$src';
+        final ext = p.extension(Uri.parse(src).path);
+        final fileName = '${(i + 1).toString().padLeft(3, '0')}${ext.isNotEmpty ? ext : '.jpg'}';
+        final localPath = p.join(tempChapterDir, fileName);
+
+        final imageRes = await http.get(Uri.parse(imageUrl), headers: _publicHeaders);
+        if (imageRes.statusCode != 200) continue;
+
+        final file = File(localPath);
+        await file.writeAsBytes(imageRes.bodyBytes);
+
+        yield {
+          'type': 'image',
+          'imagePath': file.path,
+          'chapterID': chapterID,
+          'chapterWebviewUrl': chapterWebviewUrl,
+          'title': chapterTitle,
+          'chapter': numStr,
+        };
+      }
     } catch (e) {
       if (e.toString().contains('authentication_required')) rethrow;
       yield {
+        'type': 'info',
         'chapterID': chapterID,
-        'chapterWebviewUrl': '$_base/capitulo/$chapterID',
-        'images': <String>[],
+        'chapterWebviewUrl': chapterWebviewUrl,
       };
     }
   }
@@ -614,10 +650,13 @@ class MediocreScanScrapper extends Scrapper {
     String currentChapterId,
     String mangaId,
   ) async* {
-    yield {
-      'chapterID': currentChapterId,
-      'chapterWebviewUrl': '$_base/capitulo/$currentChapterId',
-    };
+    final previousChapterId =
+        await _findAdjacentChapterId(currentChapterId, mangaId, false);
+    if (previousChapterId != null) {
+      yield* getChapter(previousChapterId, mangaId);
+    } else {
+      yield {'type': 'error', 'message': 'Não há capítulo anterior.'};
+    }
   }
 
   @override
@@ -625,10 +664,32 @@ class MediocreScanScrapper extends Scrapper {
     String currentChapterId,
     String mangaId,
   ) async* {
-    yield {
-      'chapterID': currentChapterId,
-      'chapterWebviewUrl': '$_base/capitulo/$currentChapterId',
-    };
+    final nextChapterId =
+        await _findAdjacentChapterId(currentChapterId, mangaId, true);
+    if (nextChapterId != null) {
+      yield* getChapter(nextChapterId, mangaId);
+    } else {
+      yield {'type': 'error', 'message': 'Não há próximo capítulo.'};
+    }
+  }
+
+  Future<String?> _findAdjacentChapterId(
+    String currentChapterId,
+    String mangaId,
+    bool isNext,
+  ) async {
+    try {
+      final chapters = await _fetchAllChapters(mangaId);
+      chapters.sort((a, b) => _numToDouble(a['chapter']).compareTo(_numToDouble(b['chapter'])));
+      final currentIdx = chapters.indexWhere((c) => c['id'] == currentChapterId);
+      if (currentIdx == -1) return null;
+
+      final targetIdx = isNext ? currentIdx + 1 : currentIdx - 1;
+      if (targetIdx < 0 || targetIdx >= chapters.length) return null;
+      return chapters[targetIdx]['id']?.toString();
+    } catch (_) {
+      return null;
+    }
   }
 
   // ─── Identidade ───────────────────────────────────────────────────────────
