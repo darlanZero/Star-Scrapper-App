@@ -18,10 +18,10 @@ class FontBooksGalleryScreen extends StatefulWidget {
   final String initialView;
   final Fonte selectedFont;
   const FontBooksGalleryScreen({
-    Key? key,
+    super.key,
     required this.initialView,
     required this.selectedFont,
-  }) : super(key: key);
+  });
 
   @override
   State<FontBooksGalleryScreen> createState() => _FontBooksGalleryScreenState();
@@ -223,7 +223,8 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
             final pass = passCtrl.text;
             if (email.isEmpty || pass.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Please fill in both email and password.')),
+                const SnackBar(
+                    content: Text('Please fill in both email and password.')),
               );
               return;
             }
@@ -368,10 +369,13 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
           style: TextStyle(
             color: theme.selectedTheme.textTheme.titleMedium?.color,
             fontWeight: FontWeight.bold,
-            shadows: const <Shadow>[Shadow(color: Colors.black, blurRadius: 10.0)],
+            shadows: const <Shadow>[
+              Shadow(color: Colors.black, blurRadius: 10.0)
+            ],
           ),
         ),
-        iconTheme: const IconThemeData(color: Color.fromARGB(255, 224, 224, 224)),
+        iconTheme:
+            const IconThemeData(color: Color.fromARGB(255, 224, 224, 224)),
         centerTitle: true,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
@@ -405,10 +409,12 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.filter_list,
-                          color: theme.selectedTheme.textTheme.displayMedium?.color),
+                          color: theme
+                              .selectedTheme.textTheme.displayMedium?.color),
                       Text('Filter',
                           style: TextStyle(
-                              color: theme.selectedTheme.textTheme.displayMedium?.color)),
+                              color: theme.selectedTheme.textTheme.displayMedium
+                                  ?.color)),
                     ],
                   ),
                 ),
@@ -431,9 +437,11 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
         });
       },
       style: OutlinedButton.styleFrom(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-        backgroundColor:
-            isSelected ? Colors.deepPurple.withOpacity(0.3) : Colors.transparent,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+        backgroundColor: isSelected
+            ? Colors.deepPurple.withValues(alpha: 0.3)
+            : Colors.transparent,
       ),
       child: Row(children: [
         Icon(icon, color: theme.selectedTheme.textTheme.displayMedium?.color),
@@ -512,7 +520,8 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
                   controller: _scrollController,
                   padding: const EdgeInsets.all(8.0),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: MediaQuery.of(context).size.width >= 600 ? 4 : 2,
+                    crossAxisCount:
+                        MediaQuery.of(context).size.width >= 600 ? 4 : 2,
                     mainAxisSpacing: 8.0,
                     crossAxisSpacing: 8.0,
                   ),
@@ -538,7 +547,8 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                     SizedBox(width: 12),
-                    Text('Carregando mais...', style: TextStyle(color: Colors.grey)),
+                    Text('Carregando mais...',
+                        style: TextStyle(color: Colors.grey)),
                   ],
                 ),
               )
@@ -604,7 +614,8 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     );
   }
 
-  Widget _buildBookTile(dynamic bookDetails, ThemeProvider theme, bool isFavorited) {
+  Widget _buildBookTile(
+      dynamic bookDetails, ThemeProvider theme, bool isFavorited) {
     final api = widget.selectedFont.api;
     final String title = api.getTitle(bookDetails);
     final String imageUrl = api.getCoverImageUrl(bookDetails);
@@ -634,7 +645,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
               bottomRight: Radius.circular(8.0),
             ),
             child: Container(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha: 0.5),
               padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
               child: Text(
                 title,
@@ -658,7 +669,9 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
                   fit: BoxFit.cover,
                   width: MediaQuery.of(context).size.width,
                   height: MediaQuery.of(context).size.width,
-                  color: isBookFavorited ? Colors.black.withOpacity(0.5) : null,
+                  color: isBookFavorited
+                      ? Colors.black.withValues(alpha: 0.5)
+                      : null,
                   colorBlendMode:
                       isBookFavorited ? BlendMode.srcOver : BlendMode.dstATop,
                   placeholder: (context, _) => Container(
@@ -673,7 +686,8 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
                   ),
                   errorWidget: (context, _, __) => Container(
                     color: Colors.grey.shade900,
-                    child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                    child: const Icon(Icons.broken_image_outlined,
+                        color: Colors.grey),
                   ),
                 ),
                 if (isBookFavorited)
@@ -730,7 +744,8 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to load book details: $e'),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ),
@@ -761,8 +776,10 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
             ),
           ),
           scrollable: true,
-          titleTextStyle: const TextStyle(color: Color.fromARGB(255, 224, 224, 224)),
-          contentTextStyle: const TextStyle(color: Color.fromARGB(255, 224, 224, 224)),
+          titleTextStyle:
+              const TextStyle(color: Color.fromARGB(255, 224, 224, 224)),
+          contentTextStyle:
+              const TextStyle(color: Color.fromARGB(255, 224, 224, 224)),
           backgroundColor: const Color.fromARGB(255, 26, 17, 51),
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(10.0)),
@@ -824,7 +841,8 @@ Future<http.Response> Function(String url) _buildWebViewProxy(
       return http.Response('', 302, headers: {'location': '/accounts/login/'});
     }
 
-    String raw = result?.toString().trim() ?? '{"status":0,"location":"","body":""}';
+    String raw =
+        result?.toString().trim() ?? '{"status":0,"location":"","body":""}';
     // webview_windows envolve strings JS em aspas externas: "\"...\""
     if (raw.startsWith('"') && raw.endsWith('"')) {
       raw = jsonDecode(raw) as String;

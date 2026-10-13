@@ -134,8 +134,8 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
     await controller.initialize();
     controller.url.listen((url) async {
       if (!mounted) return;
-      setState(() => _currentUrl = url ?? '');
-      if (url != null) await _checkLoginSuccess(url);
+      setState(() => _currentUrl = url);
+      await _checkLoginSuccess(url);
     });
     controller.loadingState.listen((state) {
       if (!mounted) return;
@@ -161,7 +161,8 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
     // Deve estar no domínio do próprio site (não em Google/Discord/OAuth provider)
     final siteHost = Uri.tryParse(loginUrl)?.host ?? '';
     final currentHost = Uri.tryParse(url)?.host ?? '';
-    if (siteHost.isNotEmpty && currentHost.isNotEmpty &&
+    if (siteHost.isNotEmpty &&
+        currentHost.isNotEmpty &&
         !currentHost.endsWith(siteHost)) {
       return; // Ainda em provider externo (ex.: accounts.google.com)
     }
@@ -206,11 +207,14 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
       sessionCookies.isNotEmpty ? sessionCookies : cookies,
     );
 
-    await widget.onSuccess(sessionCookies.isNotEmpty ? sessionCookies : cookies);
+    await widget
+        .onSuccess(sessionCookies.isNotEmpty ? sessionCookies : cookies);
 
     // On Windows: transfer the WebviewController so the caller can proxy HTTP
     // requests through the authenticated WebView session (HttpOnly cookie workaround).
-    if (_isWindows && widget.onSuccessWithController != null && _windowsController != null) {
+    if (_isWindows &&
+        widget.onSuccessWithController != null &&
+        _windowsController != null) {
       final ctrl = _windowsController!;
       _windowsController = null; // Transfer ownership: dispose() will skip it
       await widget.onSuccessWithController!(
@@ -263,8 +267,11 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
         // executeScript retorna Future (dynamic) — converte para String
         final result = await _windowsController!.executeScript(js);
         rawJson = result?.toString().trim();
-        if (rawJson != null && rawJson.startsWith('"') && rawJson.endsWith('"')) {
-          rawJson = rawJson.substring(1, rawJson.length - 1)
+        if (rawJson != null &&
+            rawJson.startsWith('"') &&
+            rawJson.endsWith('"')) {
+          rawJson = rawJson
+              .substring(1, rawJson.length - 1)
               .replaceAll(r'\"', '"')
               .replaceAll(r'\\', r'\');
         }

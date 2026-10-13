@@ -6,7 +6,7 @@ import 'package:star_scrapper_app/components/UI/theme_preview_widgets.dart';
 import 'package:star_scrapper_app/components/Shared/settings_nav_item.dart';
 import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/fonts_hosts_settings_screen.dart';
 import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/library_settings_screen.dart';
-import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/scrapper_logins_screen.dart';
+import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/playback_settings_screen.dart';
 
 class GeneralSettingsScreen extends StatefulWidget {
   const GeneralSettingsScreen({super.key});
@@ -19,140 +19,94 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Provider.of<ThemeProvider>(context);
+    final selectedTheme = theme.selectedTheme;
+    final themes = [
+      (name: 'Purple Forest', data: Appthemes.purpleForest),
+      (name: 'Deep Ocean', data: Appthemes.deepOcean),
+      (name: 'Red River', data: Appthemes.redRiver),
+      (name: 'Gray City', data: Appthemes.grayCity),
+      (name: 'Heaven\'s Day', data: Appthemes.heavensDay),
+      (name: 'Sun\'s Light', data: Appthemes.sunsLight),
+      (name: 'Frozen Lake', data: Appthemes.frozenLake),
+    ];
+
     return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 22, 16, 110),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: 
-        [
-          SizedBox(height: 20),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('General', style: selectedTheme.textTheme.headlineMedium),
+          const SizedBox(height: 6),
           Text(
-            'General Settings',
-            style: TextStyle(
-              fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18, 
-              fontWeight: FontWeight.bold,
-              color: theme.selectedTheme.textTheme.titleLarge?.color,
-              overflow: TextOverflow.ellipsis,
+            'Customize your library and content sources.',
+            style: selectedTheme.textTheme.bodyMedium?.copyWith(
+              color: selectedTheme.colorScheme.onSurfaceVariant,
             ),
           ),
-          SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SettingsNavItem(
-                  icon: Icons.library_books,
-                  label: 'Library',
-                  theme: theme,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LibrarySettingsScreen()),
-                  ),
-                ),
-                SizedBox(height: 12),
-                SettingsNavItem(
-                  icon: Icons.cloud_sync_rounded,
-                  label: 'Fonts',
-                  theme: theme,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const FontsHostsSettingsScreen(),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 12),
-              ],
+          const SizedBox(height: 22),
+          SettingsNavItem(
+            icon: Icons.local_library_outlined,
+            label: 'Library',
+            theme: theme,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const LibrarySettingsScreen()),
             ),
           ),
-
-          SizedBox(height: 20),
-
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  'Themes',
-                  style: TextStyle(
-                    fontSize: MediaQuery.of(context).size.width >= 600 ? 22 : 14, 
-                    fontWeight: FontWeight.bold,
-                    color: theme.selectedTheme.textTheme.titleSmall?.color,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-
-                SizedBox(height: 20),
-
-                
-                  ListView(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      ThemePreviewWidgets(
-                        themeData: Appthemes.purpleForest,
-                        themeName: 'Purple Forest',
-                        onTap: () {
-                          theme.setSelectedTheme(Appthemes.purpleForest);
-                        },
-                      ),
-
-                      ThemePreviewWidgets(
-                        themeData: Appthemes.deepOcean,
-                        themeName: 'Deep Ocean',
-                        onTap: () {
-                          theme.setSelectedTheme(Appthemes.deepOcean);
-                        },
-                      ),
-
-                      ThemePreviewWidgets(
-                        themeData: Appthemes.redRiver,
-                        themeName: 'Red River',
-                        onTap: () {
-                          theme.setSelectedTheme(Appthemes.redRiver);
-                        },
-                      ),
-
-                      ThemePreviewWidgets(
-                        themeData: Appthemes.grayCity,
-                        themeName: 'Gray City',
-                        onTap: () {
-                          theme.setSelectedTheme(Appthemes.grayCity);
-                        },
-                      ),
-
-                      ThemePreviewWidgets(
-                        themeData: Appthemes.heavensDay,
-                        themeName: 'Royal Purple',
-                        onTap: () {
-                          theme.setSelectedTheme(Appthemes.heavensDay);
-                        },
-                      ),
-
-                      ThemePreviewWidgets(
-                        themeData: Appthemes.sunsLight,
-                        themeName: 'Sun\'s Light',
-                        onTap: () {
-                          theme.setSelectedTheme(Appthemes.sunsLight);
-                        },
-                      ),
-
-                      ThemePreviewWidgets(
-                        themeData: Appthemes.frozenLake,
-                        themeName: 'Frozen Lake',
-                        onTap: () {
-                          theme.setSelectedTheme(Appthemes.frozenLake);
-                        },
-                      ),
-                    ],
-                  ),
-              ],
-            )
-          )
-      
+          const SizedBox(height: 10),
+          SettingsNavItem(
+            icon: Icons.cloud_sync_outlined,
+            label: 'Sources',
+            theme: theme,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const FontsHostsSettingsScreen(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SettingsNavItem(
+            icon: Icons.ondemand_video_rounded,
+            label: 'Video playback',
+            theme: theme,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const PlaybackSettingsScreen(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 30),
+          Text('Appearance', style: selectedTheme.textTheme.titleLarge),
+          const SizedBox(height: 6),
+          Text(
+            'Choose a palette. Layout and contrast stay consistent.',
+            style: selectedTheme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 16),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: themes.length,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: MediaQuery.sizeOf(context).width >= 720 ? 3 : 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.28,
+            ),
+            itemBuilder: (context, index) {
+              final option = themes[index];
+              return ThemePreviewWidgets(
+                themeData: option.data,
+                themeName: option.name,
+                isSelected: identical(selectedTheme, option.data),
+                onTap: () => theme.setSelectedTheme(option.data),
+              );
+            },
+          ),
         ],
-      ) 
+      ),
     );
   }
 }

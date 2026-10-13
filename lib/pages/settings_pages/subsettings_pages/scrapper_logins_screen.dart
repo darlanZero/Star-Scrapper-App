@@ -97,9 +97,11 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
     final subtitleColor = theme.selectedTheme.textTheme.bodySmall?.color;
     final cardColor = theme.selectedTheme.cardColor;
 
-    final authFonts = fontProvider.fonts.where(
-      (f) => f.api.scrapperProfile != null,
-    ).toList();
+    final authFonts = fontProvider.fonts
+        .where(
+          (f) => f.api.scrapperProfile != null,
+        )
+        .toList();
 
     return Scaffold(
       backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
@@ -234,7 +236,7 @@ class _ScrapperLoginCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isLoggedIn
-              ? Colors.green.withOpacity(0.35)
+              ? Colors.green.withValues(alpha: 0.35)
               : theme.selectedTheme.dividerColor,
           width: 0.8,
         ),
@@ -297,17 +299,20 @@ class _ScrapperLoginCard extends StatelessWidget {
 
               // Badge de status
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
+                  color: statusColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: statusColor.withOpacity(0.5)),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.5)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      isLoggedIn ? Icons.check_circle_outline : Icons.cancel_outlined,
+                      isLoggedIn
+                          ? Icons.check_circle_outline
+                          : Icons.cancel_outlined,
                       color: statusColor,
                       size: 13,
                     ),
@@ -338,8 +343,10 @@ class _ScrapperLoginCard extends StatelessWidget {
                     ? '${val.substring(0, 6)}...${val.substring(val.length - 4)}'
                     : val;
                 return Chip(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                  backgroundColor: theme.selectedTheme.dividerColor.withOpacity(0.4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                  backgroundColor:
+                      theme.selectedTheme.dividerColor.withValues(alpha: 0.4),
                   label: Text(
                     '$k: $preview',
                     style: TextStyle(
@@ -388,10 +395,14 @@ class _ScrapperLoginCard extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: onLogout,
                   icon: const Icon(Icons.logout, size: 16, color: Colors.red),
-                  label: const Text('Logout', style: TextStyle(color: Colors.red)),
+                  label:
+                      const Text('Logout', style: TextStyle(color: Colors.red)),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: Colors.red.withOpacity(0.5)),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    side: BorderSide(
+                      color: Colors.red.withValues(alpha: 0.5),
+                    ),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                 ),
               ],

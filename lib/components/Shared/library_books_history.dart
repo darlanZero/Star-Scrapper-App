@@ -42,7 +42,8 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                 itemCount: readedBooks.length,
                 itemBuilder: (context, index) {
                   final book = readedBooks[index];
-                  final scrapper = fontProvider.findScrapperForBook(book) ?? fontProvider.selectedFontApi;
+                  final scrapper = fontProvider.findScrapperForBook(book) ??
+                      fontProvider.selectedFontApi;
                   final bookId = book['id'] as String?;
                   final lastChapter = bookId != null
                       ? fontProvider.lastReadedChapterId[bookId]
@@ -52,9 +53,12 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                   final imageHeaders = scrapper.imageHeaders;
 
                   return InkWell(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => BookDetailsScreen(bookDetails: book, scrapper: scrapper),
-                    )),
+                    onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BookDetailsScreen(
+                              bookDetails: book, scrapper: scrapper),
+                        )),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
                       child: Stack(
@@ -68,7 +72,8 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                             height: double.infinity,
                             errorWidget: (context, _, __) => Container(
                               color: Colors.grey.shade900,
-                              child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                              child: const Icon(Icons.broken_image_outlined,
+                                  color: Colors.grey),
                             ),
                           ),
                           const DecoratedBox(
@@ -76,7 +81,10 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                               gradient: LinearGradient(
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
-                                colors: [Colors.transparent, Color.fromARGB(200, 0, 0, 0)],
+                                colors: [
+                                  Colors.transparent,
+                                  Color.fromARGB(200, 0, 0, 0)
+                                ],
                               ),
                             ),
                           ),
@@ -88,15 +96,20 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                               child: BackdropFilter(
                                 filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 6),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.35),
+                                    color: Colors.black.withValues(alpha: 0.35),
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.white.withOpacity(0.2)),
+                                    border: Border.all(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.2),
+                                    ),
                                   ),
                                   child: Text(
                                     'Cap. $chapterTitle',
-                                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                                    style: const TextStyle(
+                                        color: Colors.white, fontSize: 12),
                                   ),
                                 ),
                               ),
@@ -114,7 +127,8 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                 itemCount: readedBooks.length,
                 itemBuilder: (context, index) {
                   final book = readedBooks[index];
-                  final scrapper = fontProvider.findScrapperForBook(book) ?? fontProvider.selectedFontApi;
+                  final scrapper = fontProvider.findScrapperForBook(book) ??
+                      fontProvider.selectedFontApi;
                   final bookId = book['id'] as String?;
                   final lastChapter = bookId != null
                       ? fontProvider.lastReadedChapterId[bookId]
@@ -127,14 +141,19 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                   final imageHeaders = scrapper.imageHeaders;
 
                   return InkWell(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => BookDetailsScreen(bookDetails: book, scrapper: scrapper),
-                    )),
+                    onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BookDetailsScreen(
+                              bookDetails: book, scrapper: scrapper),
+                        )),
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: Colors.white.withOpacity(0.12)),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.12),
+                        ),
                         boxShadow: const [
                           BoxShadow(
                             color: Color.fromARGB(100, 0, 0, 0),
@@ -153,11 +172,12 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                               fit: BoxFit.cover,
                               width: double.infinity,
                               height: 200,
-                              color: Colors.black.withOpacity(0.5),
+                              color: Colors.black.withValues(alpha: 0.5),
                               colorBlendMode: BlendMode.darken,
                               errorWidget: (context, _, __) => Container(
                                 color: Colors.grey.shade900,
-                                child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                                child: const Icon(Icons.broken_image_outlined,
+                                    color: Colors.grey),
                               ),
                             ),
                             const DecoratedBox(
@@ -183,7 +203,8 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                                 height: 76,
                                 errorWidget: (context, _, __) => Container(
                                   color: Colors.grey.shade900,
-                                  child: const Icon(Icons.broken_image_outlined, size: 16, color: Colors.grey),
+                                  child: const Icon(Icons.broken_image_outlined,
+                                      size: 16, color: Colors.grey),
                                 ),
                               ),
                             ),
@@ -206,11 +227,16 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                                   ),
                                   const SizedBox(height: 6),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 6),
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(12),
-                                      color: Colors.black.withOpacity(0.35),
-                                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.35),
+                                      border: Border.all(
+                                        color:
+                                            Colors.white.withValues(alpha: 0.2),
+                                      ),
                                     ),
                                     child: Text(
                                       'Last: Cap. $chapterTitle',
@@ -234,14 +260,17 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                                 children: selectedChapters.map((chapter) {
                                   final title = chapter['title'] ?? 'N/A';
                                   return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 6),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.16),
+                                      color:
+                                          Colors.white.withValues(alpha: 0.16),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
                                       'Chap. $title',
-                                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 12),
                                     ),
                                   );
                                 }).toList(),

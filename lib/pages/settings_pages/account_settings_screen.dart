@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/components/Shared/settings_nav_item.dart';
 import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/scrapper_logins_screen.dart';
+import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/tracker_settings_screen.dart';
 
 class AccountSettingsScreen extends StatefulWidget {
   const AccountSettingsScreen({super.key});
@@ -35,17 +36,29 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: 
-                [
+                children: [
                   SettingsNavItem(
                     icon: Icons.manage_accounts_outlined,
-                    label: 'Scrapper Logins',
+                    label: 'Source logins',
                     theme: theme,
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const ScrapperLoginsScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const ScrapperLoginsScreen()),
                     ),
-                  )
+                  ),
+                  const SizedBox(height: 18),
+                  SettingsNavItem(
+                    icon: Icons.sync_alt_rounded,
+                    label: 'Trackers',
+                    theme: theme,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const TrackerSettingsScreen(),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             )

@@ -4,8 +4,13 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   desktop_webview_window
+  flutter_secure_storage_windows
+  media_kit_libs_windows_video
+  media_kit_video
   permission_handler_windows
+  screen_brightness_windows
   url_launcher_windows
+  volume_controller
   webview_windows
 )
 

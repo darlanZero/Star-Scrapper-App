@@ -14,7 +14,8 @@ class LibraryBackupRestoreScreen extends StatefulWidget {
       _LibraryBackupRestoreScreenState();
 }
 
-class _LibraryBackupRestoreScreenState extends State<LibraryBackupRestoreScreen> {
+class _LibraryBackupRestoreScreenState
+    extends State<LibraryBackupRestoreScreen> {
   final BackupService _backupService = BackupService();
   List<FileSystemEntity> _backupFiles = [];
   bool _isBusy = false;
@@ -234,17 +235,23 @@ class _LibraryBackupRestoreScreenState extends State<LibraryBackupRestoreScreen>
                             IconButton(
                               tooltip: 'Download',
                               icon: const Icon(Icons.download_rounded),
-                              onPressed: _isBusy ? null : () => _downloadBackup(file.path),
+                              onPressed: _isBusy
+                                  ? null
+                                  : () => _downloadBackup(file.path),
                             ),
                             IconButton(
                               tooltip: 'Restore',
                               icon: const Icon(Icons.restore_rounded),
-                              onPressed: _isBusy ? null : () => _restoreBackup(file.path),
+                              onPressed: _isBusy
+                                  ? null
+                                  : () => _restoreBackup(file.path),
                             ),
                             IconButton(
                               tooltip: 'Delete',
                               icon: const Icon(Icons.delete_outline),
-                              onPressed: _isBusy ? null : () => _deleteBackup(file.path),
+                              onPressed: _isBusy
+                                  ? null
+                                  : () => _deleteBackup(file.path),
                             ),
                           ],
                         ),

@@ -1,6 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:star_scrapper_app/classes/Scrappers/engine/base_html_scrapper.dart';
 import 'package:star_scrapper_app/classes/Scrappers/engine/scrapper_profile.dart';
 
@@ -59,10 +57,9 @@ class LuraToonsScrapper extends BaseHtmlScrapper {
     buildDetailUrl: (id, base) => '$base/api/obra/$id/',
     buildChapterUrl: (id, base) => '$base/$id/',
     // popular → /api/obras/   |   recent → /api/main/ (campo lancamentos)
-    buildListUrl: (filter, page, base) =>
-        filter.toLowerCase() == 'recent'
-            ? '$base/api/main/'
-            : '$base/api/obras/',
+    buildListUrl: (filter, page, base) => filter.toLowerCase() == 'recent'
+        ? '$base/api/main/'
+        : '$base/api/obras/',
     extractId: (url) {
       try {
         final uri = Uri.parse(url);
@@ -140,13 +137,15 @@ class LuraToonsScrapper extends BaseHtmlScrapper {
           final slug = item['slug']?.toString() ?? '';
           if (slug.isEmpty) return null;
           // 'caps' contém os capítulos recentes — guardamos o mais novo para exibição
-          final caps = (item['caps'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          final caps =
+              (item['caps'] as List?)?.cast<Map<String, dynamic>>() ?? [];
           final latestCap = caps.isNotEmpty ? caps.first : null;
           return <String, dynamic>{
             'id': slug,
             'title': item['title']?.toString() ?? '',
             'coverImageUrl': _absoluteCover(item['capa']?.toString() ?? ''),
-            'latestChapter': latestCap != null ? 'Cap. ${latestCap['num']}' : '',
+            'latestChapter':
+                latestCap != null ? 'Cap. ${latestCap['num']}' : '',
             'latestChapterDate': latestCap?['date']?.toString() ?? '',
             'type': 'manga',
           };
@@ -207,8 +206,7 @@ class LuraToonsScrapper extends BaseHtmlScrapper {
       'coverImageUrl': _absoluteCover(capa),
       'description': data['sinopse']?.toString() ?? '',
       'tags': generos
-          .map((g) =>
-              ((g as Map<String, dynamic>)['name']?.toString()) ?? '')
+          .map((g) => ((g as Map<String, dynamic>)['name']?.toString()) ?? '')
           .where((t) => t.isNotEmpty)
           .toList(),
       'status': data['status']?.toString() ?? '',
@@ -268,8 +266,8 @@ class LuraToonsScrapper extends BaseHtmlScrapper {
   ) async {
     try {
       final details = await getBookDetails(mangaId) as Map<String, dynamic>;
-      final chapters = (details['chapters'] as List<dynamic>)
-          .cast<Map<String, dynamic>>();
+      final chapters =
+          (details['chapters'] as List<dynamic>).cast<Map<String, dynamic>>();
       // Garante ordem crescente por número de capítulo.
       chapters.sort((a, b) =>
           (double.tryParse(a['chapter'] as String? ?? '0') ?? 0)
@@ -304,6 +302,5 @@ class LuraToonsScrapper extends BaseHtmlScrapper {
       (bookDetails['coverImageUrl'] ?? '').toString();
 
   @override
-  String getBookId(dynamic bookDetails) =>
-      (bookDetails['id'] ?? '').toString();
+  String getBookId(dynamic bookDetails) => (bookDetails['id'] ?? '').toString();
 }

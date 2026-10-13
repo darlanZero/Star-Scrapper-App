@@ -2,30 +2,60 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
+import 'package:star_scrapper_app/domain/sources/source.dart';
 import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.dart';
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  final List<String> initialQueries;
+  final bool searchEnabledSources;
+  final SourceContentType? sourceType;
+
+  const SearchScreen({
+    super.key,
+    this.initialQueries = const [],
+    this.searchEnabledSources = false,
+    this.sourceType,
+  });
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  final TextEditingController _searchController = TextEditingController();
+  late final TextEditingController _searchController;
 
   List<Map<String, dynamic>> _libraryResults = [];
   Map<String, List<dynamic>> _onlineResults = {};
   bool _isSearchingOnline = false;
   bool _searchOnline = false;
   String _lastQuery = '';
+  List<String> _sourceQueries = const [];
 
-  void _onQueryChanged(String query) {
+  @override
+  void initState() {
+    super.initState();
+    final initial =
+        widget.initialQueries.isEmpty ? '' : widget.initialQueries.first.trim();
+    _searchController = TextEditingController(text: initial);
+    _sourceQueries = widget.initialQueries;
+    _searchOnline = widget.searchEnabledSources;
+    if (initial.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _onQueryChanged(initial, preserveSourceQueries: true);
+      });
+    }
+  }
+
+  void _onQueryChanged(
+    String query, {
+    bool preserveSourceQueries = false,
+  }) {
     final fontProvider = Provider.of<FontProvider>(context, listen: false);
     final q = query.trim().toLowerCase();
 
     if (q == _lastQuery) return;
     _lastQuery = q;
+    if (!preserveSourceQueries) _sourceQueries = [query.trim()];
 
     if (q.isEmpty) {
       setState(() {
@@ -51,13 +81,25 @@ class _SearchScreenState extends State<SearchScreen> {
       _onlineResults = {};
     });
 
-    if (_searchOnline) _runOnlineSearch(query.trim());
+    if (_searchOnline) _runOnlineSearch(_sourceQueries);
   }
 
-  Future<void> _runOnlineSearch(String query) async {
-    if (query.isEmpty) return;
+  Future<void> _runOnlineSearch(List<String> queries) async {
+    final normalizedQueries = <String>[];
+    final seenQueries = <String>{};
+    for (final query in queries.take(4)) {
+      final value = query.trim();
+      if (value.isNotEmpty && seenQueries.add(value.toLowerCase())) {
+        normalizedQueries.add(value);
+      }
+    }
+    if (normalizedQueries.isEmpty) return;
     final fontProvider = Provider.of<FontProvider>(context, listen: false);
-    final activeFonts = fontProvider.activeFonts;
+    final activeFonts = fontProvider.activeFonts
+        .where((source) =>
+            widget.sourceType == null ||
+            source.contentType == widget.sourceType)
+        .toList();
     if (activeFonts.isEmpty) return;
 
     setState(() => _isSearchingOnline = true);
@@ -66,8 +108,20 @@ class _SearchScreenState extends State<SearchScreen> {
       final results = await Future.wait(
         activeFonts.map((font) async {
           try {
-            final list = await font.api.searchTitle(query);
-            return MapEntry(font.name, list);
+            final matches = await Future.wait(
+              normalizedQueries.map(font.api.searchTitle),
+            );
+            final unique = <dynamic>[];
+            final ids = <String>{};
+            for (final list in matches) {
+              for (final book in list) {
+                final id = font.api.getBookId(book);
+                final title = font.api.getTitle(book);
+                final key = id.isEmpty ? title.toLowerCase() : id;
+                if (ids.add(key)) unique.add(book);
+              }
+            }
+            return MapEntry(font.name, unique);
           } catch (_) {
             return MapEntry(font.name, <dynamic>[]);
           }
@@ -87,7 +141,7 @@ class _SearchScreenState extends State<SearchScreen> {
   void _onToggleOnlineSearch(bool value) {
     setState(() => _searchOnline = value);
     if (value && _lastQuery.isNotEmpty) {
-      _runOnlineSearch(_lastQuery);
+      _runOnlineSearch(_sourceQueries);
     } else if (!value) {
       setState(() => _onlineResults = {});
     }
@@ -95,10 +149,10 @@ class _SearchScreenState extends State<SearchScreen> {
 
   String _bookTabsLabel(Map<String, dynamic> book) {
     final tabs = book['tabs'];
-    if (tabs is List && tabs.isNotEmpty) return (tabs as List).join(', ');
+    if (tabs is List && tabs.isNotEmpty) return tabs.join(', ');
     final tab = book['tab'];
     if (tab is String) return tab;
-    return 'Biblioteca';
+    return 'Library';
   }
 
   @override
@@ -117,7 +171,8 @@ class _SearchScreenState extends State<SearchScreen> {
             shadows: const [Shadow(color: Colors.black, blurRadius: 10.0)],
           ),
         ),
-        iconTheme: IconThemeData(color: theme.selectedTheme.textTheme.titleMedium?.color),
+        iconTheme: IconThemeData(
+            color: theme.selectedTheme.textTheme.titleMedium?.color),
         centerTitle: true,
         elevation: 0,
         shape: const RoundedRectangleBorder(
@@ -131,8 +186,9 @@ class _SearchScreenState extends State<SearchScreen> {
             child: TextField(
               autofocus: true,
               decoration: InputDecoration(
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                labelText: 'Buscar mangás...',
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                labelText: 'Search titles...',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
@@ -144,39 +200,40 @@ class _SearchScreenState extends State<SearchScreen> {
                       )
                     : null,
               ),
-              style: TextStyle(color: theme.selectedTheme.textTheme.displayMedium?.color),
+              style: TextStyle(
+                  color: theme.selectedTheme.textTheme.displayMedium?.color),
               controller: _searchController,
               onChanged: _onQueryChanged,
             ),
           ),
-
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Buscar nas fontes ativas',
-                  style: TextStyle(color: theme.selectedTheme.textTheme.displaySmall?.color),
+                  'Search enabled sources',
+                  style: TextStyle(
+                      color: theme.selectedTheme.textTheme.displaySmall?.color),
                 ),
                 Row(
                   children: [
                     if (_isSearchingOnline) ...[
                       const SizedBox(
-                        width: 16, height: 16,
+                        width: 16,
+                        height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                       const SizedBox(width: 8),
                     ],
-                    Switch(value: _searchOnline, onChanged: _onToggleOnlineSearch),
+                    Switch(
+                        value: _searchOnline, onChanged: _onToggleOnlineSearch),
                   ],
                 ),
               ],
             ),
           ),
-
           const Divider(height: 1),
-
           Expanded(
             child: _lastQuery.isEmpty
                 ? Center(
@@ -186,8 +243,10 @@ class _SearchScreenState extends State<SearchScreen> {
                         const Icon(Icons.search, size: 64, color: Colors.grey),
                         const SizedBox(height: 12),
                         Text(
-                          'Digite para buscar na biblioteca',
-                          style: TextStyle(color: theme.selectedTheme.textTheme.displaySmall?.color),
+                          'Type to search your library',
+                          style: TextStyle(
+                              color: theme
+                                  .selectedTheme.textTheme.displaySmall?.color),
                         ),
                       ],
                     ),
@@ -196,37 +255,50 @@ class _SearchScreenState extends State<SearchScreen> {
                     children: [
                       // ── Biblioteca ──
                       _SectionHeader(
-                        label: 'Na sua biblioteca (${_libraryResults.length})',
+                        label: 'In your library (${_libraryResults.length})',
                         icon: Icons.library_books,
                       ),
                       if (_libraryResults.isEmpty)
                         const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          child: Text('Nenhum resultado na biblioteca.', style: TextStyle(color: Colors.grey)),
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Text('No results in your library.',
+                              style: TextStyle(color: Colors.grey)),
                         )
                       else
                         ..._libraryResults.map((book) => _BookListTile(
-                          title: (book['title'] ?? 'Sem título').toString(),
-                          subtitle: _bookTabsLabel(book),
-                          coverUrl: book['coverImageUrl'] ?? book['imageurl'] ?? '',
-                          onTap: () => Navigator.push(context, MaterialPageRoute(
-                            builder: (_) => BookDetailsScreen(bookDetails: book),
-                          )),
-                        )),
+                              title: (book['title'] ?? 'Untitled').toString(),
+                              subtitle: _bookTabsLabel(book),
+                              coverUrl: book['coverImageUrl'] ??
+                                  book['imageurl'] ??
+                                  '',
+                              onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        BookDetailsScreen(bookDetails: book),
+                                  )),
+                            )),
 
                       // ── Online por fonte ──
                       if (_searchOnline) ...[
                         const SizedBox(height: 8),
                         for (final entry in _onlineResults.entries) ...[
-                          _SectionHeader(label: '${entry.key} (${entry.value.length})', icon: Icons.public),
+                          _SectionHeader(
+                              label: '${entry.key} (${entry.value.length})',
+                              icon: Icons.public),
                           if (entry.value.isEmpty)
                             const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              child: Text('Sem resultados.', style: TextStyle(color: Colors.grey)),
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
+                              child: Text('No results.',
+                                  style: TextStyle(color: Colors.grey)),
                             )
                           else
                             ...entry.value.take(10).map((book) {
-                              final fontProvider = Provider.of<FontProvider>(context, listen: false);
+                              final fontProvider = Provider.of<FontProvider>(
+                                  context,
+                                  listen: false);
                               final font = fontProvider.activeFonts.firstWhere(
                                 (f) => f.name == entry.key,
                                 orElse: () => fontProvider.fonts.first,
@@ -238,15 +310,20 @@ class _SearchScreenState extends State<SearchScreen> {
                                 onTap: () {
                                   // Normaliza os campos para que BookDetailsScreen
                                   // os encontre independente da fonte
-                                  final normalizedBook = Map<String, dynamic>.from(book as Map);
-                                  normalizedBook['coverImageUrl'] ??= font.api.getCoverImageUrl(book);
-                                  normalizedBook['title'] ??= font.api.getTitle(book);
-                                  Navigator.push(context, MaterialPageRoute(
-                                    builder: (_) => BookDetailsScreen(
-                                      bookDetails: normalizedBook,
-                                      scrapper: font.api,
-                                    ),
-                                  ));
+                                  final normalizedBook =
+                                      Map<String, dynamic>.from(book as Map);
+                                  normalizedBook['coverImageUrl'] ??=
+                                      font.api.getCoverImageUrl(book);
+                                  normalizedBook['title'] ??=
+                                      font.api.getTitle(book);
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => BookDetailsScreen(
+                                          bookDetails: normalizedBook,
+                                          scrapper: font.api,
+                                        ),
+                                      ));
                                 },
                               );
                             }),
@@ -321,12 +398,14 @@ class _BookListTile extends StatelessWidget {
                 width: 40,
                 height: 56,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 40),
+                errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.broken_image, size: 40),
               ),
             )
           : const Icon(Icons.book, size: 40),
       title: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
-      subtitle: Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+      subtitle: Text(subtitle,
+          style: const TextStyle(color: Colors.grey, fontSize: 12)),
       onTap: onTap,
     );
   }

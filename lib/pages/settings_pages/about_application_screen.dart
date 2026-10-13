@@ -10,10 +10,11 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 class AboutApplicationScreen extends StatelessWidget {
-  const AboutApplicationScreen({Key? key}) : super(key: key);
+  const AboutApplicationScreen({super.key});
 
   Future<void> _checkForUpdates(BuildContext context) async {
-    final url = 'https://api.github.com/repos/darlanZero/Star-Scrapper-App/releases';
+    const url =
+        'https://api.github.com/repos/darlanZero/Star-Scrapper-App/releases';
 
     try {
       final response = await http.get(Uri.parse(url));
@@ -30,9 +31,13 @@ class AboutApplicationScreen extends StatelessWidget {
           if (versionName != currentVersionName) {
             String? downloadUrl;
             if (Platform.isAndroid) {
-              downloadUrl = assets.firstWhere((asset) => asset['name'].endsWith('.apk'), orElse: () => null)?['browser_download_url'];
+              downloadUrl = assets.firstWhere(
+                  (asset) => asset['name'].endsWith('.apk'),
+                  orElse: () => null)?['browser_download_url'];
             } else if (Platform.isWindows) {
-              downloadUrl = assets.firstWhere((asset) => asset['name'].endsWith('.exe'), orElse: () => null)?['browser_download_url'];
+              downloadUrl = assets.firstWhere(
+                  (asset) => asset['name'].endsWith('.exe'),
+                  orElse: () => null)?['browser_download_url'];
             }
 
             if (downloadUrl != null) {
@@ -43,9 +48,10 @@ class AboutApplicationScreen extends StatelessWidget {
           } else {
             _showNoUpdateDialog(context);
           }
-
         } else {
-          print('Failed to fetch updates. Status code: ${response.statusCode}');
+          debugPrint(
+            'Failed to fetch updates. Status code: ${response.statusCode}',
+          );
         }
       }
     } catch (e) {
@@ -53,13 +59,15 @@ class AboutApplicationScreen extends StatelessWidget {
     }
   }
 
-  void _showUpdateDialog(BuildContext context, String versionName, String downloadUrl) {
+  void _showUpdateDialog(
+      BuildContext context, String versionName, String downloadUrl) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text('Update available'),
-          content: Text('The version you are using is out of date. The latest version $versionName of the app is available. Do you want to update now?'),
+          content: Text(
+              'The version you are using is out of date. The latest version $versionName of the app is available. Do you want to update now?'),
           actions: [
             TextButton(
               onPressed: () {
@@ -102,13 +110,14 @@ class AboutApplicationScreen extends StatelessWidget {
     );
   }
 
-  void _showNoSuitableDownloadDialog (BuildContext context) {
+  void _showNoSuitableDownloadDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text('No suitable download found'),
-          content: const Text('No suitable download found for the current platform.'),
+          content: const Text(
+              'No suitable download found for the current platform.'),
           actions: [
             TextButton(
               onPressed: () {
@@ -140,7 +149,7 @@ class AboutApplicationScreen extends StatelessWidget {
         );
       },
     );
-  } 
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -177,10 +186,11 @@ class AboutApplicationScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    icon: Icon(FontAwesomeIcons.github),
+                    icon: FaIcon(FontAwesomeIcons.github),
                     color: Colors.blue,
                     onPressed: () {
-                      launchUrl(Uri.parse('https://github.com/darlanZero/Star-Scrapper-App'));
+                      launchUrl(Uri.parse(
+                          'https://github.com/darlanZero/Star-Scrapper-App'));
                     },
                   ),
                   IconButton(
@@ -200,7 +210,8 @@ class AboutApplicationScreen extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   foregroundColor: Colors.white,
                   backgroundColor: Colors.blue,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),

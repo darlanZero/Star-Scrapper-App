@@ -4,15 +4,21 @@ import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 
 class LibraryItemsSettingsScreen extends StatefulWidget {
-  const LibraryItemsSettingsScreen({Key? key}) : super(key: key);
+  const LibraryItemsSettingsScreen({super.key});
 
   @override
-  State<LibraryItemsSettingsScreen> createState() => _LibraryItemsSettingsScreenState();
+  State<LibraryItemsSettingsScreen> createState() =>
+      _LibraryItemsSettingsScreenState();
 }
 
-class _LibraryItemsSettingsScreenState extends State<LibraryItemsSettingsScreen> {
-
-  final List<String> updateIntervals = ['2 hours', '5 hours', '12 hours', '24 hours'];
+class _LibraryItemsSettingsScreenState
+    extends State<LibraryItemsSettingsScreen> {
+  final List<String> updateIntervals = [
+    '2 hours',
+    '5 hours',
+    '12 hours',
+    '24 hours'
+  ];
   String selectedUpdateInterval = '2 hours';
   Map<String, bool> tabsSelection = {};
   bool trackerEnabled = true;
@@ -23,9 +29,9 @@ class _LibraryItemsSettingsScreenState extends State<LibraryItemsSettingsScreen>
     super.initState();
     final fontProvider = Provider.of<FontProvider>(context, listen: false);
     final tabsState = Provider.of<TabsState>(context, listen: false);
-    tabsState.libraryTabs.forEach((tab) {
+    for (final tab in tabsState.libraryTabs) {
       tabsSelection[tab] = fontProvider.tabsToUpdate.contains(tab);
-    });
+    }
     trackerEnabled = fontProvider.trackerEnabled;
     final hours = fontProvider.updateInterval.inHours;
     if (hours == 2) selectedUpdateInterval = '2 hours';
@@ -62,7 +68,6 @@ class _LibraryItemsSettingsScreenState extends State<LibraryItemsSettingsScreen>
         .toSet();
 
     fontProvider.setTabsToUpdate(selectedTabs);
-
   }
 
   Future<void> _runNow() async {
@@ -83,7 +88,6 @@ class _LibraryItemsSettingsScreenState extends State<LibraryItemsSettingsScreen>
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final theme = Provider.of<ThemeProvider>(context);
@@ -91,14 +95,12 @@ class _LibraryItemsSettingsScreenState extends State<LibraryItemsSettingsScreen>
       backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: theme.selectedTheme.appBarTheme.backgroundColor,
-        title: Text(
-          "Library Items Settings",
-          style: TextStyle(
-            color: theme.selectedTheme.textTheme.titleLarge?.color,
-            fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
-            fontWeight: FontWeight.bold,
-          )
-        ),
+        title: Text("Library Items Settings",
+            style: TextStyle(
+              color: theme.selectedTheme.textTheme.titleLarge?.color,
+              fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
+              fontWeight: FontWeight.bold,
+            )),
         centerTitle: true,
         elevation: 0,
         shape: const RoundedRectangleBorder(
@@ -107,121 +109,122 @@ class _LibraryItemsSettingsScreenState extends State<LibraryItemsSettingsScreen>
           ),
         ),
         leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: Colors.teal[900]
-            ),
+          icon: Icon(Icons.arrow_back, color: Colors.teal[900]),
           onPressed: () {
             Navigator.pop(context);
           },
         ),
-        iconTheme: IconThemeData(color: theme.selectedTheme.textTheme.titleMedium?.color),
+        iconTheme: IconThemeData(
+            color: theme.selectedTheme.textTheme.titleMedium?.color),
       ),
-
       body: Consumer<FontProvider>(
-        builder: (context, fp, _) => ListView(
-        children: [
-          SwitchListTile(
-            title: Text(
-              'Enable Chapter Tracker',
-              style: TextStyle(
-                color: theme.selectedTheme.textTheme.titleMedium?.color,
-                fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            value: trackerEnabled,
-            onChanged: (value) {
-              setState(() => trackerEnabled = value);
-              fp.setTrackerEnabled(value);
-            },
-          ),
-          ListTile(
-            title: Text(
-              'Update Interval',
-              style: TextStyle(
-                color: theme.selectedTheme.textTheme.titleMedium?.color,
-                fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
-                fontWeight: FontWeight.bold,
-              )
-            ),
-            subtitle: DropdownButton<String>(
-              value: selectedUpdateInterval,
-              items: updateIntervals.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (String? value) {
-                setState(() {
-                  selectedUpdateInterval = value!;
-                  
-                });
-              },
-            ),
-          ),
-          ListTile(
-            title: Text(
-              'Tabs to Update',
-              style: TextStyle(
-                color: theme.selectedTheme.textTheme.titleMedium?.color,
-                fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
-                fontWeight: FontWeight.bold,
-              )
-            ),
-            subtitle: Column(
-              children: tabsSelection.keys.map((tab) {
-                return CheckboxListTile(
-                  title: Text(tab),
-                  value: tabsSelection[tab],
-                  onChanged: (bool? value) {
-                    setState(() {
-                      tabsSelection[tab] = value!;
-                    });
-                  },
-                );
-              }).toList(),
-            ),
-          ),
-          ListTile(
-            title: Text(
-              'Last Check',
-              style: TextStyle(
-                color: theme.selectedTheme.textTheme.titleMedium?.color,
-                fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            subtitle: Text(
-              fp.trackerLastCheckedAt?.toString() ?? 'Never',
-            ),
-          ),
-          ElevatedButton(
-            onPressed: _saveSettings,
-            child: Text(
-              'Save Settings',
-              style: TextStyle(
-                color: theme.selectedTheme.textTheme.titleMedium?.color,
-                fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
-                fontWeight: FontWeight.bold,
-              )
-            ),
-          ),
-          const SizedBox(height: 8),
-          ElevatedButton.icon(
-            onPressed: runningNow ? null : _runNow,
-            icon: runningNow
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.refresh_rounded),
-            label: const Text('Check Now'),
-          ),
-        ],
-      )),
+          builder: (context, fp, _) => ListView(
+                children: [
+                  SwitchListTile(
+                    title: Text(
+                      'Enable Chapter Tracker',
+                      style: TextStyle(
+                        color: theme.selectedTheme.textTheme.titleMedium?.color,
+                        fontSize:
+                            MediaQuery.of(context).size.width >= 600 ? 24 : 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    value: trackerEnabled,
+                    onChanged: (value) {
+                      setState(() => trackerEnabled = value);
+                      fp.setTrackerEnabled(value);
+                    },
+                  ),
+                  ListTile(
+                    title: Text('Update Interval',
+                        style: TextStyle(
+                          color:
+                              theme.selectedTheme.textTheme.titleMedium?.color,
+                          fontSize: MediaQuery.of(context).size.width >= 600
+                              ? 24
+                              : 18,
+                          fontWeight: FontWeight.bold,
+                        )),
+                    subtitle: DropdownButton<String>(
+                      value: selectedUpdateInterval,
+                      items: updateIntervals.map((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value),
+                        );
+                      }).toList(),
+                      onChanged: (String? value) {
+                        setState(() {
+                          selectedUpdateInterval = value!;
+                        });
+                      },
+                    ),
+                  ),
+                  ListTile(
+                    title: Text('Tabs to Update',
+                        style: TextStyle(
+                          color:
+                              theme.selectedTheme.textTheme.titleMedium?.color,
+                          fontSize: MediaQuery.of(context).size.width >= 600
+                              ? 24
+                              : 18,
+                          fontWeight: FontWeight.bold,
+                        )),
+                    subtitle: Column(
+                      children: tabsSelection.keys.map((tab) {
+                        return CheckboxListTile(
+                          title: Text(tab),
+                          value: tabsSelection[tab],
+                          onChanged: (bool? value) {
+                            setState(() {
+                              tabsSelection[tab] = value!;
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  ListTile(
+                    title: Text(
+                      'Last Check',
+                      style: TextStyle(
+                        color: theme.selectedTheme.textTheme.titleMedium?.color,
+                        fontSize:
+                            MediaQuery.of(context).size.width >= 600 ? 24 : 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: Text(
+                      fp.trackerLastCheckedAt?.toString() ?? 'Never',
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: _saveSettings,
+                    child: Text('Save Settings',
+                        style: TextStyle(
+                          color:
+                              theme.selectedTheme.textTheme.titleMedium?.color,
+                          fontSize: MediaQuery.of(context).size.width >= 600
+                              ? 24
+                              : 18,
+                          fontWeight: FontWeight.bold,
+                        )),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: runningNow ? null : _runNow,
+                    icon: runningNow
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.refresh_rounded),
+                    label: const Text('Check Now'),
+                  ),
+                ],
+              )),
     );
   }
 }

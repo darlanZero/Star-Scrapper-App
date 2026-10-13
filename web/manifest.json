@@ -1,6 +1,6 @@
 {
-    "name": "star_scrapper_app",
-    "short_name": "star_scrapper_app",
+    "name": "StarsLibrary",
+    "short_name": "StarsLibrary",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

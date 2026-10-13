@@ -1,69 +1,69 @@
-import 'package:flutter/material.dart';  
-import 'package:provider/provider.dart';  
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';
-import 'package:star_scrapper_app/pages/pages.dart';  
+import 'package:star_scrapper_app/domain/sources/source.dart';
+import 'package:star_scrapper_app/pages/pages.dart';
 
 class ScrapperActiveFonts extends StatefulWidget {
-  const ScrapperActiveFonts({Key? key}) : super(key: key);
+  const ScrapperActiveFonts({super.key});
 
-  @override  
-  State<ScrapperActiveFonts> createState() => _ScrapperActiveFontsState();  
-}  
+  @override
+  State<ScrapperActiveFonts> createState() => _ScrapperActiveFontsState();
+}
 
-class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {  
-  List<LanguageGroup> languageGroups = [];  
-  List<Fonte> pinnedFonts = [];  
+class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
+  List<Fonte> pinnedFonts = [];
+  SourceContentType _contentType = SourceContentType.manga;
 
-  @override  
-  void initState() {  
-    super.initState();  
-    loadActiveFonts();  
-  }  
+  @override
+  void initState() {
+    super.initState();
+    loadActiveFonts();
+  }
 
-  Future<void> loadActiveFonts() async {  
-    final prefs = await SharedPreferences.getInstance();  
-    final fontProvider = Provider.of<FontProvider>(context, listen: false);  
-    fontProvider.fonts.forEach((font) {  
-      font.isActive = prefs.getBool(font.name) ?? false;  
-    });  
+  Future<void> loadActiveFonts() async {
+    final fontProvider = Provider.of<FontProvider>(context, listen: false);
+    final prefs = await SharedPreferences.getInstance();
+    await fontProvider.sourcesLoaded;
 
-    setState(() {  
-      var grouped = Map<String, List<Fonte>>();  
-      for (var font in fontProvider.activeFonts) {  
-        grouped.putIfAbsent(font.languagePrefix, () => []).add(font);  
-      }  
+    final restoredPinnedFonts = <Fonte>[];
+    for (final font in fontProvider.activeFonts) {
+      final stableKey = 'source_${font.id}_pinned';
+      final stableValue = prefs.getBool(stableKey);
+      final legacyValue = prefs.getBool('${font.name}_pinned');
+      final isPinned = stableValue ?? legacyValue ?? false;
+      if (stableValue == null && legacyValue != null) {
+        await prefs.setBool(stableKey, legacyValue);
+      }
+      if (isPinned) restoredPinnedFonts.add(font);
+    }
+    restoredPinnedFonts.sort((a, b) => a.name.compareTo(b.name));
 
-      languageGroups = grouped.entries  
-          .map((entry) => LanguageGroup(  
-                languagePrefix: entry.key,  
-                fonts: entry.value,  
-              ))  
-          .toList();  
+    if (!mounted) return;
 
-      pinnedFonts = fontProvider.activeFonts  
-          .where((font) => prefs.getBool('${font.name}_pinned') ?? false)  
-          .toList();  
-      pinnedFonts.sort((a, b) => a.name.compareTo(b.name));  
-    });  
-  }  
+    setState(() {
+      pinnedFonts = restoredPinnedFonts;
+    });
+  }
 
-  Future<void> togglePinned(Fonte font) async {  
-    final prefs = await SharedPreferences.getInstance();  
-    final isPinned = !(prefs.getBool('${font.name}_pinned') ?? false);  
-    await prefs.setBool('${font.name}_pinned', isPinned);  
+  Future<void> togglePinned(Fonte font) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'source_${font.id}_pinned';
+    final isPinned =
+        !(prefs.getBool(key) ?? prefs.getBool('${font.name}_pinned') ?? false);
+    await prefs.setBool(key, isPinned);
 
-    setState(() {  
-      if (isPinned) {  
-        pinnedFonts.add(font);  
-        pinnedFonts.sort((a, b) => a.name.compareTo(b.name));  
-      } else {  
-        pinnedFonts.removeWhere((f) => f.name == font.name);  
-      }  
-    });  
-  }  
+    setState(() {
+      if (isPinned) {
+        pinnedFonts.add(font);
+        pinnedFonts.sort((a, b) => a.name.compareTo(b.name));
+      } else {
+        pinnedFonts.removeWhere((f) => f.name == font.name);
+      }
+    });
+  }
 
   Widget _buildOutdatedDummy(double size) {
     return Container(
@@ -121,9 +121,9 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.16),
+        color: color.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withOpacity(0.6)),
+        border: Border.all(color: color.withValues(alpha: 0.6)),
       ),
       child: Text(
         label,
@@ -137,11 +137,13 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
     );
   }
 
-  Widget _buildFontTile(Fonte font) {  
+  Widget _buildFontTile(Fonte font) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final isMobile = MediaQuery.of(context).size.width < 600;
     final fontSize = isMobile ? 12.0 : 16.0;
 
-    final popularButton = OutlinedButton(
+    final popularButton = OutlinedButton.icon(
       onPressed: () {
         Navigator.push(
           context,
@@ -153,17 +155,14 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
           ),
         );
       },
-      child: Text(
+      icon: const Icon(Icons.trending_up_rounded, size: 18),
+      label: Text(
         'Popular',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: fontSize,
-          color: Colors.deepPurple.shade400,
-        ),
+        style: TextStyle(fontWeight: FontWeight.w700, fontSize: fontSize),
       ),
     );
 
-    final recentButton = OutlinedButton(
+    final recentButton = OutlinedButton.icon(
       onPressed: () {
         Navigator.push(
           context,
@@ -175,30 +174,32 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
           ),
         );
       },
-      child: Text(
+      icon: const Icon(Icons.schedule_rounded, size: 18),
+      label: Text(
         'Recent',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: fontSize,
-          color: Colors.deepPurple.shade400,
-        ),
+        style: TextStyle(fontWeight: FontWeight.w700, fontSize: fontSize),
       ),
     );
 
     final pinButton = IconButton(
       icon: Icon(
         pinnedFonts.contains(font) ? Icons.push_pin : Icons.push_pin_outlined,
+        color: pinnedFonts.contains(font)
+            ? colors.primary
+            : colors.onSurfaceVariant,
       ),
+      tooltip: pinnedFonts.contains(font) ? 'Unpin source' : 'Pin source',
       onPressed: () => togglePinned(font),
     );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.08)),
+          color: colors.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.outlineVariant),
         ),
         child: isMobile
             ? Column(
@@ -215,17 +216,10 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
                                 font.name,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 13,
-                                  color: Colors.green,
-                                  shadows: [
-                                    Shadow(
-                                      offset: Offset(1.0, 1.0),
-                                      blurRadius: 3.0,
-                                      color: Color.fromARGB(255, 65, 62, 62),
-                                    ),
-                                  ],
+                                  color: colors.onSurface,
                                 ),
                               ),
                             ),
@@ -261,14 +255,7 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: fontSize,
-                              color: Colors.green,
-                              shadows: const [
-                                Shadow(
-                                  offset: Offset(1.0, 1.0),
-                                  blurRadius: 3.0,
-                                  color: Color.fromARGB(255, 65, 62, 62),
-                                ),
-                              ],
+                              color: colors.onSurface,
                             ),
                           ),
                         ),
@@ -287,45 +274,129 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
               ),
       ),
     );
-  }  
+  }
 
-  @override  
+  @override
   Widget build(BuildContext context) {
+    return Consumer<FontProvider>(
+      builder: (context, fontProvider, child) {
+        final activeFonts = fontProvider.activeFonts
+            .where((source) => source.contentType == _contentType)
+            .toList();
+        final activePinnedFonts =
+            pinnedFonts.where((font) => activeFonts.contains(font)).toList();
+        final grouped = <String, List<Fonte>>{};
+        for (final font in activeFonts) {
+          grouped.putIfAbsent(font.languagePrefix, () => []).add(font);
+        }
+        final languageGroups = grouped.entries
+            .map(
+              (entry) => LanguageGroup(
+                languagePrefix: entry.key,
+                fonts: entry.value,
+              ),
+            )
+            .toList();
 
-    return Consumer<FontProvider>(  
-      builder: (context, fontProvider, child) {  
-        return ListView(  
-          children: [  
-            if (pinnedFonts.isNotEmpty) ...[  
-              ExpansionTile(  
-                title: Text(
-                  'Pinned',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: MediaQuery.of(context).size.width >= 600 ? 16 : 12,
-                    color: Color.fromARGB(255, 204, 204, 204),  
-                  )
-                ),  
-                children: pinnedFonts.map(_buildFontTile).toList(),
-              ),  
-            ],  
-            ...languageGroups.map((group) => ExpansionTile(  
+        final colors = Theme.of(context).colorScheme;
+
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),
+          children: [
+            SegmentedButton<SourceContentType>(
+              segments: const [
+                ButtonSegment(
+                  value: SourceContentType.manga,
+                  icon: Icon(Icons.menu_book_rounded),
+                  label: Text('Manga'),
+                ),
+                ButtonSegment(
+                  value: SourceContentType.anime,
+                  icon: Icon(Icons.play_circle_rounded),
+                  label: Text('Anime'),
+                ),
+              ],
+              selected: {_contentType},
+              onSelectionChanged: (selection) {
+                setState(() => _contentType = selection.first);
+              },
+            ),
+            const SizedBox(height: 12),
+            if (activeFonts.isEmpty)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 36,
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        _contentType == SourceContentType.anime
+                            ? Icons.ondemand_video_outlined
+                            : Icons.source_outlined,
+                        size: 46,
+                        color: colors.onSurfaceVariant,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _contentType == SourceContentType.anime
+                            ? 'Anime sources will appear here.'
+                            : 'No active manga sources.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _contentType == SourceContentType.anime
+                            ? 'The anime source contract is ready for future providers.'
+                            : 'Enable a source in the Manage tab.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: colors.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if (activePinnedFonts.isNotEmpty) ...[
+              Card(
+                margin: const EdgeInsets.only(bottom: 10),
+                child: ExpansionTile(
+                  leading: Icon(Icons.push_pin_rounded, color: colors.primary),
+                  title: const Text(
+                    'Pinned sources',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: Text('${activePinnedFonts.length} saved'),
+                  children: activePinnedFonts.map(_buildFontTile).toList(),
+                ),
+              ),
+            ],
+            ...languageGroups.indexed.map((entry) {
+              final index = entry.$1;
+              final group = entry.$2;
+              final visibleFonts = group.fonts
+                  .where((font) => !activePinnedFonts.contains(font))
+                  .toList();
+              return Card(
+                margin: const EdgeInsets.only(bottom: 10),
+                child: ExpansionTile(
+                  initiallyExpanded: index == 0,
+                  leading: Icon(Icons.language_rounded, color: colors.primary),
                   title: Text(
                     group.languagePrefix,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: MediaQuery.of(context).size.width >= 600 ? 16 : 12,
-                      color: Color.fromARGB(255, 204, 204, 204),  
-                    )
-                  ),  
-                  children: group.fonts  
-                      .where((font) => !pinnedFonts.contains(font))  
-                      .map(_buildFontTile)  
-                      .toList(),  
-                )),  
-          ],  
-        );  
-      },  
-    );  
-  }  
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: Text(
+                    '${visibleFonts.length} ${visibleFonts.length == 1 ? 'source' : 'sources'}',
+                  ),
+                  children: visibleFonts.map(_buildFontTile).toList(),
+                ),
+              );
+            }),
+          ],
+        );
+      },
+    );
+  }
 }

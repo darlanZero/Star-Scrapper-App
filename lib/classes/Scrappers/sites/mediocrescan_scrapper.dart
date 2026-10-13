@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -59,7 +59,6 @@ class MediocreScanScrapper extends Scrapper {
     name: 'MediocreScan',
     baseUrl: _base,
     contentType: ContentType.spa,
-
     auth: AuthConfig(
       loginUrl: '$_base/entrar',
       type: AuthType.webviewForm,
@@ -67,11 +66,9 @@ class MediocreScanScrapper extends Scrapper {
       sessionCookieNames: ['token', 'refresh_token'],
       logoutUrl: null,
     ),
-
     buildDetailUrl: (id, base) => '$base/obra/$id',
     buildChapterUrl: (id, base) => '$base/capitulo/$id',
     buildListUrl: (filter, page, base) => base,
-
     extractId: (url) {
       try {
         final uri = Uri.parse(url);
@@ -88,8 +85,10 @@ class MediocreScanScrapper extends Scrapper {
 
   // ─── Sessão ───────────────────────────────────────────────────────────────
 
+  @override
   String get siteKey => 'mediocrescan';
 
+  @override
   bool get isAuthenticated => _bearerToken != null && _bearerToken!.isNotEmpty;
 
   @override
@@ -163,7 +162,8 @@ class MediocreScanScrapper extends Scrapper {
     Object? lastError;
     for (int attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        final res = usePublicHeaders ? await _apiGetPublic(url) : await _apiGet(url);
+        final res =
+            usePublicHeaders ? await _apiGetPublic(url) : await _apiGet(url);
         final transient = res.statusCode == 502 ||
             res.statusCode == 503 ||
             res.statusCode == 504;
@@ -191,8 +191,9 @@ class MediocreScanScrapper extends Scrapper {
           url,
           usePublicHeaders: usePublicHeaders,
         );
-        final isTransient =
-            res.statusCode == 502 || res.statusCode == 503 || res.statusCode == 504;
+        final isTransient = res.statusCode == 502 ||
+            res.statusCode == 503 ||
+            res.statusCode == 504;
         if (isTransient) {
           lastError = Exception('HTTP ${res.statusCode} ao acessar $url');
           continue;
@@ -247,8 +248,8 @@ class MediocreScanScrapper extends Scrapper {
         'RSC': '1',
         'Next-Router-State-Tree':
             '%5B%22%22%2C%7B%22children%22%3A%5B%22(main)%22%2C%7B%22children'
-            '%22%3A%5B%22atualizados%22%2C%7B%22children%22%3A%5B%22__PAGE__%22'
-            '%2C%7B%7D%5D%7D%5D%7D%5D%7D%5D',
+                '%22%3A%5B%22atualizados%22%2C%7B%22children%22%3A%5B%22__PAGE__%22'
+                '%2C%7B%7D%5D%7D%5D%7D%5D%7D%5D',
         'Referer': _base,
         if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
       },
@@ -299,7 +300,8 @@ class MediocreScanScrapper extends Scrapper {
       }
     }
 
-    debugPrint('[MediocreScan] RSC p$page → nenhuma linha com obras encontrada');
+    debugPrint(
+        '[MediocreScan] RSC p$page → nenhuma linha com obras encontrada');
     return [];
   }
 
@@ -310,9 +312,8 @@ class MediocreScanScrapper extends Scrapper {
     final capitulos = (m['capitulos'] as List?) ?? [];
 
     // Capítulo mais recente
-    final capNumStr = m['capitulo_numero'] != null
-        ? _numToString(m['capitulo_numero'])
-        : '';
+    final capNumStr =
+        m['capitulo_numero'] != null ? _numToString(m['capitulo_numero']) : '';
     String latestChapter = capNumStr;
     String latestChapterId = '';
     if (capitulos.isNotEmpty) {
@@ -326,9 +327,8 @@ class MediocreScanScrapper extends Scrapper {
     return {
       'id': id,
       'title': (m['nome'] ?? '').toString(),
-      'coverImageUrl': imagem.isNotEmpty
-          ? '$_coverCdnBase/obras/$id/$imagem'
-          : '',
+      'coverImageUrl':
+          imagem.isNotEmpty ? '$_coverCdnBase/obras/$id/$imagem' : '',
       'status': '',
       'type': 'manga',
       'latestChapter': latestChapter,
@@ -412,8 +412,9 @@ class MediocreScanScrapper extends Scrapper {
         ? (rawStatus['nome'] ?? '').toString()
         : (rawStatus ?? '').toString();
 
-    final latestChapter =
-        m['capitulo_numero']?.toString() ?? m['total_capitulos']?.toString() ?? '';
+    final latestChapter = m['capitulo_numero']?.toString() ??
+        m['total_capitulos']?.toString() ??
+        '';
 
     return {
       'id': id.toString(),
@@ -443,7 +444,8 @@ class MediocreScanScrapper extends Scrapper {
           'chapter': numStr,
           'volume': ch['volume']?.toString(),
           'pages': ch['paginas'] ?? (ch['tem_paginas'] == true ? '?' : null),
-          'uploader': (ch['equipe']?['nome'] ?? ch['usuario']?['nome'] ?? '').toString(),
+          'uploader': (ch['equipe']?['nome'] ?? ch['usuario']?['nome'] ?? '')
+              .toString(),
           'publishedAt': ch['lancado_em']?.toString() ?? '',
           'translatedLanguage': 'pt-br',
         };
@@ -457,7 +459,8 @@ class MediocreScanScrapper extends Scrapper {
     final List<Map<String, dynamic>> chapters = <Map<String, dynamic>>[];
 
     while (true) {
-      final res = await _apiGetPath('/capitulos?obr_id=$mangaID&page=$page&limite=$limit');
+      final res = await _apiGetPath(
+          '/capitulos?obr_id=$mangaID&page=$page&limite=$limit');
       _assertAuth(res);
       final decoded = jsonDecode(res.body);
       final items = _extractItems(decoded).cast<dynamic>();
@@ -473,7 +476,8 @@ class MediocreScanScrapper extends Scrapper {
           'chapter': numStr,
           'volume': ch['volume']?.toString(),
           'pages': ch['paginas'] ?? (ch['tem_paginas'] == true ? '?' : null),
-          'uploader': (ch['equipe']?['nome'] ?? ch['usuario']?['nome'] ?? '').toString(),
+          'uploader': (ch['equipe']?['nome'] ?? ch['usuario']?['nome'] ?? '')
+              .toString(),
           'publishedAt': ch['lancado_em']?.toString() ?? '',
           'translatedLanguage': 'pt-br',
         });
@@ -524,7 +528,8 @@ class MediocreScanScrapper extends Scrapper {
     }
     _currentPage++;
     try {
-      final pageItems = await _fetchBooksPage(filter: filter, page: _currentPage);
+      final pageItems =
+          await _fetchBooksPage(filter: filter, page: _currentPage);
       final deduped = <dynamic>[];
       for (final b in pageItems) {
         final id = (b['id'] ?? '').toString();
@@ -608,19 +613,23 @@ class MediocreScanScrapper extends Scrapper {
       };
 
       final appDocDir = await getApplicationDocumentsDirectory();
-      final tempChapterDir = p.join(appDocDir.path, 'temp', 'mediocrescan', chapterID);
+      final tempChapterDir =
+          p.join(appDocDir.path, 'temp', 'mediocrescan', chapterID);
       await Directory(tempChapterDir).create(recursive: true);
 
       for (var i = 0; i < paginas.length; i++) {
-        final src = (paginas[i] as Map<String, dynamic>)['src']?.toString() ?? '';
+        final src =
+            (paginas[i] as Map<String, dynamic>)['src']?.toString() ?? '';
         if (src.isEmpty) continue;
 
         final imageUrl = '$_cdnBase/obras/$obraId/capitulos/$numStr/$src';
         final ext = p.extension(Uri.parse(src).path);
-        final fileName = '${(i + 1).toString().padLeft(3, '0')}${ext.isNotEmpty ? ext : '.jpg'}';
+        final fileName =
+            '${(i + 1).toString().padLeft(3, '0')}${ext.isNotEmpty ? ext : '.jpg'}';
         final localPath = p.join(tempChapterDir, fileName);
 
-        final imageRes = await http.get(Uri.parse(imageUrl), headers: _publicHeaders);
+        final imageRes =
+            await http.get(Uri.parse(imageUrl), headers: _publicHeaders);
         if (imageRes.statusCode != 200) continue;
 
         final file = File(localPath);
@@ -680,8 +689,10 @@ class MediocreScanScrapper extends Scrapper {
   ) async {
     try {
       final chapters = await _fetchAllChapters(mangaId);
-      chapters.sort((a, b) => _numToDouble(a['chapter']).compareTo(_numToDouble(b['chapter'])));
-      final currentIdx = chapters.indexWhere((c) => c['id'] == currentChapterId);
+      chapters.sort((a, b) =>
+          _numToDouble(a['chapter']).compareTo(_numToDouble(b['chapter'])));
+      final currentIdx =
+          chapters.indexWhere((c) => c['id'] == currentChapterId);
       if (currentIdx == -1) return null;
 
       final targetIdx = isNext ? currentIdx + 1 : currentIdx - 1;
@@ -703,6 +714,5 @@ class MediocreScanScrapper extends Scrapper {
       (bookDetails['coverImageUrl'] ?? '').toString();
 
   @override
-  String getBookId(dynamic bookDetails) =>
-      (bookDetails['id'] ?? '').toString();
+  String getBookId(dynamic bookDetails) => (bookDetails['id'] ?? '').toString();
 }

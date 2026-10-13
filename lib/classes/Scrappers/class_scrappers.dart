@@ -7,8 +7,10 @@ abstract class Scrapper {
   Future<List<dynamic>> loadMore(String filter);
   Future<dynamic> getBookDetails(String mangaID);
   Stream<Map<String, dynamic>> getChapter(String chapterID, String mangaID);
-  Stream<Map<String, dynamic>> retrieveLastChapter(String currentChapterId, String mangaId);
-  Stream<Map<String, dynamic>> retrieveNextChapter(String currentChapterId, String mangaId);
+  Stream<Map<String, dynamic>> retrieveLastChapter(
+      String currentChapterId, String mangaId);
+  Stream<Map<String, dynamic>> retrieveNextChapter(
+      String currentChapterId, String mangaId);
   Future<List<dynamic>> searchTitle(String title);
   String getTitle(dynamic bookDetails);
   String getCoverImageUrl(dynamic bookDetails);
@@ -25,7 +27,8 @@ abstract class Scrapper {
   /// Derivada automaticamente do nome do [scrapperProfile].
   /// Scrapers que precisam de chave customizada devem fazer override.
   String get siteKey =>
-      scrapperProfile?.name.toLowerCase().replaceAll(RegExp(r'[\s\-]+'), '_') ?? '';
+      scrapperProfile?.name.toLowerCase().replaceAll(RegExp(r'[\s\-]+'), '_') ??
+      '';
 
   /// Indica se há uma sessão/token ativa em memória.
   /// Override nos scrapers que mantêm token em memória.

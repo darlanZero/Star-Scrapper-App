@@ -63,17 +63,15 @@ class _HomePageScreenState extends State<HomePageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Provider.of<ThemeProvider>(context);
-    final appBarBase = theme.selectedTheme.appBarTheme.backgroundColor ??
-        theme.selectedTheme.primaryColor;
-    final scaffoldBase = theme.selectedTheme.scaffoldBackgroundColor;
-    final accent =
-        theme.selectedTheme.textTheme.titleMedium?.color ?? const Color(0xFF82EA64);
+    final theme = Theme.of(context);
+    final appBarBase = theme.colorScheme.surfaceContainer;
+    final scaffoldBase = theme.scaffoldBackgroundColor;
+    final accent = theme.colorScheme.primary;
 
     Color blend(Color a, Color b, double t) => Color.lerp(a, b, t) ?? a;
 
     return Scaffold(
-      backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -86,7 +84,8 @@ class _HomePageScreenState extends State<HomePageScreen> {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const SizedBox(
                   height: 52,
-                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  child:
+                      Center(child: CircularProgressIndicator(strokeWidth: 2)),
                 );
               }
 
@@ -115,18 +114,16 @@ class _HomePageScreenState extends State<HomePageScreen> {
       body: Stack(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
+            padding: const EdgeInsets.fromLTRB(14, 48, 14, 10),
             child: _buildActiveGrid(),
           ),
           Positioned(
-            left: 18,
-            bottom: 24,
-            child: FloatingActionButton.small(
-              heroTag: 'home_sort_fab',
+            right: 18,
+            top: 4,
+            child: IconButton.filledTonal(
               onPressed: _showSortSheet,
-              backgroundColor: const Color.fromARGB(210, 52, 34, 120),
               tooltip: 'Sort books',
-              child: const Icon(Icons.sort_rounded),
+              icon: const Icon(Icons.sort_rounded),
             ),
           ),
         ],
@@ -141,6 +138,8 @@ class _HomePageScreenState extends State<HomePageScreen> {
     required Color accent,
     required Color Function(Color, Color, double) blend,
   }) {
+    final colors = Theme.of(context).colorScheme;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
       child: BackdropFilter(
@@ -149,9 +148,10 @@ class _HomePageScreenState extends State<HomePageScreen> {
           height: 50,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           decoration: BoxDecoration(
-            color: blend(appBarBase, scaffoldBase, 0.35).withOpacity(0.45),
+            color:
+                blend(appBarBase, scaffoldBase, 0.35).withValues(alpha: 0.45),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withOpacity(0.10)),
+            border: Border.all(color: colors.outlineVariant),
           ),
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
@@ -164,7 +164,8 @@ class _HomePageScreenState extends State<HomePageScreen> {
                 onTap: () => _onPrimaryTabTapped(index),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
                     gradient: isSelected
@@ -179,9 +180,12 @@ class _HomePageScreenState extends State<HomePageScreen> {
                   child: Text(
                     labels[index],
                     style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.white70,
+                      color: isSelected
+                          ? colors.onPrimary
+                          : colors.onSurfaceVariant,
                       fontWeight: FontWeight.w700,
-                      fontSize: MediaQuery.of(context).size.width >= 600 ? 14 : 12,
+                      fontSize:
+                          MediaQuery.of(context).size.width >= 600 ? 14 : 12,
                     ),
                   ),
                 ),
@@ -216,7 +220,8 @@ class _HomePageScreenState extends State<HomePageScreen> {
     final bottomRight = box.localToGlobal(box.size.bottomRight(Offset.zero));
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
 
-    final initial = (_secondaryIndexByPrimary[primary] ?? 0).clamp(0, subTabs.length - 1);
+    final initial =
+        (_secondaryIndexByPrimary[primary] ?? 0).clamp(0, subTabs.length - 1);
 
     final picked = await _showSubTabGlassMenu(
       anchorTopLeft: topLeft,
@@ -240,14 +245,16 @@ class _HomePageScreenState extends State<HomePageScreen> {
     required int initialIndex,
   }) {
     final menuWidth = labels.isEmpty ? 180.0 : 220.0;
-    final left = anchorTopLeft.dx.clamp(12.0, overlaySize.width - menuWidth - 12.0);
-    final top = (anchorBottomRight.dy + 8).clamp(8.0, overlaySize.height - 220.0);
+    final left =
+        anchorTopLeft.dx.clamp(12.0, overlaySize.width - menuWidth - 12.0);
+    final top =
+        (anchorBottomRight.dy + 8).clamp(8.0, overlaySize.height - 220.0);
 
     return showGeneralDialog<int>(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'subtab-menu',
-      barrierColor: Colors.black.withOpacity(0.12),
+      barrierColor: Colors.black.withValues(alpha: 0.12),
       pageBuilder: (context, _, __) {
         return Stack(
           children: [
@@ -274,9 +281,9 @@ class _HomePageScreenState extends State<HomePageScreen> {
                         color: const Color.fromARGB(170, 86, 138, 255),
                         width: 1.2,
                       ),
-                      boxShadow: [
+                      boxShadow: const [
                         BoxShadow(
-                          color: const Color.fromARGB(110, 90, 145, 255),
+                          color: Color.fromARGB(110, 90, 145, 255),
                           blurRadius: 14,
                           spreadRadius: 1.2,
                         ),
@@ -294,8 +301,10 @@ class _HomePageScreenState extends State<HomePageScreen> {
                             borderRadius: BorderRadius.circular(10),
                             onTap: () => Navigator.of(context).pop(i),
                             child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                              margin: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 10),
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(10),
                                 color: selected
@@ -303,24 +312,33 @@ class _HomePageScreenState extends State<HomePageScreen> {
                                     : Colors.transparent,
                                 border: selected
                                     ? Border.all(
-                                        color: const Color.fromARGB(170, 145, 185, 255),
+                                        color: const Color.fromARGB(
+                                            170, 145, 185, 255),
                                       )
                                     : null,
                               ),
                               child: Row(
                                 children: [
                                   Icon(
-                                    selected ? Icons.check_circle : Icons.circle_outlined,
+                                    selected
+                                        ? Icons.check_circle
+                                        : Icons.circle_outlined,
                                     size: 16,
-                                    color: selected ? Colors.white : Colors.white70,
+                                    color: selected
+                                        ? Colors.white
+                                        : Colors.white70,
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
                                       labels[i],
                                       style: TextStyle(
-                                        color: selected ? Colors.white : Colors.white70,
-                                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                        color: selected
+                                            ? Colors.white
+                                            : Colors.white70,
+                                        fontWeight: selected
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
                                       ),
                                     ),
                                   ),
@@ -363,7 +381,8 @@ class _HomePageScreenState extends State<HomePageScreen> {
           return const Center(child: Text('Configure suas tabs na Settings.'));
         }
 
-        final primaryLabel = primaryTabs[_primaryIndex.clamp(0, primaryTabs.length - 1)];
+        final primaryLabel =
+            primaryTabs[_primaryIndex.clamp(0, primaryTabs.length - 1)];
         final secondaryTabs = _tabsState.getSubTabsForPrimary(primaryLabel);
         if (secondaryTabs.isEmpty) {
           final books = _sortBooks(fontProvider.getBooksInTab(primaryLabel));
@@ -384,28 +403,55 @@ class _HomePageScreenState extends State<HomePageScreen> {
 
   Widget _buildBooksGridFromList(
       List<Map<String, dynamic>> booksInTab, FontProvider fontProvider) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
     return Center(
       child: booksInTab.isEmpty
-          ? ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    color: Colors.white.withOpacity(0.06),
-                    border: Border.all(color: Colors.white.withOpacity(0.12)),
-                  ),
-                  child: const Column(
+          ? ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(28, 30, 28, 26),
+                  child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.library_books_outlined,
-                          size: 46, color: Colors.white60),
-                      SizedBox(height: 8),
+                      Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          color: colors.primary.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Icon(
+                          Icons.auto_stories_outlined,
+                          size: 30,
+                          color: colors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
                       Text(
-                        'Sem livros nesta combinação de tabs.',
-                        style: TextStyle(color: Colors.white70),
+                        'Your shelf is ready',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Explore a source and add your first title to this collection.',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colors.onSurfaceVariant,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      FilledButton.icon(
+                        onPressed: () {
+                          context.read<AppState>().setIndex(2);
+                          context.read<TabsState>().setActivePageIndex(2);
+                        },
+                        icon: const Icon(Icons.explore_outlined),
+                        label: const Text('Explore sources'),
                       ),
                     ],
                   ),
@@ -483,7 +529,9 @@ class _HomePageScreenState extends State<HomePageScreen> {
                                 color: Colors.white,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 24,
-                                shadows: [Shadow(color: Colors.black, blurRadius: 8)],
+                                shadows: [
+                                  Shadow(color: Colors.black, blurRadius: 8)
+                                ],
                               ),
                             ),
                           ),
@@ -494,122 +542,6 @@ class _HomePageScreenState extends State<HomePageScreen> {
                 );
               },
             ),
-    );
-  }
-
-  Widget _buildBooksGrid(String tabName) {
-    return Consumer<FontProvider>(
-      builder: (context, fontProvider, child) {
-        final booksInTab = _sortBooks(fontProvider.getBooksInTab(tabName));
-        return Center(
-          child: booksInTab.isEmpty
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
-                      color: Colors.white.withOpacity(0.06),
-                      border: Border.all(color: Colors.white.withOpacity(0.12)),
-                    ),
-                    child: const Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.library_books_outlined, size: 46, color: Colors.white60),
-                        SizedBox(height: 8),
-                        Text(
-                          'Your library is empty, try adding some books!',
-                          style: TextStyle(color: Colors.white70),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              )
-            : GridView.builder(
-                padding: const EdgeInsets.all(4),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: MediaQuery.of(context).size.width >= 1100
-                      ? 6
-                      : MediaQuery.of(context).size.width >= 700
-                          ? 4
-                          : 2,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 0.7,
-                ),
-                itemCount: booksInTab.length,
-                itemBuilder: (context, index) {
-                  final book = booksInTab[index];
-                  final scrapper = fontProvider.findScrapperForBook(book) ?? fontProvider.selectedFontApi;
-                  final coverUrl = scrapper.getCoverImageUrl(book);
-                  return InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => BookDetailsScreen(
-                            bookDetails: book,
-                            scrapper: scrapper,
-                          ),
-                        ),
-                      );
-                    },
-                    child: GridTile(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            CachedNetworkImage(
-                              imageUrl: coverUrl,
-                              httpHeaders: scrapper.imageHeaders,
-                              fit: BoxFit.cover,
-                              errorWidget: (context, _, __) => Container(
-                                color: Colors.grey.shade900,
-                                child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
-                              ),
-                            ),
-                            const DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Colors.transparent,
-                                    Color.fromARGB(35, 0, 0, 0),
-                                    Color.fromARGB(185, 0, 0, 0),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              left: 10,
-                              right: 10,
-                              bottom: 10,
-                              child: Text(
-                                (book['title'] ?? '').toString(),
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 24,
-                                  shadows: [Shadow(color: Colors.black, blurRadius: 8)],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-        );
-      },
     );
   }
 
@@ -628,10 +560,12 @@ class _HomePageScreenState extends State<HomePageScreen> {
       case _HomeSortOption.addedLast:
         return sorted.reversed.toList();
       case _HomeSortOption.updatedRecent:
-        sorted.sort((a, b) => _bookUpdatedEpoch(b).compareTo(_bookUpdatedEpoch(a)));
+        sorted.sort(
+            (a, b) => _bookUpdatedEpoch(b).compareTo(_bookUpdatedEpoch(a)));
         break;
       case _HomeSortOption.updatedOldest:
-        sorted.sort((a, b) => _bookUpdatedEpoch(a).compareTo(_bookUpdatedEpoch(b)));
+        sorted.sort(
+            (a, b) => _bookUpdatedEpoch(a).compareTo(_bookUpdatedEpoch(b)));
         break;
     }
     return sorted;
@@ -678,21 +612,23 @@ class _HomePageScreenState extends State<HomePageScreen> {
       ),
       builder: (context) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: _HomeSortOption.values.map((opt) {
-              return RadioListTile<_HomeSortOption>(
-                value: opt,
-                groupValue: _sortOption,
-                title: Text(opt.label),
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() => _sortOption = value);
-                  _saveSortPreference(value);
-                  Navigator.pop(context);
-                },
-              );
-            }).toList(),
+          child: RadioGroup<_HomeSortOption>(
+            groupValue: _sortOption,
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() => _sortOption = value);
+              _saveSortPreference(value);
+              Navigator.pop(context);
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: _HomeSortOption.values.map((opt) {
+                return RadioListTile<_HomeSortOption>(
+                  value: opt,
+                  title: Text(opt.label),
+                );
+              }).toList(),
+            ),
           ),
         );
       },
@@ -718,12 +654,12 @@ class _HomePageScreenState extends State<HomePageScreen> {
 }
 
 enum _HomeSortOption {
-  alphabetical('Alfabético (A-Z)'),
-  alphabeticalReverse('Alfabético invertido (Z-A)'),
-  addedFirst('Adicionados primeiro'),
-  addedLast('Adicionados por último'),
-  updatedRecent('Atualizados recentemente'),
-  updatedOldest('Atualizados por último');
+  alphabetical('Alphabetical (A-Z)'),
+  alphabeticalReverse('Alphabetical (Z-A)'),
+  addedFirst('Oldest added'),
+  addedLast('Recently added'),
+  updatedRecent('Recently updated'),
+  updatedOldest('Least recently updated');
 
   const _HomeSortOption(this.label);
   final String label;

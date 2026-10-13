@@ -3,14 +3,13 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:webview_flutter/webview_flutter.dart' as flutter_webview;  
+import 'package:webview_flutter/webview_flutter.dart' as flutter_webview;
 import 'package:webview_windows/webview_windows.dart' as webview_windows;
 
 class ChapterBookScreen extends StatefulWidget {
@@ -42,7 +41,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   int _currentPage = 0;
   bool _isPaginatedView = false;
   bool _reverseReading = false;
-  List<String> _chapterImages = [];
+  final List<String> _chapterImages = [];
   final List<GlobalKey> _imageItemKeys = [];
   StreamSubscription<Map<String, dynamic>>? _chapterImagesSubscription;
   bool _showWebView = false;
@@ -85,7 +84,8 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   }
 
   Future<void> _loadChapterImages() async {
-    _chapterImagesSubscription = _activeScrapper.getChapter(widget.chapterId, widget.mangaID).listen(
+    _chapterImagesSubscription =
+        _activeScrapper.getChapter(widget.chapterId, widget.mangaID).listen(
       (imageData) {
         if (imageData['type'] == 'image') {
           setState(() {
@@ -200,7 +200,8 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
     setState(() {
       _isPaginatedView = !_isPaginatedView;
       _pageController?.dispose();
-      _pageController = PageController(initialPage: _currentPage, viewportFraction: 1.0);
+      _pageController =
+          PageController(initialPage: _currentPage, viewportFraction: 1.0);
     });
     _scheduleControlsAutoHide();
   }
@@ -264,7 +265,10 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                   children: [
                     const Text(
                       'Reader preferences',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
                     ),
                     const SizedBox(height: 10),
                     SwitchListTile(
@@ -274,12 +278,13 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                         setState(() {
                           _isPaginatedView = v;
                           _pageController?.dispose();
-                          _pageController =
-                              PageController(initialPage: _currentPage, viewportFraction: 1.0);
+                          _pageController = PageController(
+                              initialPage: _currentPage, viewportFraction: 1.0);
                         });
                       },
-                      title: const Text('Paginated mode', style: TextStyle(color: Colors.white)),
-                      activeColor: Colors.deepPurpleAccent,
+                      title: const Text('Paginated mode',
+                          style: TextStyle(color: Colors.white)),
+                      activeThumbColor: Colors.deepPurpleAccent,
                     ),
                     SwitchListTile(
                       value: _reverseReading,
@@ -287,8 +292,9 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                         setModalState(() => _reverseReading = v);
                         setState(() => _reverseReading = v);
                       },
-                      title: const Text('Reverse reading direction', style: TextStyle(color: Colors.white)),
-                      activeColor: Colors.deepPurpleAccent,
+                      title: const Text('Reverse reading direction',
+                          style: TextStyle(color: Colors.white)),
+                      activeThumbColor: Colors.deepPurpleAccent,
                     ),
                   ],
                 ),
@@ -300,70 +306,71 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
     );
   }
 
-  Future<void> _downloadImage(String imagePath) async {  
-    // TODO: Implement image download logic  
-  }  
-
-  Future<void> _shareImage(String imagePath) async {  
-    // TODO: Implement image sharing logic  
+  Future<void> _downloadImage(String imagePath) async {
+    // TODO: Implement image download logic
   }
 
-  void _showImageOptions(String imagePath) {  
-    showDialog(  
-      context: context,  
-      builder: (BuildContext context) {  
-        return AlertDialog(  
-          title: const Text('Image Options'),  
-          content: Column(  
-            mainAxisSize: MainAxisSize.min,  
-            children: [  
-              ListTile(  
-                leading: Icon(Icons.save_alt),  
-                title: const Text('Save Image'),  
-                onTap: () {  
-                  _downloadImage(imagePath);  
-                  Navigator.of(context).pop();  
-                },  
-              ),  
-              ListTile(  
-                leading: Icon(Icons.share),  
-                title: const Text('Share Image'),  
-                onTap: () {  
-                  _shareImage(imagePath);  
-                  Navigator.of(context).pop();  
-                },  
-              ),  
-            ],  
-          ),  
-        );  
-      }  
-    );  
+  Future<void> _shareImage(String imagePath) async {
+    // TODO: Implement image sharing logic
+  }
+
+  void _showImageOptions(String imagePath) {
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Image Options'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: Icon(Icons.save_alt),
+                  title: const Text('Save Image'),
+                  onTap: () {
+                    _downloadImage(imagePath);
+                    Navigator.of(context).pop();
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.share),
+                  title: const Text('Share Image'),
+                  onTap: () {
+                    _shareImage(imagePath);
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            ),
+          );
+        });
   }
 
   Widget _buildWebView(BuildContext context) {
-    final String url = _chapterWebViewUrl.isNotEmpty ? _chapterWebViewUrl : 'https://www.google.com';
+    final String url = _chapterWebViewUrl.isNotEmpty
+        ? _chapterWebViewUrl
+        : 'https://www.google.com';
 
     Widget webViewContent;
 
     if (kIsWeb) {
-      return Center(child: Text('Web view not supported on this platform.'),);
+      return Center(
+        child: Text('Web view not supported on this platform.'),
+      );
     } else if (defaultTargetPlatform == TargetPlatform.android) {
       final controller = flutter_webview.WebViewController();
       controller.setJavaScriptMode(flutter_webview.JavaScriptMode.unrestricted);
       controller.setBackgroundColor(const Color(0x00000000));
-      controller.setNavigationDelegate(
-        flutter_webview.NavigationDelegate(
-          onProgress: (int progress) {
-            // Update loading bar
-          },
-          onPageStarted: (String url) {},
-          onPageFinished: (String url) {},
-          onWebResourceError: (flutter_webview.WebResourceError error) {},
-          onNavigationRequest: (flutter_webview.NavigationRequest request) {
-            return flutter_webview.NavigationDecision.navigate;
-          },
-        )
-      );
+      controller.setNavigationDelegate(flutter_webview.NavigationDelegate(
+        onProgress: (int progress) {
+          // Update loading bar
+        },
+        onPageStarted: (String url) {},
+        onPageFinished: (String url) {},
+        onWebResourceError: (flutter_webview.WebResourceError error) {},
+        onNavigationRequest: (flutter_webview.NavigationRequest request) {
+          return flutter_webview.NavigationDecision.navigate;
+        },
+      ));
 
       controller.loadRequest(Uri.parse(url));
 
@@ -372,26 +379,25 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
       );
     } else if (defaultTargetPlatform == TargetPlatform.windows) {
       webViewContent = FutureBuilder<webview_windows.WebviewController>(
-        future: _initializeWebviewController(),
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            final controller = snapshot.data!;
-            controller.loadUrl(url);
-            return webview_windows.Webview(controller);
-          } else if (snapshot.hasError) {
-            return Text('Error: ${snapshot.error}');
-          } else {
-            return const CircularProgressIndicator();
-          }
-        }
-      );
+          future: _initializeWebviewController(),
+          builder: (context, snapshot) {
+            if (snapshot.hasData) {
+              final controller = snapshot.data!;
+              controller.loadUrl(url);
+              return webview_windows.Webview(controller);
+            } else if (snapshot.hasError) {
+              return Text('Error: ${snapshot.error}');
+            } else {
+              return const CircularProgressIndicator();
+            }
+          });
     } else {
       webViewContent = const Text('Unsupported platform');
     }
 
-    final displayTitle = widget.chapterTitle ?? widget.chapterNumber ?? 'Chapter';
+    final displayTitle =
+        widget.chapterTitle ?? widget.chapterNumber ?? 'Chapter';
     return Scaffold(
-      
       appBar: AppBar(
         title: Text(displayTitle),
         backgroundColor: Color.fromARGB(178, 60, 16, 180),
@@ -409,7 +415,6 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
             });
           },
         ),
-
         actions: [
           IconButton(
             icon: const Icon(Icons.open_in_new_rounded, color: Colors.white),
@@ -423,7 +428,8 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
     );
   }
 
-  Future<webview_windows.WebviewController> _initializeWebviewController() async {
+  Future<webview_windows.WebviewController>
+      _initializeWebviewController() async {
     final controller = webview_windows.WebviewController();
     await controller.initialize();
     return controller;
@@ -431,106 +437,108 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final displayTitle = widget.chapterTitle ?? widget.chapterNumber ?? 'Chapter';
+    final displayTitle =
+        widget.chapterTitle ?? widget.chapterNumber ?? 'Chapter';
 
     return Scaffold(
-      appBar:_showControls ? AppBar(
-        title: Text(
-          '${widget.bookTitle} - $displayTitle',
-          style: const TextStyle(color: Color.fromARGB(255, 224, 224, 224), fontWeight: FontWeight.bold)
-        ),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
-        ),
-        backgroundColor: Color.fromARGB(158, 60, 16, 180),
-        elevation: 0,
-        actions: [  
-          IconButton(
-            icon: const Icon(Icons.tune_rounded),
-            onPressed: _showReaderPreferences,
-          ),
-          IconButton(  
-            icon: Icon(Icons.open_in_new_rounded),  
-            onPressed: () => {
-              setState(() {
-                _showWebView = !_showWebView;
-              })
-            },  
-            style: IconButton.styleFrom(  
-              backgroundColor: Colors.deepPurple.withOpacity(0.5),  
-              highlightColor: Colors.white,  
-              foregroundColor: Colors.white,  
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),  
-              shape: RoundedRectangleBorder(  
-                borderRadius: BorderRadius.circular(10),  
-              ),  
-            ),  
-          )  
-        ],  
-      ): null,
-      body: _showWebView ? _buildWebView(context) : GestureDetector(
-        
-        onTap: () {
-          _setControlsVisible(!_showControls);
-        },
-        onLongPress: () {
-          if (_chapterImages.isEmpty) return;
-          final safeIndex = _currentPage.clamp(0, _chapterImages.length - 1).toInt();
-          _showImageOptions(_chapterImages[safeIndex]);
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.black,
-                Colors.grey[900]!,
-              ],
-            ),
-          ),
-          child: _isPaginatedView ? PageView.builder(
-            onPageChanged: (index) {
-              setState(() {
-                _currentPage = index;
-              });
-              _scheduleControlsAutoHide();
-            },
-            reverse: _reverseReading,
-
-            scrollBehavior: ScrollBehavior(
-              
-            ).copyWith(
-              dragDevices: {
-                PointerDeviceKind.touch,
-                PointerDeviceKind.mouse,
-              },
-            ),
-            controller: _pageController,
-            itemCount: _chapterImages.length,
-            itemBuilder: (context, index) {
-              return Image.file(File(_chapterImages[index]));
-            },
-          ) :
-          ListView.builder(
-            controller: _scrollController,
-            reverse: _reverseReading,
-            itemCount: _chapterImages.length,
-            itemBuilder: (context, index) {
-              return Container(
-                key: _imageItemKeys[index],
-                child: Image.file(
-                  File(_chapterImages[index]),
-                  fit: BoxFit.contain,
+      appBar: _showControls
+          ? AppBar(
+              title: Text('${widget.bookTitle} - $displayTitle',
+                  style: const TextStyle(
+                      color: Color.fromARGB(255, 224, 224, 224),
+                      fontWeight: FontWeight.bold)),
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(
+                  bottom: Radius.circular(20),
                 ),
-              );
-            },
-          ),
-        ),
-        
-      ),
+              ),
+              backgroundColor: Color.fromARGB(158, 60, 16, 180),
+              elevation: 0,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.tune_rounded),
+                  onPressed: _showReaderPreferences,
+                ),
+                IconButton(
+                  icon: Icon(Icons.open_in_new_rounded),
+                  onPressed: () => {
+                    setState(() {
+                      _showWebView = !_showWebView;
+                    })
+                  },
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.deepPurple.withValues(alpha: 0.5),
+                    highlightColor: Colors.white,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                )
+              ],
+            )
+          : null,
+      body: _showWebView
+          ? _buildWebView(context)
+          : GestureDetector(
+              onTap: () {
+                _setControlsVisible(!_showControls);
+              },
+              onLongPress: () {
+                if (_chapterImages.isEmpty) return;
+                final safeIndex =
+                    _currentPage.clamp(0, _chapterImages.length - 1).toInt();
+                _showImageOptions(_chapterImages[safeIndex]);
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black,
+                      Colors.grey[900]!,
+                    ],
+                  ),
+                ),
+                child: _isPaginatedView
+                    ? PageView.builder(
+                        onPageChanged: (index) {
+                          setState(() {
+                            _currentPage = index;
+                          });
+                          _scheduleControlsAutoHide();
+                        },
+                        reverse: _reverseReading,
+                        scrollBehavior: ScrollBehavior().copyWith(
+                          dragDevices: {
+                            PointerDeviceKind.touch,
+                            PointerDeviceKind.mouse,
+                          },
+                        ),
+                        controller: _pageController,
+                        itemCount: _chapterImages.length,
+                        itemBuilder: (context, index) {
+                          return Image.file(File(_chapterImages[index]));
+                        },
+                      )
+                    : ListView.builder(
+                        controller: _scrollController,
+                        reverse: _reverseReading,
+                        itemCount: _chapterImages.length,
+                        itemBuilder: (context, index) {
+                          return Container(
+                            key: _imageItemKeys[index],
+                            child: Image.file(
+                              File(_chapterImages[index]),
+                              fit: BoxFit.contain,
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ),
       floatingActionButton: _showControls
           ? FloatingActionButton(
               onPressed: () async {
@@ -558,14 +566,18 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                       decoration: BoxDecoration(
                         color: const Color.fromARGB(185, 42, 19, 107),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withOpacity(0.15)),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.15),
+                        ),
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (_chapterImages.length > 1)
                             Slider(
-                              value: _currentPage.clamp(0, _chapterImages.length - 1).toDouble(),
+                              value: _currentPage
+                                  .clamp(0, _chapterImages.length - 1)
+                                  .toDouble(),
                               min: 0,
                               max: (_chapterImages.length - 1).toDouble(),
                               activeColor: Colors.white,
@@ -580,23 +592,43 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                                 IconButton(
                                   icon: const Icon(Icons.skip_previous_rounded),
                                   onPressed: () async {
-                                    final previousChapterStream = _activeScrapper
-                                        .retrieveLastChapter(widget.chapterId, widget.mangaID);
-                                    await for (var previousChapterData in previousChapterStream) {
-                                      if (previousChapterData['type'] == 'image') {
-                                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => ChapterBookScreen(
-                                          bookTitle: widget.bookTitle,
-                                          chapterId: previousChapterData['chapterID'],
-                                          mangaID: widget.mangaID,
-                                          chapterTitle: previousChapterData['title'],
-                                          chapterNumber: previousChapterData['chapter'],
-                                          chapterWebViewUrl: previousChapterData['chapterWebviewUrl'],
-                                          scrapper: _activeScrapper,
-                                        )));
+                                    final previousChapterStream =
+                                        _activeScrapper.retrieveLastChapter(
+                                            widget.chapterId, widget.mangaID);
+                                    await for (var previousChapterData
+                                        in previousChapterStream) {
+                                      if (previousChapterData['type'] ==
+                                          'image') {
+                                        Navigator.pushReplacement(
+                                            context,
+                                            MaterialPageRoute(
+                                                builder: (context) =>
+                                                    ChapterBookScreen(
+                                                      bookTitle:
+                                                          widget.bookTitle,
+                                                      chapterId:
+                                                          previousChapterData[
+                                                              'chapterID'],
+                                                      mangaID: widget.mangaID,
+                                                      chapterTitle:
+                                                          previousChapterData[
+                                                              'title'],
+                                                      chapterNumber:
+                                                          previousChapterData[
+                                                              'chapter'],
+                                                      chapterWebViewUrl:
+                                                          previousChapterData[
+                                                              'chapterWebviewUrl'],
+                                                      scrapper: _activeScrapper,
+                                                    )));
                                         break;
-                                      } else if (previousChapterData['type'] == 'error') {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text(previousChapterData['message'])),
+                                      } else if (previousChapterData['type'] ==
+                                          'error') {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                              content: Text(previousChapterData[
+                                                  'message'])),
                                         );
                                         break;
                                       }
@@ -619,23 +651,42 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                                 IconButton(
                                   icon: const Icon(Icons.skip_next_rounded),
                                   onPressed: () async {
-                                    final nextChapterStream = _activeScrapper
-                                        .retrieveNextChapter(widget.chapterId, widget.mangaID);
-                                    await for (var nextChapterData in nextChapterStream) {
+                                    final nextChapterStream =
+                                        _activeScrapper.retrieveNextChapter(
+                                            widget.chapterId, widget.mangaID);
+                                    await for (var nextChapterData
+                                        in nextChapterStream) {
                                       if (nextChapterData['type'] == 'image') {
-                                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => ChapterBookScreen(
-                                          bookTitle: widget.bookTitle,
-                                          chapterId: nextChapterData['chapterID'],
-                                          mangaID: widget.mangaID,
-                                          chapterTitle: nextChapterData['title'],
-                                          chapterNumber: nextChapterData['chapter'],
-                                          chapterWebViewUrl: nextChapterData['chapterWebviewUrl'],
-                                          scrapper: _activeScrapper,
-                                        )));
+                                        Navigator.pushReplacement(
+                                            context,
+                                            MaterialPageRoute(
+                                                builder: (context) =>
+                                                    ChapterBookScreen(
+                                                      bookTitle:
+                                                          widget.bookTitle,
+                                                      chapterId:
+                                                          nextChapterData[
+                                                              'chapterID'],
+                                                      mangaID: widget.mangaID,
+                                                      chapterTitle:
+                                                          nextChapterData[
+                                                              'title'],
+                                                      chapterNumber:
+                                                          nextChapterData[
+                                                              'chapter'],
+                                                      chapterWebViewUrl:
+                                                          nextChapterData[
+                                                              'chapterWebviewUrl'],
+                                                      scrapper: _activeScrapper,
+                                                    )));
                                         break;
-                                      } else if (nextChapterData['type'] == 'error') {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text(nextChapterData['message'])),
+                                      } else if (nextChapterData['type'] ==
+                                          'error') {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                              content: Text(
+                                                  nextChapterData['message'])),
                                         );
                                         break;
                                       }

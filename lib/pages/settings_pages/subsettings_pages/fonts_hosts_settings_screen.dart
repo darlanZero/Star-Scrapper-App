@@ -7,7 +7,8 @@ class FontsHostsSettingsScreen extends StatefulWidget {
   const FontsHostsSettingsScreen({super.key});
 
   @override
-  State<FontsHostsSettingsScreen> createState() => _FontsHostsSettingsScreenState();
+  State<FontsHostsSettingsScreen> createState() =>
+      _FontsHostsSettingsScreenState();
 }
 
 class _FontsHostsSettingsScreenState extends State<FontsHostsSettingsScreen> {
@@ -24,7 +25,8 @@ class _FontsHostsSettingsScreenState extends State<FontsHostsSettingsScreen> {
   Future<void> _runNow() async {
     setState(() => _running = true);
     try {
-      await Provider.of<FontProvider>(context, listen: false).checkAllFontsHostsNow();
+      await Provider.of<FontProvider>(context, listen: false)
+          .checkAllFontsHostsNow();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Hosts checked successfully.')),
@@ -53,9 +55,8 @@ class _FontsHostsSettingsScreenState extends State<FontsHostsSettingsScreen> {
       body: Consumer<FontProvider>(
         builder: (context, fontProvider, _) {
           final currentMinutes = fontProvider.fontHostCheckInterval.inMinutes;
-          final intervalValue = _intervalMinutes.contains(currentMinutes)
-              ? currentMinutes
-              : 360;
+          final intervalValue =
+              _intervalMinutes.contains(currentMinutes) ? currentMinutes : 360;
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -63,7 +64,8 @@ class _FontsHostsSettingsScreenState extends State<FontsHostsSettingsScreen> {
                 value: fontProvider.fontHostAutoCheckEnabled,
                 onChanged: fontProvider.setFontHostAutoCheckEnabled,
                 title: const Text('Automatic host checks'),
-                subtitle: const Text('Detect if each source host is online/outdated'),
+                subtitle:
+                    const Text('Detect if each source host is online/outdated'),
               ),
               ListTile(
                 title: const Text('Auto-check interval'),
@@ -79,13 +81,15 @@ class _FontsHostsSettingsScreenState extends State<FontsHostsSettingsScreen> {
                       .toList(),
                   onChanged: (value) {
                     if (value == null) return;
-                    fontProvider.setFontHostCheckInterval(Duration(minutes: value));
+                    fontProvider
+                        .setFontHostCheckInterval(Duration(minutes: value));
                   },
                 ),
               ),
               ListTile(
                 title: const Text('Last check'),
-                subtitle: Text(fontProvider.fontHostLastCheckedAt?.toString() ?? 'Never'),
+                subtitle: Text(
+                    fontProvider.fontHostLastCheckedAt?.toString() ?? 'Never'),
               ),
               ElevatedButton.icon(
                 onPressed: _running ? null : _runNow,

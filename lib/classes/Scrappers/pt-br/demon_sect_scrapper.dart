@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:html/parser.dart' as parser;
@@ -18,18 +19,17 @@ class Book {
   String status;
   List<String> tags;
   String type;
-  Book({
-    required this.id,
-    required this.title,
-    required this.link, 
-    required this.imageUrl,
-    required this.latestChapter,
-    required this.rating,
-    required this.author,
-    required this.status, 
-    required this.tags, 
-    required this.type
-  });
+  Book(
+      {required this.id,
+      required this.title,
+      required this.link,
+      required this.imageUrl,
+      required this.latestChapter,
+      required this.rating,
+      required this.author,
+      required this.status,
+      required this.tags,
+      required this.type});
 
   Map<String, dynamic> toMap() {
     return {
@@ -50,9 +50,8 @@ class Book {
 class DemonSectScrapper extends Scrapper {
   final String baseUrl = 'https://seitacelestial.com';
   int _currentPage = 0;
-  List<dynamic> _allResults = [];
+  final List<dynamic> _allResults = [];
   Map<String, String> _localIds = {};
-
 
   @override
   Future<List<dynamic>> getAll(String filter) async {
@@ -62,9 +61,10 @@ class DemonSectScrapper extends Scrapper {
     return await _fetchResults(filter);
   }
 
-  Future<void> _loadLocalBookIds()async{
+  Future<void> _loadLocalBookIds() async {
     Directory directory = await getApplicationDocumentsDirectory();
-    String filePath = path.join(directory.path, 'demon_sect_books_local_ids.json');
+    String filePath =
+        path.join(directory.path, 'demon_sect_books_local_ids.json');
     File file = File(filePath);
 
     if (await file.exists()) {
@@ -75,7 +75,8 @@ class DemonSectScrapper extends Scrapper {
 
   Future<void> _saveLocalBookIds() async {
     Directory directory = await getApplicationDocumentsDirectory();
-    String filePath = path.join(directory.path, 'demon_sect_books_local_ids.json');
+    String filePath =
+        path.join(directory.path, 'demon_sect_books_local_ids.json');
     File file = File(filePath);
     await file.writeAsString(jsonEncode(_localIds));
   }
@@ -83,7 +84,8 @@ class DemonSectScrapper extends Scrapper {
   String _generateRandomBookId() {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     Random rnd = Random();
-    return String.fromCharCodes(Iterable.generate(12, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
+    return String.fromCharCodes(Iterable.generate(
+        12, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
   }
 
   @override
@@ -111,7 +113,8 @@ class DemonSectScrapper extends Scrapper {
         url = '$baseUrl/comics/?page=${_currentPage + 1}&type=&order=title';
         break;
       case 'z-a':
-        url = '$baseUrl/comics/?page=${_currentPage + 1}&type=&order=titlereverse';
+        url =
+            '$baseUrl/comics/?page=${_currentPage + 1}&type=&order=titlereverse';
         break;
       default:
         throw Exception('Invalid filter');
@@ -119,15 +122,17 @@ class DemonSectScrapper extends Scrapper {
 
     final response = await http.get(Uri.parse(url), headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+      'Accept':
+          'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
     });
 
     if (response.statusCode == 200) {
       final document = parser.parse(response.body);
       var bookElements = document.querySelectorAll('.listupd .bsx a');
-      print('bookElements: ${bookElements.length} in the page: $url');
+      debugPrint('bookElements: ${bookElements.length} in the page: $url');
       List<Book> books = bookElements.map((element) {
-        String title = element.querySelector('.bigor .tt')?.text.trim() ?? 'No title';
+        String title =
+            element.querySelector('.bigor .tt')?.text.trim() ?? 'No title';
         String link = element.attributes['href'] ?? '';
 
         if (link.isNotEmpty && !link.startsWith('/')) {
@@ -135,36 +140,40 @@ class DemonSectScrapper extends Scrapper {
         }
 
         if (link.isEmpty) {
-          print('Warning: Book $title has no available link');
+          debugPrint('Warning: Book $title has no available link');
         }
         String imageurl = element.querySelector('img')?.attributes['src'] ?? '';
-        String latestChapter = element.querySelector('.adds .epxs')?.text.trim() ?? 'No chapter';
-        String ratingString = element.querySelector('.adds .rt .numscore')?.text.trim() ?? '0';
+        String latestChapter =
+            element.querySelector('.adds .epxs')?.text.trim() ?? 'No chapter';
+        String ratingString =
+            element.querySelector('.adds .rt .numscore')?.text.trim() ?? '0';
         double rating = double.tryParse(ratingString) ?? 0.0;
 
-        String id = _localIds.containsKey(link) ? _localIds[link]! : _generateRandomBookId();
+        String id = _localIds.containsKey(link)
+            ? _localIds[link]!
+            : _generateRandomBookId();
         if (!_localIds.containsKey(link)) {
           _localIds[link] = id;
         }
 
-        print('Processing book: $title, id:$id, link: $link, image: $imageurl, latestChapter: $latestChapter, rating: $rating');
+        debugPrint(
+            'Processing book: $title, id:$id, link: $link, image: $imageurl, latestChapter: $latestChapter, rating: $rating');
 
         return Book(
-          id: id,
-          title: title, 
-          link: link, 
-          imageUrl: imageurl, 
-          latestChapter: latestChapter, 
-          rating:rating,
-          author: 'Unknown Author',
-          status: 'Unknown Status',
-          tags: ['tag1, tag2'],
-          type: 'Unknown Type'
-        );
+            id: id,
+            title: title,
+            link: link,
+            imageUrl: imageurl,
+            latestChapter: latestChapter,
+            rating: rating,
+            author: 'Unknown Author',
+            status: 'Unknown Status',
+            tags: ['tag1, tag2'],
+            type: 'Unknown Type');
       }).toList();
 
-      print('Books: ${books.length}');
-      
+      debugPrint('Books: ${books.length}');
+
       _allResults.addAll(books.map((book) => book.toMap()).toList());
       await _saveLocalBookIds();
       return _allResults;
@@ -207,11 +216,12 @@ class DemonSectScrapper extends Scrapper {
 
   String _extractMangaId(String link) {
     if (link.isEmpty) {
-      print('Warning: Book has no available link');
+      debugPrint('Warning: Book has no available link');
       return '';
     }
 
-    final trimmedLink = link.endsWith('/') ? link.substring(0, link.length - 1) : link;
+    final trimmedLink =
+        link.endsWith('/') ? link.substring(0, link.length - 1) : link;
 
     final uri = Uri.parse(trimmedLink);
     if (uri.pathSegments.contains('comics')) {
@@ -221,7 +231,7 @@ class DemonSectScrapper extends Scrapper {
       }
     }
 
-    print('Warning: Link structure not recognized: $link');
+    debugPrint('Warning: Link structure not recognized: $link');
     return '';
   }
 
@@ -238,7 +248,7 @@ class DemonSectScrapper extends Scrapper {
         break;
       }
     }
-    
+
     if (selectedBook == null) {
       throw Exception('Book not found for mangaID: $mangaID');
     }
@@ -246,42 +256,44 @@ class DemonSectScrapper extends Scrapper {
     final url = '$baseUrl/comics/$mangaID';
     final response = await http.get(Uri.parse(url), headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+      'Accept':
+          'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
     });
 
     if (response.statusCode == 200) {
       final document = parser.parse(response.body);
 
       String authorText = document
-        .querySelector('.tsinfo .imptdt:nth-child(3) .author .name')
-        ?.text.trim() ?? 
-        'Unknown Author';
+              .querySelector('.tsinfo .imptdt:nth-child(3) .author .name')
+              ?.text
+              .trim() ??
+          'Unknown Author';
       String statusText = document
-        .querySelector('.tsinfo .imptdt:nth-child(1) i')
-        ?.text.trim() ?? 
-        'Unknown Status';
+              .querySelector('.tsinfo .imptdt:nth-child(1) i')
+              ?.text
+              .trim() ??
+          'Unknown Status';
       List<String> tags = document
-        .querySelectorAll('.wd-full .mgen a')
-        .map((e) => e.text.trim())
-        .toList();
+          .querySelectorAll('.wd-full .mgen a')
+          .map((e) => e.text.trim())
+          .toList();
       String typeText = document
-        .querySelector('.tsinfo .imptdt:nth-child(2) a')
-        ?.text.trim() ?? 
-        'Unknown Type';
-      String descriptionText = document
-        .querySelector('.wd-full .desc')
-        ?.text.trim() ?? 
-        'No description';
+              .querySelector('.tsinfo .imptdt:nth-child(2) a')
+              ?.text
+              .trim() ??
+          'Unknown Type';
+      String descriptionText =
+          document.querySelector('.wd-full .desc')?.text.trim() ??
+              'No description';
 
-      
       return {
-        'id': selectedBook != null ? selectedBook['id'] : mangaID,
-        'title': selectedBook != null ? selectedBook['title'] : 'No title',
+        'id': selectedBook['id'],
+        'title': selectedBook['title'],
         'altTitles': [],
         'description': descriptionText,
         'coverArt': {
           'id': null,
-          'filename':  selectedBook['imageurl'],
+          'filename': selectedBook['imageurl'],
         },
         'mangaUrl': url,
         'author': {
@@ -330,17 +342,26 @@ class DemonSectScrapper extends Scrapper {
   }
 
   @override
-  Stream<Map<String, dynamic>> retrieveLastChapter(String currentChapterId, String mangaId) async* {
-    yield {'type': 'error', 'message': 'Navegação entre capítulos não é suportada nesta fonte.'};
+  Stream<Map<String, dynamic>> retrieveLastChapter(
+      String currentChapterId, String mangaId) async* {
+    yield {
+      'type': 'error',
+      'message': 'Navegação entre capítulos não é suportada nesta fonte.'
+    };
   }
 
   @override
-  Stream<Map<String, dynamic>> retrieveNextChapter(String currentChapterId, String mangaId) async* {
-    yield {'type': 'error', 'message': 'Navegação entre capítulos não é suportada nesta fonte.'};
+  Stream<Map<String, dynamic>> retrieveNextChapter(
+      String currentChapterId, String mangaId) async* {
+    yield {
+      'type': 'error',
+      'message': 'Navegação entre capítulos não é suportada nesta fonte.'
+    };
   }
 
   @override
-  Stream<Map<String, dynamic>> getChapter(String chapterID, String mangaID) async* {
+  Stream<Map<String, dynamic>> getChapter(
+      String chapterID, String mangaID) async* {
     yield {'error': 'Not implemented yet'};
   }
 
@@ -359,10 +380,12 @@ class DemonSectScrapper extends Scrapper {
     await _loadLocalBookIds();
 
     final results = bookElements.map((element) {
-      final title = element.querySelector('.bigor .tt')?.text.trim() ?? 'No title';
+      final title =
+          element.querySelector('.bigor .tt')?.text.trim() ?? 'No title';
       final link = element.attributes['href'] ?? '';
       final imageUrl = element.querySelector('img')?.attributes['src'] ?? '';
-      final latestChapter = element.querySelector('.adds .epxs')?.text.trim() ?? '';
+      final latestChapter =
+          element.querySelector('.adds .epxs')?.text.trim() ?? '';
 
       final id = _localIds.containsKey(link)
           ? _localIds[link]!
@@ -383,4 +406,3 @@ class DemonSectScrapper extends Scrapper {
     return results;
   }
 }
-

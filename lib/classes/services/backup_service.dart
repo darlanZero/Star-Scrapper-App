@@ -98,8 +98,8 @@ class BackupService {
       throw Exception('Backup file not found.');
     }
 
-    final downloadsDir =
-        await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+    final downloadsDir = await getDownloadsDirectory() ??
+        await getApplicationDocumentsDirectory();
     final destinationPath = path.join(
       downloadsDir.path,
       source.path.split(Platform.pathSeparator).last,
@@ -177,7 +177,8 @@ class BackupService {
         break;
       case 'stringList':
         if (value is List) {
-          await prefs.setStringList(key, value.map((e) => e.toString()).toList());
+          await prefs.setStringList(
+              key, value.map((e) => e.toString()).toList());
         }
         break;
       case 'string':

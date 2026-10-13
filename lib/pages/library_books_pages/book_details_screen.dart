@@ -1,28 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, kDebugMode;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, kDebugMode;
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 import 'package:star_scrapper_app/pages/library_books_pages/chapter_book_screen.dart';
-import 'package:url_launcher/url_launcher.dart';  
-import 'package:webview_flutter/webview_flutter.dart' as flutter_webview;  
+import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart' as flutter_webview;
 import 'package:webview_windows/webview_windows.dart' as webview_windows;
-
 
 class BookDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> bookDetails;
+
   /// Scrapper a ser usado nesta tela. Se null, usa o selectedFontApi global.
   final Scrapper? scrapper;
   const BookDetailsScreen({
-    Key? key,
+    super.key,
     required this.bookDetails,
     this.scrapper,
-  }): super(key: key);
+  });
 
   @override
-  _BookDetailsScreenState createState() => _BookDetailsScreenState();
+  State<BookDetailsScreen> createState() => _BookDetailsScreenState();
 }
 
 class _BookDetailsScreenState extends State<BookDetailsScreen> {
@@ -46,15 +47,18 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
       // Se o livro veio da busca online (sem capítulos), busca os detalhes completos.
       // Usa o scrapper explícito, ou tenta detectá-lo pelo domínio da capa.
-      final hasChapters = (bookDetails['chapters'] as List?)?.isNotEmpty == true;
-      final effectiveScrapper = widget.scrapper
-          ?? fontProvider.findScrapperForBook(bookDetails);
+      final hasChapters =
+          (bookDetails['chapters'] as List?)?.isNotEmpty == true;
+      final effectiveScrapper =
+          widget.scrapper ?? fontProvider.findScrapperForBook(bookDetails);
       if (!hasChapters && effectiveScrapper != null) {
         setState(() {
-          _updateFuture = fontProvider.updateBookDetails(
+          _updateFuture = fontProvider
+              .updateBookDetails(
             bookDetails['id'],
             scrapper: effectiveScrapper,
-          ).then((_) {
+          )
+              .then((_) {
             // Atualiza o estado local com os dados carregados
             final updated = fontProvider.favoritedBooks.firstWhere(
               (b) => b['id'] == bookDetails['id'],
@@ -82,36 +86,34 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
       _selectedLanguagePrefix = languagePrefix;
     });
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final theme = Provider.of<ThemeProvider>(context);
     bool isDesktop = MediaQuery.of(context).size.width > 600;
-    
 
     return Scaffold(
-      backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
-      body: _showWebView ? 
-        _buildWebView(context) : 
-        FutureBuilder<void>(
-          future: _updateFuture, 
-          builder: (context, snapshot) {
-            if (_updateFuture == null) {
-              return _ReactiveDetailsBook(context, isDesktop, theme, bookDetails);
-            } else {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              } else if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
-              } else {
-                return _ReactiveDetailsBook(context, isDesktop, theme, bookDetails);
-              }
-            }
-          }
-        ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+        backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
+        body: _showWebView
+            ? _buildWebView(context)
+            : FutureBuilder<void>(
+                future: _updateFuture,
+                builder: (context, snapshot) {
+                  if (_updateFuture == null) {
+                    return _reactiveDetailsBook(
+                        context, isDesktop, theme, bookDetails);
+                  } else {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    } else if (snapshot.hasError) {
+                      return Center(child: Text('Error: ${snapshot.error}'));
+                    } else {
+                      return _reactiveDetailsBook(
+                          context, isDesktop, theme, bookDetails);
+                    }
+                  }
+                }),
+        floatingActionButton: Column(mainAxisSize: MainAxisSize.min, children: [
           FloatingActionButton(
             heroTag: 'reverse_chapters',
             onPressed: _toogleChapterOrder,
@@ -119,88 +121,79 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
             child: Icon(
               _isChapterReversed ? Icons.arrow_downward : Icons.arrow_upward,
               color: Colors.white,
-              
             ),
           ),
           const SizedBox(height: 8.0),
           FloatingActionButton(
-            heroTag: 'update_book_details',
-            onPressed: () async {
-              final fontProvider = Provider.of<FontProvider>(context, listen: false);
-              final bookId = widget.bookDetails['id'];
+              heroTag: 'update_book_details',
+              onPressed: () async {
+                final fontProvider =
+                    Provider.of<FontProvider>(context, listen: false);
+                final bookId = widget.bookDetails['id'];
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: const [
-                      Text('Updating book details...'),
-                      SizedBox(width: 10),
-                      CircularProgressIndicator(),
-                    ]
-                  ),
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Row(children: const [
+                    Text('Updating book details...'),
+                    SizedBox(width: 10),
+                    CircularProgressIndicator(),
+                  ]),
                   duration: const Duration(minutes: 1),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-                )
-              );
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.0)),
+                ));
 
-              final effectiveScrapper = widget.scrapper
-                  ?? fontProvider.findScrapperForBook(bookDetails);
-              try {
-                await fontProvider.updateBookDetails(bookId, scrapper: effectiveScrapper);
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
+                final effectiveScrapper = widget.scrapper ??
+                    fontProvider.findScrapperForBook(bookDetails);
+                try {
+                  await fontProvider.updateBookDetails(bookId,
+                      scrapper: effectiveScrapper);
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: Text('Book details updated successfully!'),
                     duration: Duration(seconds: 2),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10.0)),
                     backgroundColor: Colors.green,
-                  )
-                );
+                  ));
 
-                final updatedBook = fontProvider.favoritedBooks.firstWhere(
-                  (book) => book['id'] == bookId,
-                  orElse: () => bookDetails,
-                );
+                  final updatedBook = fontProvider.favoritedBooks.firstWhere(
+                    (book) => book['id'] == bookId,
+                    orElse: () => bookDetails,
+                  );
 
-                setState(() {
-                  _updateFuture = null;
-                  bookDetails = updatedBook;
-
-                }); // Refresh the screen
-              } catch (e) {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
+                  setState(() {
+                    _updateFuture = null;
+                    bookDetails = updatedBook;
+                  }); // Refresh the screen
+                } catch (e) {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: Text('Failed to update book details: $e'),
                     duration: Duration(seconds: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10.0)),
                     backgroundColor: Colors.red,
-                  )
-                );
+                  ));
 
-                if (kDebugMode) {
-                  print('Failed to update book details: $e');
+                  if (kDebugMode) {
+                    print('Failed to update book details: $e');
+                  }
+
+                  setState(() {
+                    _updateFuture = null;
+                  });
                 }
-
-                setState(() {
-                  _updateFuture = null;
-                });
-              }
-
-            },
-            hoverColor: Colors.blueGrey,
-            child: const Icon(
-              Icons.update,
-              color: Colors.white,
-            )
-          )
-        ]
-      )
-    );
+              },
+              hoverColor: Colors.blueGrey,
+              child: const Icon(
+                Icons.update,
+                color: Colors.white,
+              ))
+        ]));
   }
 
-  Widget _ReactiveDetailsBook(BuildContext context, bool isDesktop, ThemeProvider theme, Map<String, dynamic> bookDetails) {
-    
+  Widget _reactiveDetailsBook(BuildContext context, bool isDesktop,
+      ThemeProvider theme, Map<String, dynamic> bookDetails) {
     List<dynamic> chapters = List.from(bookDetails['chapters'] ?? []);
 
     if (_isChapterReversed) {
@@ -209,17 +202,16 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
     if (_selectedLanguagePrefix.isNotEmpty) {
       chapters = chapters
-        .where((chapter) => 
-          chapter['translatedLanguage']
-          .toString()
-          .startsWith(_selectedLanguagePrefix)
-        )
-        .toList();
+          .where((chapter) => chapter['translatedLanguage']
+              .toString()
+              .startsWith(_selectedLanguagePrefix))
+          .toList();
     }
 
-    String imageUrl = bookDetails['coverImageUrl'] ?? 'https://static.thenounproject.com/png/482114-200.png';
+    String imageUrl = bookDetails['coverImageUrl'] ??
+        'https://static.thenounproject.com/png/482114-200.png';
 
-    void _showManageTabsDialog(BuildContext context) {
+    void showManageTabsDialog(BuildContext context) {
       final fontProvider = Provider.of<FontProvider>(context, listen: false);
       final tabsState = Provider.of<TabsState>(context, listen: false);
 
@@ -230,7 +222,9 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
       final rawTabs = storedBook['tabs'];
       final initialTabs = rawTabs is List
           ? List<String>.from(rawTabs)
-          : (storedBook['tab'] is String ? [storedBook['tab'] as String] : <String>['Reading']);
+          : (storedBook['tab'] is String
+              ? [storedBook['tab'] as String]
+              : <String>['Reading']);
       final rawSubTabsByPrimary = storedBook['subTabsByPrimary'];
       final Map<String, List<String>> initialSubTabsByPrimary = {};
       if (rawSubTabsByPrimary is Map) {
@@ -243,7 +237,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
       } else {
         for (final tab in initialTabs) {
           final fallback = tabsState.getDefaultSubTabForPrimary(tab);
-          initialSubTabsByPrimary[tab] = fallback.isEmpty ? <String>[] : <String>[fallback];
+          initialSubTabsByPrimary[tab] =
+              fallback.isEmpty ? <String>[] : <String>[fallback];
         }
       }
 
@@ -273,26 +268,33 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                               if (checked == true) {
                                 if (!selectedTabs.contains(libraryTab)) {
                                   selectedTabs.add(libraryTab);
-                                  fontProvider.addBookToTab(libraryTab, bookDetails);
+                                  fontProvider.addBookToTab(
+                                      libraryTab, bookDetails);
                                   selectedSubTabsByPrimary.putIfAbsent(
                                     libraryTab,
                                     () {
-                                      final fallback = tabsState.getDefaultSubTabForPrimary(libraryTab);
-                                      return fallback.isEmpty ? <String>[] : <String>[fallback];
+                                      final fallback =
+                                          tabsState.getDefaultSubTabForPrimary(
+                                              libraryTab);
+                                      return fallback.isEmpty
+                                          ? <String>[]
+                                          : <String>[fallback];
                                     },
                                   );
                                 }
                               } else if (selectedTabs.length > 1) {
                                 selectedTabs.remove(libraryTab);
-                                fontProvider.removeBookFromTab(libraryTab, bookDetails);
+                                fontProvider.removeBookFromTab(
+                                    libraryTab, bookDetails);
                               }
                             });
                           },
                         );
-                      }).toList(),
+                      }),
                       const SizedBox(height: 8),
                       ...selectedTabs.expand((primaryTab) {
-                        final subTabs = tabsState.getSubTabsForPrimary(primaryTab);
+                        final subTabs =
+                            tabsState.getSubTabsForPrimary(primaryTab);
                         final selectedSubTabs =
                             selectedSubTabsByPrimary[primaryTab] ?? <String>[];
 
@@ -304,7 +306,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                           if (subTabs.isEmpty)
                             const Padding(
                               padding: EdgeInsets.only(left: 12, bottom: 8),
-                              child: Text('Sem subtabs para esta tab primária.'),
+                              child:
+                                  Text('Sem subtabs para esta tab primária.'),
                             ),
                           ...subTabs.map((subTab) {
                             return CheckboxListTile(
@@ -313,7 +316,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                               onChanged: (bool? checked) {
                                 setDialogState(() {
                                   final current =
-                                      selectedSubTabsByPrimary[primaryTab] ?? <String>[];
+                                      selectedSubTabsByPrimary[primaryTab] ??
+                                          <String>[];
                                   if (checked == true) {
                                     if (!current.contains(subTab)) {
                                       current.add(subTab);
@@ -331,7 +335,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                                       bookDetails,
                                     );
                                   }
-                                  selectedSubTabsByPrimary[primaryTab] = current;
+                                  selectedSubTabsByPrimary[primaryTab] =
+                                      current;
                                 });
                               },
                             );
@@ -358,138 +363,142 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     return CustomScrollView(
       slivers: <Widget>[
         SliverAppBar(
-          iconTheme: const IconThemeData(color: Colors.blueGrey, size: 30.0, shadows: <Shadow>[
-            Shadow(color: Colors.black, blurRadius: 10.0),
-          ]),
+          iconTheme: const IconThemeData(
+              color: Colors.blueGrey,
+              size: 30.0,
+              shadows: <Shadow>[
+                Shadow(color: Colors.black, blurRadius: 10.0),
+              ]),
           expandedHeight: isDesktop ? 500.0 : 250.0,
           pinned: true,
           flexibleSpace: FlexibleSpaceBar(
             background: Stack(
               fit: StackFit.expand,
               children: <Widget>[
-                                                                                                                                                                                                                                                                                                                                                                    
                 ClipRRect(
                   child: Image.network(
                     imageUrl,
                     fit: isDesktop ? BoxFit.cover : BoxFit.fill,
-                    color: Colors.black.withOpacity(0.5),
-                    colorBlendMode:BlendMode.darken,
+                    color: Colors.black.withValues(alpha: 0.5),
+                    colorBlendMode: BlendMode.darken,
                   ),
                 ),
                 Container(
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.center,
-                      colors: [
-                        Colors.black,
-                        Colors.transparent,
-                      ]
-                    ),
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.center,
+                        colors: [
+                          Colors.black,
+                          Colors.transparent,
+                        ]),
                   ),
-                ), 
-                Positioned(
-                  top: 16.0,
-                  left: 16.0,
-                  child: Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        imageUrl,
-                        width: isDesktop ? 200 : 100,
-                        height: isDesktop ? 300 : 200,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  )
                 ),
+                Positioned(
+                    top: 16.0,
+                    left: 16.0,
+                    child: Card(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          imageUrl,
+                          width: isDesktop ? 200 : 100,
+                          height: isDesktop ? 300 : 200,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    )),
                 Positioned(
                   top: 16.0,
                   left: isDesktop ? 240 : 130,
                   child: Text(
                     widget.bookDetails['type'] ?? 'No type available',
                     style: const TextStyle(
-                      fontSize: 24.0,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      shadows: <Shadow>[
-                        Shadow(color: Colors.black, blurRadius: 10.0),
-                      ]
-                    ),
+                        fontSize: 24.0,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        shadows: <Shadow>[
+                          Shadow(color: Colors.black, blurRadius: 10.0),
+                        ]),
                   ),
                 ),
-
-                if (!isDesktop) Positioned(
-                  bottom: 30.0,
-                  right: 16.0,
-                  width: 300,
-
-                  child: Wrap(
-                    spacing: 8.0,
-                    runSpacing: 8.0,
-                    alignment: WrapAlignment.center,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    verticalDirection: VerticalDirection.down,
-                    direction: Axis.horizontal,
-                    children: ((widget.bookDetails['tags'] as List?) ?? []).map<Widget>((tag) => Chip(
-                        label: Text(tag, style: TextStyle(color: theme.selectedTheme.textTheme.displayMedium?.color),),
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                        visualDensity: VisualDensity.compact,
-                        elevation: 2.0,
-                        surfaceTintColor: Colors.transparent,
-                        shape: const StadiumBorder(),
-                        labelStyle: const TextStyle(color: Colors.white),
-                        side: const BorderSide(color: Colors.transparent),
-                      ))
-                      .toList(),
-                  )
-                ),
-                
-                if (isDesktop) Positioned(
-                  top: 16.0,
-                  right: 16.0,
-                  child: SizedBox(
-                    width: 300,
-                    child: SingleChildScrollView(
-                      child: Text(
-                        bookDetails['description'] ?? 'No description Available',
-                        style: const TextStyle(
-                          fontSize: 16.0,
-                          color: Colors.white
+                if (!isDesktop)
+                  Positioned(
+                      bottom: 30.0,
+                      right: 16.0,
+                      width: 300,
+                      child: Wrap(
+                        spacing: 8.0,
+                        runSpacing: 8.0,
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        verticalDirection: VerticalDirection.down,
+                        direction: Axis.horizontal,
+                        children: ((widget.bookDetails['tags'] as List?) ?? [])
+                            .map<Widget>((tag) => Chip(
+                                  label: Text(
+                                    tag,
+                                    style: TextStyle(
+                                        color: theme.selectedTheme.textTheme
+                                            .displayMedium?.color),
+                                  ),
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8.0, vertical: 4.0),
+                                  visualDensity: VisualDensity.compact,
+                                  elevation: 2.0,
+                                  surfaceTintColor: Colors.transparent,
+                                  shape: const StadiumBorder(),
+                                  labelStyle:
+                                      const TextStyle(color: Colors.white),
+                                  side: const BorderSide(
+                                      color: Colors.transparent),
+                                ))
+                            .toList(),
+                      )),
+                if (isDesktop)
+                  Positioned(
+                    top: 16.0,
+                    right: 16.0,
+                    child: SizedBox(
+                      width: 300,
+                      child: SingleChildScrollView(
+                        child: Text(
+                          bookDetails['description'] ??
+                              'No description Available',
+                          style: const TextStyle(
+                              fontSize: 16.0, color: Colors.white),
                         ),
                       ),
                     ),
                   ),
-                ),
                 Positioned(
                   bottom: 16.0,
                   left: 16.0,
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _extractPersonName(bookDetails['author']) ?? 'No author available',
-                        style: TextStyle(
-                          fontSize: isDesktop ? 16.0 : 8.0,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _extractPersonName(bookDetails['author']) ??
+                              'No author available',
+                          style: TextStyle(
+                              fontSize: isDesktop ? 16.0 : 8.0,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey),
                         ),
-                      ),
-                      const SizedBox(width: 8.0),
-                      Text(
-                        _extractPersonName(bookDetails['artist']) ?? 'No artist available',
-                        style:  TextStyle(
-                          fontSize: isDesktop ? 16.0 : 8.0,
-                          color: Colors.grey
-                        ),
-                      )
-                    ]
-                  ),
+                        const SizedBox(width: 8.0),
+                        Text(
+                          _extractPersonName(bookDetails['artist']) ??
+                              'No artist available',
+                          style: TextStyle(
+                              fontSize: isDesktop ? 16.0 : 8.0,
+                              color: Colors.grey),
+                        )
+                      ]),
                 )
               ],
             ),
@@ -497,20 +506,19 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           actions: [
             Consumer<FontProvider>(
               builder: (context, favoritedBooksState, child) {
-                final isFavorited = favoritedBooksState.isFavorited(bookDetails);
+                final isFavorited =
+                    favoritedBooksState.isFavorited(bookDetails);
                 return IconButton(
-                  icon: Icon(
-                    isFavorited ? Icons.favorite : Icons.favorite_border,
-                    color: Colors.red,
-                  ),
-                  onPressed: () {
-                    favoritedBooksState.toggleFavorite(bookDetails);
-                    setState(() {});
-                  }
-                );
+                    icon: Icon(
+                      isFavorited ? Icons.favorite : Icons.favorite_border,
+                      color: Colors.red,
+                    ),
+                    onPressed: () {
+                      favoritedBooksState.toggleFavorite(bookDetails);
+                      setState(() {});
+                    });
               },
             ),
-
             const SizedBox(width: 16.0),
             IconButton(
               icon: const Icon(Icons.open_in_browser),
@@ -520,52 +528,54 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                 });
               },
             ),
-
             const SizedBox(width: 16.0),
-
             PopupMenuButton(
-              onSelected: (String value) {
-                if (value == 'Manage Tabs') {
-                  _showManageTabsDialog(context);
-                }
-              },
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                const PopupMenuItem<String>(
-                  value: 'Rename Book',
-                  child: Text('Rename book'),
-                ),
-                const PopupMenuItem<String>(
-                  value: 'Migrate Book',
-                  child: Text('Migrate book'),
-                ),
-                const PopupMenuItem<String>(
-                  value: 'Manage Tabs',
-                  child: Text('Gerenciar tabs'),
-                ),
-              ]
-            ),
+                onSelected: (String value) {
+                  if (value == 'Manage Tabs') {
+                    showManageTabsDialog(context);
+                  }
+                },
+                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                      const PopupMenuItem<String>(
+                        value: 'Rename Book',
+                        child: Text('Rename book'),
+                      ),
+                      const PopupMenuItem<String>(
+                        value: 'Migrate Book',
+                        child: Text('Migrate book'),
+                      ),
+                      const PopupMenuItem<String>(
+                        value: 'Manage Tabs',
+                        child: Text('Gerenciar tabs'),
+                      ),
+                    ]),
           ],
         ),
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
-              crossAxisAlignment: isDesktop ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+              crossAxisAlignment: isDesktop
+                  ? CrossAxisAlignment.center
+                  : CrossAxisAlignment.start,
               children: [
                 Text(
                   bookDetails['title'] ?? 'No title available',
                   style: TextStyle(
-                    fontSize: 24.0,
-                    fontWeight: FontWeight.bold,
-                    color: theme.selectedTheme.textTheme.titleMedium?.color,
-                    shadows: <Shadow>[
-                      Shadow(color: Color.fromARGB(255, 87, 25, 25), blurRadius: 2.0),
-                      Shadow(color: Color.fromARGB(255, 0, 0, 0), blurRadius: 2.0),
-                    ]
-                  ),
+                      fontSize: 24.0,
+                      fontWeight: FontWeight.bold,
+                      color: theme.selectedTheme.textTheme.titleMedium?.color,
+                      shadows: const <Shadow>[
+                        Shadow(
+                            color: Color.fromARGB(255, 87, 25, 25),
+                            blurRadius: 2.0),
+                        Shadow(
+                            color: Color.fromARGB(255, 0, 0, 0),
+                            blurRadius: 2.0),
+                      ]),
                 ),
-
-                if (bookDetails['altTitles'] != null && bookDetails['altTitles'].isNotEmpty)
+                if (bookDetails['altTitles'] != null &&
+                    bookDetails['altTitles'].isNotEmpty)
                   Card(
                     margin: EdgeInsets.only(top: 16.0),
                     surfaceTintColor: Colors.blueGrey,
@@ -576,87 +586,90 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                       padding: const EdgeInsets.all(8.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: bookDetails['altTitles'].map<Widget>((altTitle) {
-                          return Text(
-                            altTitle.values.first,
-                            style: TextStyle(
-                              fontSize: 16.0,
-                              color: theme.selectedTheme.textTheme.displayMedium?.color
-                            )
-                          );
-                        }
-                      ).toList(),),
+                        children:
+                            bookDetails['altTitles'].map<Widget>((altTitle) {
+                          return Text(altTitle.values.first,
+                              style: TextStyle(
+                                  fontSize: 16.0,
+                                  color: theme.selectedTheme.textTheme
+                                      .displayMedium?.color));
+                        }).toList(),
+                      ),
                     ),
                   ),
-
                 const SizedBox(height: 16.0),
                 if (!isDesktop)
                   Text(
                     bookDetails['description'] ?? 'No description Available',
                     style: TextStyle(
-                      fontSize: 16.0,
-                      color: theme.selectedTheme.textTheme.displayMedium?.color
-                    ),
+                        fontSize: 16.0,
+                        color:
+                            theme.selectedTheme.textTheme.displayMedium?.color),
                   ),
-
-                  if (isDesktop) Wrap(
+                if (isDesktop)
+                  Wrap(
                     spacing: 8.0,
-                    children: ((bookDetails['tags'] as List?) ?? []).map<Widget>((tag) {
+                    children: ((bookDetails['tags'] as List?) ?? [])
+                        .map<Widget>((tag) {
                       return Chip(
-                        label: Text(tag, style: TextStyle(color: theme.selectedTheme.textTheme.displayMedium?.color),),
+                        label: Text(
+                          tag,
+                          style: TextStyle(
+                              color: theme.selectedTheme.textTheme.displayMedium
+                                  ?.color),
+                        ),
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8.0, vertical: 4.0),
                         visualDensity: VisualDensity.compact,
                         elevation: 2.0,
                         surfaceTintColor: Colors.transparent,
                         shape: const StadiumBorder(),
-                        labelStyle: TextStyle(color: theme.selectedTheme.textTheme.displayMedium?.color),
+                        labelStyle: TextStyle(
+                            color: theme
+                                .selectedTheme.textTheme.displayMedium?.color),
                         side: const BorderSide(color: Colors.transparent),
                       );
                     }).toList(),
                   ),
-
                 Text(
                   'Chapters',
                   style: TextStyle(
-                    fontSize: 20.0,
-                    fontWeight: FontWeight.bold,
-                    color: theme.selectedTheme.textTheme.displayMedium?.color
-                  ),
-                ), 
+                      fontSize: 20.0,
+                      fontWeight: FontWeight.bold,
+                      color:
+                          theme.selectedTheme.textTheme.displayMedium?.color),
+                ),
                 const SizedBox(height: 8.0),
-
                 SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: _buildLanguageFilterButtons(),
-                  )
-                )
-
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: _buildLanguageFilterButtons(),
+                    ))
               ],
             ),
           ),
         ),
-
         SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (BuildContext context, int index) {
+            delegate: SliverChildBuilderDelegate(
+          (BuildContext context, int index) {
+            if (index >= chapters.length) {
+              return const SizedBox.shrink();
+            }
 
-              if (index >= chapters.length) {
-                return const SizedBox.shrink();
-              }
+            final chapter = chapters[index];
+            final fontProvider =
+                Provider.of<FontProvider>(context, listen: false);
+            final readChapterIds =
+                (fontProvider.selectedChapterIds[bookDetails['id']] ?? [])
+                    .map((c) => c['id'] as String)
+                    .toSet();
+            final isRead =
+                readChapterIds.contains(chapter['id'] as String? ?? '');
 
-              final chapter = chapters[index];
-              final fontProvider = Provider.of<FontProvider>(context, listen: false);
-              final readChapterIds = (fontProvider.selectedChapterIds[bookDetails['id']] ?? [])
-                  .map((c) => c['id'] as String)
-                  .toSet();
-              final isRead = readChapterIds.contains(chapter['id'] as String? ?? '');
-
-              return ListTile(
-                title:
-                Row(
+            return ListTile(
+                title: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
@@ -665,24 +678,22 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                         style: TextStyle(
-                          color: theme.selectedTheme.textTheme.titleSmall?.color,
-                          fontSize: 16.0,
-                          fontWeight: FontWeight.bold
-                        ),
+                            color:
+                                theme.selectedTheme.textTheme.titleSmall?.color,
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.bold),
                       ),
                     ),
-
                     if (chapter['volume'] != null)
                       Text(
-                        'Vol. ${_FormatVolume(chapter['volume']?.toString())}',
+                        'Vol. ${_formatVolume(chapter['volume']?.toString())}',
                         style: TextStyle(
-                          color: theme.selectedTheme.textTheme.titleSmall?.color,
+                          color:
+                              theme.selectedTheme.textTheme.titleSmall?.color,
                           fontSize: 16.0,
                         ),
                       ),
-
                     SizedBox(width: 8.0),
-
                     Text(
                       '${chapter['translatedLanguage'] ?? ''}',
                       style: TextStyle(
@@ -700,7 +711,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                 tileColor: _selectedChapterId == chapter['id']
                     ? const Color(0xFF483D8B).withAlpha(150)
                     : isRead
-                        ? Colors.green.withOpacity(0.08)
+                        ? Colors.green.withValues(alpha: 0.08)
                         : null,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8.0),
@@ -712,7 +723,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                       Text(
                         '${chapter['pages']} pages',
                         style: TextStyle(
-                          color: theme.selectedTheme.textTheme.displayMedium?.color,
+                          color: theme
+                              .selectedTheme.textTheme.displayMedium?.color,
                           fontSize: 14.0,
                         ),
                       ),
@@ -720,14 +732,16 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                       Text(
                         chapter['uploader'],
                         style: TextStyle(
-                          color: theme.selectedTheme.textTheme.displayMedium?.color,
+                          color: theme
+                              .selectedTheme.textTheme.displayMedium?.color,
                           fontSize: 14.0,
                         ),
                       ),
                     Text(
                       _formatDate(chapter['publishedAt']?.toString()),
                       style: TextStyle(
-                        color: theme.selectedTheme.textTheme.displayMedium?.color,
+                        color:
+                            theme.selectedTheme.textTheme.displayMedium?.color,
                         fontSize: 14.0,
                       ),
                     )
@@ -743,55 +757,57 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   });
 
                   await Provider.of<FontProvider>(context, listen: false)
-                      .SaveSingleSelectedChapterId(
-                        bookDetails['id'],
-                        chapterId,
-                        chapterNumber,
-                      );
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Row(
-                        children: const [
-                          Text('Loading chapter...'),
-                          SizedBox(width: 10),
-                          CircularProgressIndicator(),
-                        ]
-                      ),
-                      duration: const Duration(minutes: 5),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-                    )
+                      .saveSingleSelectedChapterId(
+                    bookDetails['id'],
+                    chapterId,
+                    chapterNumber,
                   );
 
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Row(children: const [
+                      Text('Loading chapter...'),
+                      SizedBox(width: 10),
+                      CircularProgressIndicator(),
+                    ]),
+                    duration: const Duration(minutes: 5),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10.0)),
+                  ));
+
                   try {
-                    final _fp = Provider.of<FontProvider>(context, listen: false);
-                    final fontApi = widget.scrapper
-                        ?? _fp.findScrapperForBook(bookDetails)
-                        ?? _fp.selectedFontApi;
-                    await for (final chapterData in fontApi.getChapter(chapterId, bookDetails['id'])) {
+                    final fontProvider =
+                        Provider.of<FontProvider>(context, listen: false);
+                    final fontApi = widget.scrapper ??
+                        fontProvider.findScrapperForBook(bookDetails) ??
+                        fontProvider.selectedFontApi;
+                    await for (final chapterData
+                        in fontApi.getChapter(chapterId, bookDetails['id'])) {
                       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => ChapterBookScreen(
-                        bookTitle: bookDetails['title'],
-                        chapterId: chapterData['chapterID'],
-                        chapterTitle: chapter['title'],
-                        mangaID: bookDetails['id'],
-                        chapterNumber: chapterNumber,
-                        chapterWebViewUrl: chapterData['chapterWebviewUrl'],
-                        scrapper: fontApi,
-                      )));
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => ChapterBookScreen(
+                                    bookTitle: bookDetails['title'],
+                                    chapterId: chapterData['chapterID'],
+                                    chapterTitle: chapter['title'],
+                                    mangaID: bookDetails['id'],
+                                    chapterNumber: chapterNumber,
+                                    chapterWebViewUrl:
+                                        chapterData['chapterWebviewUrl'],
+                                    scrapper: fontApi,
+                                  )));
                       break;
                     }
                   } catch (e) {
                     ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to load chapter: $e'),
-                        backgroundColor: Colors.red,
-                        behavior: SnackBarBehavior.floating,
-                        duration: const Duration(seconds: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-                      )
-                    );
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text('Failed to load chapter: $e'),
+                      backgroundColor: Colors.red,
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 10),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.0)),
+                    ));
 
                     if (kDebugMode) {
                       print('Failed to load chapter: $e');
@@ -801,21 +817,19 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                       _isLoadingChapter = false;
                     });
                   }
-                }
-              );
-            },
-            childCount: chapters.length,
-          )
-        )
+                });
+          },
+          childCount: chapters.length,
+        ))
       ],
     );
   }
 
   List<Widget> _buildLanguageFilterButtons() {
     List<String> languagePrefixes = ((bookDetails['chapters'] as List?) ?? [])
-      .map<String>((chapter) => chapter['translatedLanguage'].toString())
-      .toSet()
-      .toList();
+        .map<String>((chapter) => chapter['translatedLanguage'].toString())
+        .toSet()
+        .toList();
 
     return languagePrefixes.map((prefix) {
       return Padding(
@@ -835,24 +849,24 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     Widget webViewContent;
 
     if (kIsWeb) {
-      return Center(child: Text('Web view not supported on this platform.'),);
+      return Center(
+        child: Text('Web view not supported on this platform.'),
+      );
     } else if (defaultTargetPlatform == TargetPlatform.android) {
       final controller = flutter_webview.WebViewController();
       controller.setJavaScriptMode(flutter_webview.JavaScriptMode.unrestricted);
       controller.setBackgroundColor(const Color(0x00000000));
-      controller.setNavigationDelegate(
-        flutter_webview.NavigationDelegate(
-          onProgress: (int progress) {
-            // Update loading bar
-          },
-          onPageStarted: (String url) {},
-          onPageFinished: (String url) {},
-          onWebResourceError: (flutter_webview.WebResourceError error) {},
-          onNavigationRequest: (flutter_webview.NavigationRequest request) {
-            return flutter_webview.NavigationDecision.navigate;
-          },
-        )
-      );
+      controller.setNavigationDelegate(flutter_webview.NavigationDelegate(
+        onProgress: (int progress) {
+          // Update loading bar
+        },
+        onPageStarted: (String url) {},
+        onPageFinished: (String url) {},
+        onWebResourceError: (flutter_webview.WebResourceError error) {},
+        onNavigationRequest: (flutter_webview.NavigationRequest request) {
+          return flutter_webview.NavigationDecision.navigate;
+        },
+      ));
       controller.loadRequest(Uri.parse(url));
 
       webViewContent = flutter_webview.WebViewWidget(
@@ -860,24 +874,23 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
       );
     } else if (defaultTargetPlatform == TargetPlatform.windows) {
       webViewContent = FutureBuilder<webview_windows.WebviewController>(
-        future: _initializeWebviewController(),
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            final controller = snapshot.data!;
-            controller.loadUrl(url);
+          future: _initializeWebviewController(),
+          builder: (context, snapshot) {
+            if (snapshot.hasData) {
+              final controller = snapshot.data!;
+              controller.loadUrl(url);
 
-            return webview_windows.Webview(
-              controller
-            );
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else {
-            return const Center(child: CircularProgressIndicator());
-          }
-        }
-      );
+              return webview_windows.Webview(controller);
+            } else if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            } else {
+              return const Center(child: CircularProgressIndicator());
+            }
+          });
     } else {
-      webViewContent = Center(child: Text('Platform not supported.'),);
+      webViewContent = Center(
+        child: Text('Platform not supported.'),
+      );
     }
 
     return Scaffold(
@@ -907,7 +920,6 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           ),
         ],
       ),
-    
       body: webViewContent,
     );
   }
@@ -925,10 +937,10 @@ Future<webview_windows.WebviewController> _initializeWebviewController() async {
 ///   MediocreScan: title = 'Capítulo 1', chapter = null → 'Capítulo 1'
 String _buildChapterLabel(Map chapter) {
   final title = chapter['title']?.toString().trim() ?? '';
-  final num   = chapter['chapter']?.toString().trim() ?? '';
+  final num = chapter['chapter']?.toString().trim() ?? '';
   if (title.isNotEmpty && num.isNotEmpty) return '$title - Chapter $num';
   if (title.isNotEmpty) return title;
-  if (num.isNotEmpty)   return 'Chapter $num';
+  if (num.isNotEmpty) return 'Chapter $num';
   return 'Chapter ?';
 }
 
@@ -956,7 +968,7 @@ String _formatDate(String? date) {
   }
 }
 
-String _FormatVolume (String? volume) {
+String _formatVolume(String? volume) {
   if (volume == null) {
     return 'No volume';
   }

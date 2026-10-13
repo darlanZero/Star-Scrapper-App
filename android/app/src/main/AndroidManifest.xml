@@ -12,7 +12,7 @@
 
 
     <application
-        android:label="Star Scrapper"
+        android:label="StarsLibrary"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

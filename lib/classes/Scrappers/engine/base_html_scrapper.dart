@@ -40,7 +40,9 @@ abstract class BaseHtmlScrapper extends Scrapper {
 
   // ─── Identificação ────────────────────────────────────────────────────────
 
-  String get siteKey => profile.name.toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+  @override
+  String get siteKey =>
+      profile.name.toLowerCase().replaceAll(RegExp(r'\s+'), '_');
 
   HtmlSelectorMap get _sel {
     assert(profile.selectors != null,
@@ -50,6 +52,7 @@ abstract class BaseHtmlScrapper extends Scrapper {
 
   // ─── Sessão ───────────────────────────────────────────────────────────────
 
+  @override
   bool get isAuthenticated => _cookies.isNotEmpty;
 
   Future<void> _ensureSession() async {
@@ -59,6 +62,7 @@ abstract class BaseHtmlScrapper extends Scrapper {
   }
 
   /// Atualiza a sessão com cookies externos (ex.: vindos de [AuthWebViewScreen]).
+  @override
   Future<void> updateSession(Map<String, String> cookies) async {
     _cookies = Map.from(cookies);
     await SessionManager.saveCookies(siteKey, _cookies);
@@ -82,6 +86,7 @@ abstract class BaseHtmlScrapper extends Scrapper {
   void assertAuthResponse(http.Response res) => _assertAuth(res);
 
   /// Efetua logout: limpa cookies locais e, opcionalmente, chama a URL de logout.
+  @override
   Future<void> logout() async {
     _cookies = {};
     await SessionManager.clearSession(siteKey);
@@ -97,8 +102,9 @@ abstract class BaseHtmlScrapper extends Scrapper {
   Map<String, String> get _baseHeaders => {
         'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-            '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept':
+            'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
         'Referer': profile.baseUrl,
       };
@@ -121,15 +127,18 @@ abstract class BaseHtmlScrapper extends Scrapper {
       final response = await http.Response.fromStream(streamed);
       if (maxRedirects > 0 &&
           (response.statusCode == 301 ||
-           response.statusCode == 302 ||
-           response.statusCode == 303)) {
+              response.statusCode == 302 ||
+              response.statusCode == 303)) {
         final location = response.headers['location'] ?? '';
         if (location.isEmpty) return response;
         // Auth redirect — return as-is so _assertAuth can detect it
         if (location.contains('login') || location.contains('entrar')) {
           return response;
         }
-        return _get(_absoluteUrl(location), maxRedirects: maxRedirects - 1);
+        return await _get(
+          _absoluteUrl(location),
+          maxRedirects: maxRedirects - 1,
+        );
       }
       return response;
     } finally {
@@ -193,6 +202,7 @@ abstract class BaseHtmlScrapper extends Scrapper {
   ///   2. POST com os campos configurados → extrai cookies de sessão.
   ///
   /// Throws [Exception] se as credenciais forem inválidas.
+  @override
   Future<void> authenticateWithCredentials(
     String username,
     String password,
@@ -210,14 +220,14 @@ abstract class BaseHtmlScrapper extends Scrapper {
       headers: _baseHeaders,
     );
     if (loginPageRes.statusCode != 200) {
-      throw Exception('Falha ao acessar página de login: ${loginPageRes.statusCode}');
+      throw Exception(
+          'Falha ao acessar página de login: ${loginPageRes.statusCode}');
     }
 
     // Extrai CSRF do Set-Cookie da página de login
     final setCookies = _parseSetCookieList(loginPageRes);
-    final csrfFromCookie = auth.csrfCookieName != null
-        ? setCookies[auth.csrfCookieName!]
-        : null;
+    final csrfFromCookie =
+        auth.csrfCookieName != null ? setCookies[auth.csrfCookieName!] : null;
 
     // Extrai CSRF do HTML (campo hidden)
     String? csrfFromHtml;
@@ -316,7 +326,9 @@ abstract class BaseHtmlScrapper extends Scrapper {
       if (raw[i] == ',') {
         // Verifica se é início de novo cookie (próximo char não é espaço+dígito)
         final nextNonSpace = raw.indexOf(RegExp(r'\S'), i + 1);
-        final next = nextNonSpace >= 0 ? raw.substring(nextNonSpace, nextNonSpace + 3) : '';
+        final next = nextNonSpace >= 0
+            ? raw.substring(nextNonSpace, nextNonSpace + 3)
+            : '';
         final isDateComma = RegExp(r'^\d{2}\s').hasMatch(next);
         if (!isDateComma) {
           result.add(current.toString().trim());
@@ -364,24 +376,28 @@ abstract class BaseHtmlScrapper extends Scrapper {
     final container = doc.querySelector(s.listContainer);
     if (container == null) return [];
     final items = container.querySelectorAll(s.listItem);
-    return items.map((el) {
-      // Fallback: se o seletor falhar (ex.: o próprio elemento é o link),
-      // usa o elemento em si para extrair o atributo.
-      final linkEl = el.querySelector(s.itemLinkSelector) ?? el;
-      final link = _absoluteUrl(_attr(linkEl, s.itemLinkAttr));
-      final id = _extractId(link);
-      final coverRaw = _attr(el.querySelector(s.itemCoverSelector), s.itemCoverAttr);
-      return {
-        'id': id,
-        'title': _text(el.querySelector(s.itemTitle), s.itemTitleAttr),
-        'coverImageUrl': _absoluteUrl(coverRaw),
-        'link': link,
-        'latestChapter': s.itemLatestChapterSelector != null
-            ? _text(el.querySelector(s.itemLatestChapterSelector!))
-            : '',
-        'type': 'manga',
-      };
-    }).where((b) => (b['id'] as String).isNotEmpty).toList();
+    return items
+        .map((el) {
+          // Fallback: se o seletor falhar (ex.: o próprio elemento é o link),
+          // usa o elemento em si para extrair o atributo.
+          final linkEl = el.querySelector(s.itemLinkSelector) ?? el;
+          final link = _absoluteUrl(_attr(linkEl, s.itemLinkAttr));
+          final id = _extractId(link);
+          final coverRaw =
+              _attr(el.querySelector(s.itemCoverSelector), s.itemCoverAttr);
+          return {
+            'id': id,
+            'title': _text(el.querySelector(s.itemTitle), s.itemTitleAttr),
+            'coverImageUrl': _absoluteUrl(coverRaw),
+            'link': link,
+            'latestChapter': s.itemLatestChapterSelector != null
+                ? _text(el.querySelector(s.itemLatestChapterSelector!))
+                : '',
+            'type': 'manga',
+          };
+        })
+        .where((b) => (b['id'] as String).isNotEmpty)
+        .toList();
   }
 
   // ─── Scrapper contract implementation ────────────────────────────────────
@@ -414,18 +430,23 @@ abstract class BaseHtmlScrapper extends Scrapper {
     final container = doc.querySelector(s.searchContainer);
     if (container == null) return [];
     final itemSel = s.searchItem ?? s.listItem;
-    return container.querySelectorAll(itemSel).map((el) {
-      final linkEl = el.querySelector(s.itemLinkSelector) ?? el;
-      final link = _absoluteUrl(_attr(linkEl, s.itemLinkAttr));
-      final coverRaw = _attr(el.querySelector(s.itemCoverSelector), s.itemCoverAttr);
-      return {
-        'id': _extractId(link),
-        'title': _text(el.querySelector(s.itemTitle), s.itemTitleAttr),
-        'coverImageUrl': _absoluteUrl(coverRaw),
-        'link': link,
-        'type': 'manga',
-      };
-    }).where((b) => (b['id'] as String).isNotEmpty).toList();
+    return container
+        .querySelectorAll(itemSel)
+        .map((el) {
+          final linkEl = el.querySelector(s.itemLinkSelector) ?? el;
+          final link = _absoluteUrl(_attr(linkEl, s.itemLinkAttr));
+          final coverRaw =
+              _attr(el.querySelector(s.itemCoverSelector), s.itemCoverAttr);
+          return {
+            'id': _extractId(link),
+            'title': _text(el.querySelector(s.itemTitle), s.itemTitleAttr),
+            'coverImageUrl': _absoluteUrl(coverRaw),
+            'link': link,
+            'type': 'manga',
+          };
+        })
+        .where((b) => (b['id'] as String).isNotEmpty)
+        .toList();
   }
 
   @override
@@ -436,8 +457,10 @@ abstract class BaseHtmlScrapper extends Scrapper {
     final doc = html_parser.parse(res.body);
     final s = _sel;
 
-    final title = _text(doc.querySelector(s.detailTitleSelector), s.detailTitleAttr);
-    final coverRaw = _attr(doc.querySelector(s.detailCoverSelector), s.detailCoverAttr);
+    final title =
+        _text(doc.querySelector(s.detailTitleSelector), s.detailTitleAttr);
+    final coverRaw =
+        _attr(doc.querySelector(s.detailCoverSelector), s.detailCoverAttr);
     final description = s.detailDescriptionSelector != null
         ? _text(doc.querySelector(s.detailDescriptionSelector!))
         : '';
@@ -505,7 +528,8 @@ abstract class BaseHtmlScrapper extends Scrapper {
     // Override na subclasse se o site tiver link de "capítulo anterior".
     yield {
       'chapterID': currentChapterId,
-      'chapterWebviewUrl': profile.buildChapterUrl(currentChapterId, profile.baseUrl),
+      'chapterWebviewUrl':
+          profile.buildChapterUrl(currentChapterId, profile.baseUrl),
     };
   }
 
@@ -516,7 +540,8 @@ abstract class BaseHtmlScrapper extends Scrapper {
   ) async* {
     yield {
       'chapterID': currentChapterId,
-      'chapterWebviewUrl': profile.buildChapterUrl(currentChapterId, profile.baseUrl),
+      'chapterWebviewUrl':
+          profile.buildChapterUrl(currentChapterId, profile.baseUrl),
     };
   }
 
@@ -529,6 +554,5 @@ abstract class BaseHtmlScrapper extends Scrapper {
       (bookDetails['coverImageUrl'] ?? '').toString();
 
   @override
-  String getBookId(dynamic bookDetails) =>
-      (bookDetails['id'] ?? '').toString();
+  String getBookId(dynamic bookDetails) => (bookDetails['id'] ?? '').toString();
 }
