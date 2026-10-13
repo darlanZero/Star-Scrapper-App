@@ -25,4 +25,15 @@ void main() {
       everyElement(SourceContentType.manga),
     );
   });
+
+  test('bundled anime sources use their typed video contract', () {
+    final sources = SourceCatalog.createAnimeSources();
+    final ids = sources.map((source) => source.id).toList();
+
+    expect(sources, isNotEmpty);
+    expect(ids.toSet(), hasLength(ids.length));
+    expect(ids, contains('anitube'));
+    expect(ids, contains('aniwave'));
+    expect(ids, contains('smart_animes'));
+  });
 }

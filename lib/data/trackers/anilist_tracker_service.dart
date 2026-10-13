@@ -339,6 +339,88 @@ class AniListTrackerService implements TrackerService {
     );
   }
 
+  Future<void> addAnimeToList({
+    int? aniListId,
+    int? malId,
+    required String title,
+  }) async {
+    if (accessToken == null || accessToken!.isEmpty) {
+      throw const TrackerRequestException('AniList is not connected.');
+    }
+    var mediaId = aniListId;
+    if (mediaId == null) {
+      const query = '''
+        query ResolveAnime(\$idMal: Int, \$search: String) {
+          Media(type: ANIME, idMal: \$idMal, search: \$search) { id }
+        }
+      ''';
+      final data = await _post(query, {
+        if (malId != null) 'idMal': malId,
+        if (malId == null) 'search': title,
+      });
+      final media = data['Media'];
+      if (media is Map) mediaId = (media['id'] as num?)?.toInt();
+    }
+    if (mediaId == null) {
+      throw TrackerRequestException('AniList could not match "$title".');
+    }
+    const mutation = '''
+      mutation AddAnime(\$mediaId: Int!) {
+        SaveMediaListEntry(mediaId: \$mediaId, status: CURRENT) { id status }
+      }
+    ''';
+    await _post(mutation, {'mediaId': mediaId});
+  }
+
+  Future<void> updateAnimeProgress({
+    int? aniListId,
+    int? malId,
+    required String title,
+    required int progress,
+  }) async {
+    if (accessToken == null || accessToken!.isEmpty) {
+      throw const TrackerRequestException('AniList is not connected.');
+    }
+    final mediaId = await _resolveAnimeId(
+      aniListId: aniListId,
+      malId: malId,
+      title: title,
+    );
+    const mutation = '''
+      mutation UpdateAnimeProgress(\$mediaId: Int!, \$progress: Int!) {
+        SaveMediaListEntry(
+          mediaId: \$mediaId,
+          status: CURRENT,
+          progress: \$progress
+        ) { id status progress }
+      }
+    ''';
+    await _post(mutation, {'mediaId': mediaId, 'progress': progress});
+  }
+
+  Future<int> _resolveAnimeId({
+    int? aniListId,
+    int? malId,
+    required String title,
+  }) async {
+    if (aniListId != null) return aniListId;
+    const query = '''
+      query ResolveAnime(\$idMal: Int, \$search: String) {
+        Media(type: ANIME, idMal: \$idMal, search: \$search) { id }
+      }
+    ''';
+    final data = await _post(query, {
+      if (malId != null) 'idMal': malId,
+      if (malId == null) 'search': title,
+    });
+    final media = data['Media'];
+    final resolved = media is Map ? (media['id'] as num?)?.toInt() : null;
+    if (resolved == null) {
+      throw TrackerRequestException('AniList could not match "$title".');
+    }
+    return resolved;
+  }
+
   Future<Map<String, dynamic>> _post(
     String query,
     Map<String, dynamic> variables,

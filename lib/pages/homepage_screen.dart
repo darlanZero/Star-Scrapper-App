@@ -6,6 +6,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.dart';
+import 'package:star_scrapper_app/pages/anime_library_grid.dart';
+import 'package:star_scrapper_app/application/library/anime_library_controller.dart';
+import 'package:star_scrapper_app/domain/library/anime_library_record.dart';
+
+enum _LibraryMediaType { manga, anime }
 
 class HomePageScreen extends StatefulWidget {
   const HomePageScreen({super.key});
@@ -18,11 +23,14 @@ class _HomePageScreenState extends State<HomePageScreen> {
   static const String _sortPrefKey = 'home_sort_option';
 
   late TabsState _tabsState;
+  late AnimeTabsState _animeTabsState;
   final List<GlobalKey> _primaryTabKeys = [];
   final Map<String, int> _secondaryIndexByPrimary = {};
 
   _HomeSortOption _sortOption = _HomeSortOption.addedLast;
   int _primaryIndex = 0;
+  int _animePrimaryIndex = 0;
+  _LibraryMediaType _mediaType = _LibraryMediaType.manga;
 
   @override
   void initState() {
@@ -34,17 +42,26 @@ class _HomePageScreenState extends State<HomePageScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _tabsState = Provider.of<TabsState>(context, listen: false);
+    _animeTabsState = Provider.of<AnimeTabsState>(context, listen: false);
     _tabsState.removeListener(_rebuildTabControllers);
     _tabsState.addListener(_rebuildTabControllers);
+    _animeTabsState.removeListener(_rebuildTabControllers);
+    _animeTabsState.addListener(_rebuildTabControllers);
     _rebuildTabControllers();
   }
 
   void _rebuildTabControllers() {
     final primary = _tabsState.libraryTabs;
-    if (primary.isEmpty) return;
+    final animePrimary = _animeTabsState.libraryTabs;
+    if (primary.isEmpty || animePrimary.isEmpty) return;
 
     _primaryIndex = _primaryIndex.clamp(0, primary.length - 1);
-    _syncPrimaryTabKeys(primary.length);
+    _animePrimaryIndex = _animePrimaryIndex.clamp(0, animePrimary.length - 1);
+    _syncPrimaryTabKeys(
+      _mediaType == _LibraryMediaType.manga
+          ? primary.length
+          : animePrimary.length,
+    );
     if (mounted) setState(() {});
   }
 
@@ -58,6 +75,7 @@ class _HomePageScreenState extends State<HomePageScreen> {
   @override
   void dispose() {
     _tabsState.removeListener(_rebuildTabControllers);
+    _animeTabsState.removeListener(_rebuildTabControllers);
     super.dispose();
   }
 
@@ -77,9 +95,12 @@ class _HomePageScreenState extends State<HomePageScreen> {
         elevation: 0,
         toolbarHeight: 0,
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(64),
+          preferredSize: const Size.fromHeight(116),
           child: FutureBuilder<void>(
-            future: _tabsState.tabsLoaded,
+            future: Future.wait([
+              _tabsState.tabsLoaded,
+              _animeTabsState.tabsLoaded,
+            ]),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const SizedBox(
@@ -89,7 +110,9 @@ class _HomePageScreenState extends State<HomePageScreen> {
                 );
               }
 
-              final primary = _tabsState.libraryTabs;
+              final primary = _mediaType == _LibraryMediaType.manga
+                  ? _tabsState.libraryTabs
+                  : _animeTabsState.libraryTabs;
               _syncPrimaryTabKeys(primary.length);
 
               return Padding(
@@ -97,6 +120,32 @@ class _HomePageScreenState extends State<HomePageScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    SegmentedButton<_LibraryMediaType>(
+                      segments: const [
+                        ButtonSegment(
+                          value: _LibraryMediaType.manga,
+                          icon: Icon(Icons.menu_book_rounded),
+                          label: Text('Manga'),
+                        ),
+                        ButtonSegment(
+                          value: _LibraryMediaType.anime,
+                          icon: Icon(Icons.play_circle_outline_rounded),
+                          label: Text('Anime'),
+                        ),
+                      ],
+                      selected: {_mediaType},
+                      onSelectionChanged: (value) {
+                        setState(() {
+                          _mediaType = value.first;
+                          _syncPrimaryTabKeys(
+                            _mediaType == _LibraryMediaType.manga
+                                ? _tabsState.libraryTabs.length
+                                : _animeTabsState.libraryTabs.length,
+                          );
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 8),
                     _buildPrimaryTabsBar(
                       labels: primary,
                       appBarBase: appBarBase,
@@ -111,23 +160,28 @@ class _HomePageScreenState extends State<HomePageScreen> {
           ),
         ),
       ),
-      body: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 48, 14, 10),
-            child: _buildActiveGrid(),
-          ),
-          Positioned(
-            right: 18,
-            top: 4,
-            child: IconButton.filledTonal(
-              onPressed: _showSortSheet,
-              tooltip: 'Sort books',
-              icon: const Icon(Icons.sort_rounded),
+      body: _mediaType == _LibraryMediaType.anime
+          ? Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+              child: AnimeLibraryGrid(records: _activeAnimeRecords()),
+            )
+          : Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 48, 14, 10),
+                  child: _buildActiveGrid(),
+                ),
+                Positioned(
+                  right: 18,
+                  top: 4,
+                  child: IconButton.filledTonal(
+                    onPressed: _showSortSheet,
+                    tooltip: 'Sort books',
+                    icon: const Icon(Icons.sort_rounded),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -158,7 +212,10 @@ class _HomePageScreenState extends State<HomePageScreen> {
             itemCount: labels.length,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
-              final isSelected = index == _primaryIndex;
+              final activeIndex = _mediaType == _LibraryMediaType.manga
+                  ? _primaryIndex
+                  : _animePrimaryIndex;
+              final isSelected = index == activeIndex;
               return GestureDetector(
                 key: _primaryTabKeys[index],
                 onTap: () => _onPrimaryTabTapped(index),
@@ -198,14 +255,20 @@ class _HomePageScreenState extends State<HomePageScreen> {
   }
 
   Future<void> _onPrimaryTabTapped(int index) async {
-    final primaryTabs = _tabsState.libraryTabs;
+    final state =
+        _mediaType == _LibraryMediaType.manga ? _tabsState : _animeTabsState;
+    final primaryTabs = state.libraryTabs;
     if (index < 0 || index >= primaryTabs.length) return;
 
     final primary = primaryTabs[index];
-    final subTabs = _tabsState.getSubTabsForPrimary(primary);
+    final subTabs = state.getSubTabsForPrimary(primary);
 
     setState(() {
-      _primaryIndex = index;
+      if (_mediaType == _LibraryMediaType.manga) {
+        _primaryIndex = index;
+      } else {
+        _animePrimaryIndex = index;
+      }
       _secondaryIndexByPrimary.putIfAbsent(primary, () => 0);
     });
 
@@ -235,6 +298,18 @@ class _HomePageScreenState extends State<HomePageScreen> {
     setState(() {
       _secondaryIndexByPrimary[primary] = picked;
     });
+  }
+
+  List<AnimeLibraryRecord> _activeAnimeRecords() {
+    final library = context.watch<AnimeLibraryController>();
+    final tabs = _animeTabsState.libraryTabs;
+    if (tabs.isEmpty) return const [];
+    final primary = tabs[_animePrimaryIndex.clamp(0, tabs.length - 1)];
+    final subtabs = _animeTabsState.getSubTabsForPrimary(primary);
+    if (subtabs.isEmpty) return library.favoritesInTab(primary);
+    final index =
+        (_secondaryIndexByPrimary[primary] ?? 0).clamp(0, subtabs.length - 1);
+    return library.favoritesInTabAndSubtab(primary, subtabs[index]);
   }
 
   Future<int?> _showSubTabGlassMenu({

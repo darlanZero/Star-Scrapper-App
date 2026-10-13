@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,12 +16,17 @@ class AnimePlayerScreen extends StatefulWidget {
   final AnimePlayback playback;
   final String title;
   final String? episodeTitle;
+  final Duration initialPosition;
+  final Future<void> Function(Duration position, Duration duration)?
+      onProgressChanged;
 
   const AnimePlayerScreen({
     super.key,
     required this.playback,
     required this.title,
     this.episodeTitle,
+    this.initialPosition = Duration.zero,
+    this.onProgressChanged,
   });
 
   @override
@@ -51,6 +57,10 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
   double _gestureValue = 0.5;
   IconData? _gestureIcon;
   String? _gestureLabel;
+  Duration _lastReportedPosition = Duration.zero;
+  Duration? _pendingInitialSeek;
+  DateTime? _lastInitialSeekAttempt;
+  DateTime? _initialSeekReachedAt;
 
   PlaybackPreferences get _preferences => context.read<PlaybackPreferences>();
 
@@ -60,7 +70,9 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
     VolumeController.instance.showSystemUI = false;
     _enterPlayerMode();
     _createPlayer();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _openCurrentStream());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _openCurrentStream(start: widget.initialPosition),
+    );
   }
 
   void _createPlayer() {
@@ -90,12 +102,15 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
       player.stream.position.listen(_onPosition),
       player.stream.duration.listen((value) {
         if (mounted) setState(() => _duration = value);
+        if (value > Duration.zero) unawaited(_attemptInitialSeek());
       }),
       player.stream.playing.listen((value) {
         if (mounted) setState(() => _playing = value);
+        if (!value) _reportProgress(force: true);
       }),
       player.stream.buffering.listen((value) {
         if (mounted) setState(() => _buffering = value);
+        if (!value) unawaited(_attemptInitialSeek());
       }),
       player.stream.tracks.listen((value) {
         if (mounted) setState(() => _tracks = value);
@@ -114,6 +129,9 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
     bool play = true,
   }) async {
     final stream = widget.playback.streams[_streamIndex];
+    _pendingInitialSeek = start > Duration.zero ? start : null;
+    _lastInitialSeekAttempt = null;
+    _initialSeekReachedAt = null;
     setState(() {
       _buffering = true;
       _error = null;
@@ -123,10 +141,12 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
         Media(
           stream.uri.toString(),
           httpHeaders: stream.headers.isEmpty ? null : stream.headers,
-          start: start == Duration.zero ? null : start,
         ),
         play: play,
       );
+      if (start > Duration.zero) {
+        await _attemptInitialSeek(force: true);
+      }
       await _selectPreferredSubtitle();
       _restartControlsTimer();
     } catch (error) {
@@ -136,20 +156,24 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
 
   Future<void> _selectPreferredSubtitle() async {
     if (widget.playback.subtitles.isEmpty) return;
-    final preferred = _preferences.subtitleLanguage.toLowerCase();
+    final configured = _preferences.subtitleLanguage.toLowerCase();
+    final deviceLanguage = Localizations.localeOf(context).languageCode;
+    final preferred = configured == 'auto' ? deviceLanguage : configured;
     AnimeSubtitleTrack? track;
-    if (preferred != 'off') {
+    if (configured != 'off') {
       track = widget.playback.subtitles.cast<AnimeSubtitleTrack?>().firstWhere(
-            (candidate) => candidate!.isDefault,
-            orElse: () => null,
-          );
-      if (preferred != 'auto') {
-        track =
-            widget.playback.subtitles.cast<AnimeSubtitleTrack?>().firstWhere(
-                  (candidate) => candidate!.language.toLowerCase() == preferred,
-                  orElse: () => track,
-                );
-      }
+        (candidate) {
+          final language = candidate!.language.toLowerCase();
+          return language == preferred ||
+              language.split('-').first == preferred.split('-').first;
+        },
+        orElse: () => null,
+      );
+      track ??=
+          widget.playback.subtitles.cast<AnimeSubtitleTrack?>().firstWhere(
+                (candidate) => candidate!.isDefault,
+                orElse: () => null,
+              );
       track ??= widget.playback.subtitles.first;
     }
     if (track == null) {
@@ -169,7 +193,7 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
         );
       }
       mediaTrack = SubtitleTrack.data(
-        response.body,
+        utf8.decode(response.bodyBytes, allowMalformed: true),
         title: track.label,
         language: track.language,
       );
@@ -186,12 +210,65 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
   void _onPosition(Duration value) {
     if (!mounted) return;
     setState(() => _position = value);
+    final pending = _pendingInitialSeek;
+    if (pending != null) {
+      if (value >= pending - const Duration(seconds: 2)) {
+        final reachedAt = _initialSeekReachedAt ??= DateTime.now();
+        if (DateTime.now().difference(reachedAt) >=
+            const Duration(seconds: 4)) {
+          _pendingInitialSeek = null;
+          _initialSeekReachedAt = null;
+          _lastReportedPosition = value;
+        }
+      } else {
+        // Some HLS backends briefly acknowledge the seek and reset to zero
+        // while the first segment is initialized. Keep retrying until stable.
+        _initialSeekReachedAt = null;
+        unawaited(_attemptInitialSeek());
+      }
+    }
+    if ((value - _lastReportedPosition).abs() >= const Duration(seconds: 5)) {
+      _reportProgress();
+    }
     if (!_preferences.autoSkipIntro) return;
     final segment = _activeSkipSegment;
     if (segment != null && _automaticallySkipped.add(segment)) {
       _player?.seek(segment.end);
       _showGestureFeedback(Icons.skip_next_rounded, segment.displayLabel);
     }
+  }
+
+  void _reportProgress({bool force = false}) {
+    final callback = widget.onProgressChanged;
+    // A player may briefly emit 0-2 seconds while restoring a saved position.
+    // Never let that transient value overwrite the actual resume point.
+    if (_pendingInitialSeek != null ||
+        callback == null ||
+        _position <= Duration.zero) {
+      return;
+    }
+    if (!force &&
+        (_position - _lastReportedPosition).abs() <
+            const Duration(seconds: 5)) {
+      return;
+    }
+    _lastReportedPosition = _position;
+    unawaited(callback(_position, _duration));
+  }
+
+  Future<void> _attemptInitialSeek({bool force = false}) async {
+    final player = _player;
+    final target = _pendingInitialSeek;
+    if (player == null || target == null || _duration <= Duration.zero) return;
+    final now = DateTime.now();
+    if (!force &&
+        _lastInitialSeekAttempt != null &&
+        now.difference(_lastInitialSeekAttempt!) <
+            const Duration(milliseconds: 750)) {
+      return;
+    }
+    _lastInitialSeekAttempt = now;
+    await player.seek(target);
   }
 
   AnimeSkipSegment? get _activeSkipSegment {
@@ -342,19 +419,19 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
                       controller: controller,
                       controls: NoVideoControls,
                       fit: BoxFit.contain,
-                      subtitleViewConfiguration:
-                          const SubtitleViewConfiguration(
+                      subtitleViewConfiguration: SubtitleViewConfiguration(
                         style: TextStyle(
                           height: 1.3,
-                          fontSize: 22,
+                          fontSize: _preferences.subtitleFontSize,
+                          fontFamily: _preferences.subtitleTypeface.fontFamily,
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
-                          shadows: [
+                          shadows: const [
                             Shadow(blurRadius: 3, color: Colors.black),
                             Shadow(blurRadius: 6, color: Colors.black),
                           ],
                         ),
-                        padding: EdgeInsets.fromLTRB(24, 24, 24, 74),
+                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 74),
                       ),
                     ),
                   if (_buffering)
@@ -568,52 +645,100 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: const Color(0xFF17151D),
-      builder: (context) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            const ListTile(
-              title: Text('Subtitles'),
-              subtitle: Text('Embedded and source-provided tracks'),
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.86,
             ),
-            ListTile(
-              leading: const Icon(Icons.subtitles_off_rounded),
-              title: const Text('Off'),
-              onTap: () {
-                _player?.setSubtitleTrack(SubtitleTrack.no());
-                Navigator.pop(context);
-              },
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                const ListTile(
+                  title: Text('Subtitles'),
+                  subtitle: Text('Embedded and source-provided tracks'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.text_fields_rounded),
+                  title: const Text('Subtitle font'),
+                  trailing: DropdownButton<SubtitleTypeface>(
+                    value: _preferences.subtitleTypeface,
+                    items: SubtitleTypeface.values
+                        .map(
+                          (typeface) => DropdownMenuItem(
+                            value: typeface,
+                            child: Text(typeface.label),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (typeface) {
+                      if (typeface == null) return;
+                      unawaited(_preferences.setSubtitleTypeface(typeface));
+                      setState(() {});
+                      setSheetState(() {});
+                    },
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.format_size_rounded),
+                  title: Text(
+                    'Subtitle size · ${_preferences.subtitleFontSize.round()} px',
+                  ),
+                  subtitle: Slider(
+                    min: 16,
+                    max: 48,
+                    divisions: 16,
+                    value: _preferences.subtitleFontSize,
+                    label: '${_preferences.subtitleFontSize.round()} px',
+                    onChanged: (size) {
+                      unawaited(_preferences.setSubtitleFontSize(size));
+                      setState(() {});
+                      setSheetState(() {});
+                    },
+                  ),
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.subtitles_off_rounded),
+                  title: const Text('Off'),
+                  onTap: () {
+                    _player?.setSubtitleTrack(SubtitleTrack.no());
+                    Navigator.pop(context);
+                  },
+                ),
+                for (final track in _tracks.subtitle.where(
+                  (track) => track.id != 'auto' && track.id != 'no',
+                ))
+                  ListTile(
+                    leading: const Icon(Icons.closed_caption_rounded),
+                    title: Text(track.title ?? track.language ?? 'Embedded'),
+                    subtitle: track.codec == null ? null : Text(track.codec!),
+                    onTap: () {
+                      _player?.setSubtitleTrack(track);
+                      Navigator.pop(context);
+                    },
+                  ),
+                for (final track in widget.playback.subtitles)
+                  ListTile(
+                    leading: const Icon(Icons.language_rounded),
+                    title: Text(track.label),
+                    subtitle: Text([
+                      track.language,
+                      if (track.format != null) track.format!,
+                    ].join(' • ')),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      try {
+                        await _selectExternalSubtitle(track);
+                      } catch (error) {
+                        if (mounted) _showError(error);
+                      }
+                    },
+                  ),
+              ],
             ),
-            for (final track in _tracks.subtitle.where(
-              (track) => track.id != 'auto' && track.id != 'no',
-            ))
-              ListTile(
-                leading: const Icon(Icons.closed_caption_rounded),
-                title: Text(track.title ?? track.language ?? 'Embedded'),
-                subtitle: track.codec == null ? null : Text(track.codec!),
-                onTap: () {
-                  _player?.setSubtitleTrack(track);
-                  Navigator.pop(context);
-                },
-              ),
-            for (final track in widget.playback.subtitles)
-              ListTile(
-                leading: const Icon(Icons.language_rounded),
-                title: Text(track.label),
-                subtitle: Text([
-                  track.language,
-                  if (track.format != null) track.format!,
-                ].join(' • ')),
-                onTap: () async {
-                  Navigator.pop(context);
-                  try {
-                    await _selectExternalSubtitle(track);
-                  } catch (error) {
-                    if (mounted) _showError(error);
-                  }
-                },
-              ),
-          ],
+          ),
         ),
       ),
     );
@@ -730,6 +855,7 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
   void dispose() {
     _controlsTimer?.cancel();
     _gestureTimer?.cancel();
+    _reportProgress(force: true);
     unawaited(_disposePlayer());
     unawaited(ScreenBrightness.instance.resetApplicationScreenBrightness());
     unawaited(_leavePlayerMode());

@@ -6,14 +6,25 @@ import 'package:star_scrapper_app/application/library/library_organization_contr
 
 /// Owns the editable hierarchy of library tabs and page app-bar state.
 class TabsState extends ChangeNotifier implements LibraryTabConfiguration {
-  TabsState() {
+  final String storageKey;
+  final String subTabsStorageKey;
+  final String initialTab;
+  final List<String> initialSubTabs;
+
+  TabsState({
+    this.storageKey = 'libraryTabs',
+    this.subTabsStorageKey = 'librarySubTabsByPrimary',
+    this.initialTab = 'Reading',
+    this.initialSubTabs = const ['Unread', 'Read'],
+  }) {
+    _libraryTabs = [initialTab];
+    _subTabsByPrimary = {initialTab: List.of(initialSubTabs)};
+    _defaultTab = initialTab;
     _tabsLoaded = _loadLibraryStructure();
   }
 
-  List<String> _libraryTabs = ['Reading'];
-  Map<String, List<String>> _subTabsByPrimary = {
-    'Reading': [],
-  };
+  late List<String> _libraryTabs;
+  late Map<String, List<String>> _subTabsByPrimary;
 
   @override
   List<String> get libraryTabs => _libraryTabs;
@@ -27,7 +38,7 @@ class TabsState extends ChangeNotifier implements LibraryTabConfiguration {
   late Future<void> _tabsLoaded;
   Future<void> get tabsLoaded => _tabsLoaded;
 
-  String _defaultTab = 'Reading';
+  late String _defaultTab;
   String get defaultTab => _defaultTab;
 
   @override
@@ -42,7 +53,7 @@ class TabsState extends ChangeNotifier implements LibraryTabConfiguration {
     if (_libraryTabs.contains(tabName)) {
       _defaultTab = tabName;
     } else {
-      _defaultTab = _libraryTabs.isNotEmpty ? _libraryTabs.first : 'Reading';
+      _defaultTab = _libraryTabs.isNotEmpty ? _libraryTabs.first : initialTab;
     }
     notifyListeners();
   }
@@ -58,7 +69,7 @@ class TabsState extends ChangeNotifier implements LibraryTabConfiguration {
   void removeLibraryTab(int index, LibraryOrganizationUpdater organizer) {
     if (_libraryTabs.length <= 1) return;
     final removedTab = _libraryTabs.removeAt(index);
-    final fallback = _libraryTabs.isNotEmpty ? _libraryTabs.first : 'Reading';
+    final fallback = _libraryTabs.isNotEmpty ? _libraryTabs.first : initialTab;
     _subTabsByPrimary.remove(removedTab);
     organizer.remapBooksFromRemovedTab(removedTab, fallback);
     _defaultTab = _libraryTabs.contains(_defaultTab) ? _defaultTab : fallback;
@@ -191,21 +202,22 @@ class TabsState extends ChangeNotifier implements LibraryTabConfiguration {
 
   Future<void> _loadLibraryStructure() async {
     final prefs = await SharedPreferences.getInstance();
-    final libraryTabs = prefs.getStringList('libraryTabs') ?? ['Reading'];
-    final rawSubTabs = prefs.getString('librarySubTabsByPrimary');
+    final libraryTabs = prefs.getStringList(storageKey) ?? [initialTab];
+    final rawSubTabs = prefs.getString(subTabsStorageKey);
 
     Map<String, dynamic> decodedMap = {};
     if (rawSubTabs != null && rawSubTabs.isNotEmpty) {
       decodedMap = jsonDecode(rawSubTabs) as Map<String, dynamic>;
     } else {
-      final legacySubTabs =
-          prefs.getStringList('librarySubTabs') ?? ['Unread', 'Read'];
+      final legacySubTabs = storageKey == 'libraryTabs'
+          ? prefs.getStringList('librarySubTabs') ?? initialSubTabs
+          : initialSubTabs;
       for (final tab in libraryTabs) {
         decodedMap[tab] = List<String>.from(legacySubTabs);
       }
     }
 
-    _libraryTabs = libraryTabs.isEmpty ? ['Reading'] : libraryTabs;
+    _libraryTabs = libraryTabs.isEmpty ? [initialTab] : libraryTabs;
     _subTabsByPrimary = {
       for (final tab in _libraryTabs)
         tab: decodedMap[tab] is List
@@ -213,7 +225,7 @@ class TabsState extends ChangeNotifier implements LibraryTabConfiguration {
             : <String>[],
     };
     _defaultTab =
-        _libraryTabs.contains('Reading') ? 'Reading' : _libraryTabs.first;
+        _libraryTabs.contains(initialTab) ? initialTab : _libraryTabs.first;
     notifyListeners();
   }
 
@@ -224,9 +236,9 @@ class TabsState extends ChangeNotifier implements LibraryTabConfiguration {
 
   Future<void> _saveLibraryStructure() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('libraryTabs', _libraryTabs);
+    await prefs.setStringList(storageKey, _libraryTabs);
     await prefs.setString(
-      'librarySubTabsByPrimary',
+      subTabsStorageKey,
       jsonEncode(_subTabsByPrimary),
     );
   }
@@ -245,4 +257,14 @@ class TabsState extends ChangeNotifier implements LibraryTabConfiguration {
     _activePageIndex = index;
     notifyListeners();
   }
+}
+
+class AnimeTabsState extends TabsState {
+  AnimeTabsState()
+      : super(
+          storageKey: 'animeLibraryTabs',
+          subTabsStorageKey: 'animeLibrarySubTabsByPrimary',
+          initialTab: 'Watching',
+          initialSubTabs: const ['Watching', 'Completed'],
+        );
 }

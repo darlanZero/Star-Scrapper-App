@@ -3,9 +3,21 @@ import 'package:star_scrapper_app/classes/Scrappers/pt-br/demon_sect_scrapper.da
 import 'package:star_scrapper_app/classes/Scrappers/sites/luratoons_scrapper.dart';
 import 'package:star_scrapper_app/classes/Scrappers/sites/mediocrescan_scrapper.dart';
 import 'package:star_scrapper_app/domain/sources/source.dart';
+import 'package:star_scrapper_app/domain/sources/anime_source.dart';
+import 'package:star_scrapper_app/data/sources/anime/anitube_source.dart';
+import 'package:star_scrapper_app/data/sources/anime/aniwave_source.dart';
+import 'package:star_scrapper_app/data/sources/anime/smart_animes_source.dart';
 
 /// Single registry for the sources bundled with the application.
 abstract final class SourceCatalog {
+  /// Video providers use the typed [AnimeSource] contract and stay separate
+  /// from the legacy image/chapter scrapers.
+  static List<AnimeSource> createAnimeSources() => [
+        AnitubeSource(),
+        AniwaveSource(),
+        SmartAnimesSource(),
+      ];
+
   static List<Fonte> createAll() => [
         Fonte(
           id: 'mangadex',

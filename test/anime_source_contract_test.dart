@@ -77,6 +77,10 @@ class _FakeAnimeSource implements AnimeSource {
       const {'Accept': 'application/json'};
 
   @override
+  List<AnimeCatalogFilter> get catalogFilters =>
+      const [AnimeCatalogFilter.recent, AnimeCatalogFilter.popular];
+
+  @override
   Future<AnimeCatalogPage> browse({
     AnimeCatalogFilter filter = AnimeCatalogFilter.popular,
     String? cursor,

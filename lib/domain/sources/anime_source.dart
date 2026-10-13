@@ -3,6 +3,110 @@ enum AnimeCatalogFilter {
   popular,
   recent,
   updated,
+  added,
+  airing,
+  completed,
+}
+
+enum AnimeSearchSort {
+  defaultOrder,
+  latestUpdated,
+  latestAdded,
+  score,
+  name,
+  nameDescending,
+  releaseDate,
+  mostViewed,
+  episodeCount,
+}
+
+class AnimeFilterOption {
+  final String value;
+  final String label;
+
+  const AnimeFilterOption({required this.value, required this.label});
+}
+
+class AnimeSearchOptions {
+  final List<AnimeFilterOption> genres;
+  final List<AnimeFilterOption> seasons;
+  final List<AnimeFilterOption> years;
+  final List<AnimeFilterOption> types;
+  final List<AnimeFilterOption> statuses;
+  final List<AnimeFilterOption> languages;
+  final List<AnimeFilterOption> ratings;
+  final List<AnimeFilterOption> studios;
+  final List<AnimeSearchSort> sorts;
+
+  AnimeSearchOptions({
+    Iterable<AnimeFilterOption> genres = const [],
+    Iterable<AnimeFilterOption> seasons = const [],
+    Iterable<AnimeFilterOption> years = const [],
+    Iterable<AnimeFilterOption> types = const [],
+    Iterable<AnimeFilterOption> statuses = const [],
+    Iterable<AnimeFilterOption> languages = const [],
+    Iterable<AnimeFilterOption> ratings = const [],
+    Iterable<AnimeFilterOption> studios = const [],
+    Iterable<AnimeSearchSort> sorts = AnimeSearchSort.values,
+  })  : genres = List.unmodifiable(genres),
+        seasons = List.unmodifiable(seasons),
+        years = List.unmodifiable(years),
+        types = List.unmodifiable(types),
+        statuses = List.unmodifiable(statuses),
+        languages = List.unmodifiable(languages),
+        ratings = List.unmodifiable(ratings),
+        studios = List.unmodifiable(studios),
+        sorts = List.unmodifiable(sorts);
+}
+
+class AnimeSearchRequest {
+  final String query;
+  final Set<String> genres;
+  final String? season;
+  final String? year;
+  final String? type;
+  final String? status;
+  final String? language;
+  final String? rating;
+  final String? studio;
+  final AnimeSearchSort sort;
+
+  AnimeSearchRequest({
+    this.query = '',
+    Set<String> genres = const {},
+    this.season,
+    this.year,
+    this.type,
+    this.status,
+    this.language,
+    this.rating,
+    this.studio,
+    this.sort = AnimeSearchSort.defaultOrder,
+  }) : genres = Set.unmodifiable(genres);
+
+  bool get hasFilters =>
+      genres.isNotEmpty ||
+      season != null ||
+      year != null ||
+      type != null ||
+      status != null ||
+      language != null ||
+      rating != null ||
+      studio != null ||
+      sort != AnimeSearchSort.defaultOrder;
+
+  AnimeSearchRequest copyWith({String? query}) => AnimeSearchRequest(
+        query: query ?? this.query,
+        genres: genres,
+        season: season,
+        year: year,
+        type: type,
+        status: status,
+        language: language,
+        rating: rating,
+        studio: studio,
+        sort: sort,
+      );
 }
 
 /// Publication state reported by an anime source.
@@ -99,6 +203,9 @@ class AnimeDetails {
   final List<String> genres;
   final AnimeStatus status;
   final Uri? bannerUri;
+  final Map<String, String> externalIds;
+  final List<String> studios;
+  final List<String> producers;
 
   AnimeDetails({
     required this.item,
@@ -107,8 +214,14 @@ class AnimeDetails {
     Iterable<String> genres = const [],
     this.status = AnimeStatus.unknown,
     this.bannerUri,
+    Map<String, String> externalIds = const {},
+    Iterable<String> studios = const [],
+    Iterable<String> producers = const [],
   })  : alternativeTitles = List.unmodifiable(alternativeTitles),
-        genres = List.unmodifiable(genres);
+        genres = List.unmodifiable(genres),
+        externalIds = Map.unmodifiable(externalIds),
+        studios = List.unmodifiable(studios),
+        producers = List.unmodifiable(producers);
 }
 
 /// An episode that can be resolved into one or more video streams.
@@ -217,6 +330,8 @@ abstract interface class AnimeSource {
   /// Headers applied to catalog and metadata requests when needed by a source.
   Map<String, String> get requestHeaders;
 
+  List<AnimeCatalogFilter> get catalogFilters;
+
   Future<AnimeCatalogPage> browse({
     AnimeCatalogFilter filter = AnimeCatalogFilter.popular,
     String? cursor,
@@ -236,5 +351,80 @@ abstract interface class AnimeSource {
   Future<AnimePlayback> getPlayback({
     required String animeId,
     required String episodeId,
+  });
+}
+
+/// Optional capability for sources that expose structured catalog filters.
+abstract interface class FilterableAnimeSource {
+  Future<AnimeSearchOptions> getSearchOptions();
+
+  Future<AnimeCatalogPage> filter(
+    AnimeSearchRequest request, {
+    String? cursor,
+  });
+}
+
+/// Signals that a source needs its normal browser verification to be completed
+/// before its HTML endpoints can be consumed by the HTTP client.
+class AnimeSourceSessionRequired implements Exception {
+  final String message;
+
+  const AnimeSourceSessionRequired(this.message);
+
+  @override
+  String toString() => message;
+}
+
+/// Optional capability for sources protected by a browser-managed session.
+abstract interface class BrowserSessionAnimeSource {
+  Uri get sessionUri;
+
+  Future<void> updateBrowserSession({
+    required Map<String, String> cookies,
+    required String userAgent,
+  });
+}
+
+class AnimePlaybackChoice {
+  final Uri entryUri;
+  final String provider;
+  final String quality;
+
+  const AnimePlaybackChoice({
+    required this.entryUri,
+    required this.provider,
+    this.quality = 'Auto',
+  });
+
+  String get label => quality == 'Auto' ? provider : '$provider · $quality';
+}
+
+/// Signals that playback must follow a browser redirect chain first. Sources
+/// can expose more than one host so the user chooses which session to use.
+class AnimePlaybackResolutionRequired implements Exception {
+  final List<AnimePlaybackChoice> choices;
+
+  AnimePlaybackResolutionRequired(List<AnimePlaybackChoice> choices)
+      : assert(choices.isNotEmpty),
+        choices = List.unmodifiable(choices);
+
+  Uri get entryUri => choices.first.entryUri;
+  String get quality => choices.first.quality;
+  String get provider => choices.first.provider;
+
+  AnimePlaybackResolutionRequired selecting(AnimePlaybackChoice choice) =>
+      AnimePlaybackResolutionRequired([choice]);
+
+  @override
+  String toString() => 'The video host needs browser resolution.';
+}
+
+/// Optional capability for providers whose final media URL is produced by a
+/// JavaScript redirect/player page.
+abstract interface class BrowserPlaybackAnimeSource {
+  Future<AnimePlayback> playbackFromResolvedUri(
+    Uri uri, {
+    String quality = 'Auto',
+    String provider = 'Browser',
   });
 }

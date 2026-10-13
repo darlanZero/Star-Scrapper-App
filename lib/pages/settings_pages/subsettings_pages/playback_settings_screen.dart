@@ -107,6 +107,15 @@ class PlaybackSettingsScreen extends StatelessWidget {
                     'Only applies when the source supplies a verified intro range.',
                   ),
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text('Subtitles', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Card(
+            child: Column(
+              children: [
                 ListTile(
                   leading: const Icon(Icons.subtitles_rounded),
                   title: const Text('Preferred subtitle language'),
@@ -121,6 +130,43 @@ class PlaybackSettingsScreen extends StatelessWidget {
                       onFieldSubmitted: preferences.setSubtitleLanguage,
                       decoration: const InputDecoration(isDense: true),
                     ),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.text_fields_rounded),
+                  title: const Text('Subtitle font'),
+                  subtitle: const Text(
+                    'Noto Sans includes Portuguese and other extended characters.',
+                  ),
+                  trailing: DropdownButton<SubtitleTypeface>(
+                    value: preferences.subtitleTypeface,
+                    items: SubtitleTypeface.values
+                        .map(
+                          (typeface) => DropdownMenuItem(
+                            value: typeface,
+                            child: Text(typeface.label),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (typeface) {
+                      if (typeface != null) {
+                        preferences.setSubtitleTypeface(typeface);
+                      }
+                    },
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.format_size_rounded),
+                  title: Text(
+                    'Subtitle size · ${preferences.subtitleFontSize.round()} px',
+                  ),
+                  subtitle: Slider(
+                    min: 16,
+                    max: 48,
+                    divisions: 16,
+                    value: preferences.subtitleFontSize,
+                    label: '${preferences.subtitleFontSize.round()} px',
+                    onChanged: preferences.setSubtitleFontSize,
                   ),
                 ),
               ],

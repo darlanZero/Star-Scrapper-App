@@ -4,6 +4,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/application/playback/playback_preferences.dart';
+import 'package:star_scrapper_app/application/library/anime_library_controller.dart';
 import 'package:star_scrapper_app/application/trackers/tracker_controller.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
@@ -11,6 +12,7 @@ import 'package:star_scrapper_app/pages/scrappers_screen.dart';
 import 'package:star_scrapper_app/pages/pages.dart';
 import 'package:star_scrapper_app/pages/settings_screen.dart';
 import 'package:star_scrapper_app/pages/tracker_homepage.dart';
+import 'package:star_scrapper_app/data/sources/source_catalog.dart';
 
 void main(List<String> args) {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -43,6 +45,21 @@ void main(List<String> args) {
         },
       ),
       ChangeNotifierProvider(create: (_) => TabsState()),
+      ChangeNotifierProvider(create: (_) => AnimeTabsState()),
+      ChangeNotifierProxyProvider<AnimeTabsState, AnimeLibraryController>(
+        create: (context) {
+          final controller = AnimeLibraryController();
+          controller.setSources(SourceCatalog.createAnimeSources());
+          final tabs = context.read<AnimeTabsState>();
+          controller.configureTabs(tabs, ready: tabs.tabsLoaded);
+          controller.initialize();
+          return controller;
+        },
+        update: (_, tabs, controller) {
+          controller!.configureTabs(tabs, ready: tabs.tabsLoaded);
+          return controller;
+        },
+      ),
       ChangeNotifierProvider(
         create: (_) {
           final controller = TrackerController();
@@ -179,9 +196,8 @@ class _MainScreenState extends State<MainScreen>
           ),
         ),
       ),
-      floatingActionButton: currentIndex == 1 || currentIndex == 3
-          ? null
-          : FloatingActionButton.small(
+      floatingActionButton: currentIndex == 0
+          ? FloatingActionButton.small(
               onPressed: () {
                 Navigator.push(
                   context,
@@ -190,7 +206,8 @@ class _MainScreenState extends State<MainScreen>
               },
               tooltip: 'Search for mangas',
               child: const Icon(Icons.search_rounded),
-            ),
+            )
+          : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }

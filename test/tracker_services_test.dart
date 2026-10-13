@@ -352,6 +352,101 @@ void main() {
     expect(results.items.single.title.display(preferEnglish: true), 'Example');
     expect(results.items.single.score, 85);
   });
+
+  test('AniList resolves a MAL id and creates a watching entry', () async {
+    final queries = <String>[];
+    final client = MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      queries.add(body['query'].toString());
+      if (queries.length == 1) {
+        return http.Response(
+            jsonEncode({
+              'data': {
+                'Media': {'id': 77}
+              }
+            }),
+            200);
+      }
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'SaveMediaListEntry': {'id': 9, 'status': 'CURRENT'},
+          },
+        }),
+        200,
+      );
+    });
+
+    await AniListTrackerService(accessToken: 'token', client: client)
+        .addAnimeToList(malId: 2, title: 'Example');
+
+    expect(queries.first, contains('ResolveAnime'));
+    expect(queries.last, contains('SaveMediaListEntry'));
+  });
+
+  test('MAL adds a matched anime to the watching list', () async {
+    late http.Request request;
+    final client = MockClient((incoming) async {
+      request = incoming;
+      return http.Response('{}', 200);
+    });
+
+    await MalTrackerService(
+      clientId: 'client',
+      accessToken: 'token',
+      client: client,
+    ).addAnimeToList(malId: 2, title: 'Example');
+
+    expect(request.method, 'PUT');
+    expect(request.url.path, '/v2/anime/2/my_list_status');
+    expect(request.bodyFields['status'], 'watching');
+  });
+
+  test('AniList updates watched episode progress', () async {
+    late Map<String, dynamic> mutationVariables;
+    final client = MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      mutationVariables = body['variables'] as Map<String, dynamic>;
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'SaveMediaListEntry': {
+              'id': 9,
+              'status': 'CURRENT',
+              'progress': 4,
+            },
+          },
+        }),
+        200,
+      );
+    });
+
+    await AniListTrackerService(accessToken: 'token', client: client)
+        .updateAnimeProgress(
+      aniListId: 77,
+      title: 'Example',
+      progress: 4,
+    );
+
+    expect(mutationVariables, {'mediaId': 77, 'progress': 4});
+  });
+
+  test('MAL updates watched episode progress', () async {
+    late http.Request request;
+    final client = MockClient((incoming) async {
+      request = incoming;
+      return http.Response('{}', 200);
+    });
+
+    await MalTrackerService(
+      clientId: 'client',
+      accessToken: 'token',
+      client: client,
+    ).updateAnimeProgress(malId: 2, title: 'Example', progress: 4);
+
+    expect(request.bodyFields['status'], 'watching');
+    expect(request.bodyFields['num_watched_episodes'], '4');
+  });
 }
 
 Map<String, dynamic> _aniListMedia({String type = 'ANIME'}) => {

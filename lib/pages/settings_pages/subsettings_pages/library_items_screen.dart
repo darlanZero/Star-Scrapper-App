@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
+import 'package:star_scrapper_app/application/library/anime_library_controller.dart';
+
+enum _TrackedLibrary { manga, anime }
 
 class LibraryItemsSettingsScreen extends StatefulWidget {
   const LibraryItemsSettingsScreen({super.key});
@@ -23,6 +26,7 @@ class _LibraryItemsSettingsScreenState
   Map<String, bool> tabsSelection = {};
   bool trackerEnabled = true;
   bool runningNow = false;
+  _TrackedLibrary _library = _TrackedLibrary.manga;
 
   @override
   void initState() {
@@ -42,6 +46,7 @@ class _LibraryItemsSettingsScreenState
 
   void _saveSettings() {
     final fontProvider = Provider.of<FontProvider>(context, listen: false);
+    final animeProvider = context.read<AnimeLibraryController>();
 
     Duration interval;
 
@@ -60,23 +65,60 @@ class _LibraryItemsSettingsScreenState
         interval = const Duration(hours: 24);
         break;
     }
-    fontProvider.setUpdateInterval(interval);
+    if (_library == _TrackedLibrary.manga) {
+      fontProvider.setUpdateInterval(interval);
+    } else {
+      animeProvider.setUpdateInterval(interval);
+    }
 
     Set<String> selectedTabs = tabsSelection.entries
         .where((entry) => entry.value)
         .map((entry) => entry.key)
         .toSet();
 
-    fontProvider.setTabsToUpdate(selectedTabs);
+    if (_library == _TrackedLibrary.manga) {
+      fontProvider.setTabsToUpdate(selectedTabs);
+    } else {
+      animeProvider.setTabsToUpdate(selectedTabs);
+    }
+  }
+
+  void _selectLibrary(_TrackedLibrary value) {
+    final fp = context.read<FontProvider>();
+    final anime = context.read<AnimeLibraryController>();
+    final tabs = value == _TrackedLibrary.manga
+        ? context.read<TabsState>().libraryTabs
+        : context.read<AnimeTabsState>().libraryTabs;
+    final selected =
+        value == _TrackedLibrary.manga ? fp.tabsToUpdate : anime.tabsToUpdate;
+    final interval = value == _TrackedLibrary.manga
+        ? fp.updateInterval
+        : anime.updateInterval;
+    setState(() {
+      _library = value;
+      tabsSelection = {for (final tab in tabs) tab: selected.contains(tab)};
+      trackerEnabled = value == _TrackedLibrary.manga
+          ? fp.trackerEnabled
+          : anime.trackerEnabled;
+      selectedUpdateInterval = '${interval.inHours} hours';
+    });
   }
 
   Future<void> _runNow() async {
     setState(() => runningNow = true);
     try {
-      await Provider.of<FontProvider>(context, listen: false).runTrackerNow();
+      final changes = _library == _TrackedLibrary.manga
+          ? await context.read<FontProvider>().runTrackerNow().then((_) => null)
+          : await context.read<AnimeLibraryController>().runTrackerNow();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tracker executado com sucesso.')),
+        SnackBar(
+          content: Text(
+            changes == null
+                ? 'Manga tracker completed.'
+                : 'Anime tracker completed: $changes update(s).',
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -117,114 +159,137 @@ class _LibraryItemsSettingsScreenState
         iconTheme: IconThemeData(
             color: theme.selectedTheme.textTheme.titleMedium?.color),
       ),
-      body: Consumer<FontProvider>(
-          builder: (context, fp, _) => ListView(
-                children: [
-                  SwitchListTile(
-                    title: Text(
-                      'Enable Chapter Tracker',
-                      style: TextStyle(
-                        color: theme.selectedTheme.textTheme.titleMedium?.color,
-                        fontSize:
-                            MediaQuery.of(context).size.width >= 600 ? 24 : 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    value: trackerEnabled,
-                    onChanged: (value) {
-                      setState(() => trackerEnabled = value);
-                      fp.setTrackerEnabled(value);
-                    },
+      body: Consumer2<FontProvider, AnimeLibraryController>(
+          builder: (context, fp, anime, _) {
+        final activeEnabled = _library == _TrackedLibrary.manga
+            ? fp.trackerEnabled
+            : anime.trackerEnabled;
+        final lastCheck = _library == _TrackedLibrary.manga
+            ? fp.trackerLastCheckedAt
+            : anime.trackerLastCheckedAt;
+        return ListView(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: SegmentedButton<_TrackedLibrary>(
+                segments: const [
+                  ButtonSegment(
+                    value: _TrackedLibrary.manga,
+                    label: Text('Manga'),
                   ),
-                  ListTile(
-                    title: Text('Update Interval',
-                        style: TextStyle(
-                          color:
-                              theme.selectedTheme.textTheme.titleMedium?.color,
-                          fontSize: MediaQuery.of(context).size.width >= 600
-                              ? 24
-                              : 18,
-                          fontWeight: FontWeight.bold,
-                        )),
-                    subtitle: DropdownButton<String>(
-                      value: selectedUpdateInterval,
-                      items: updateIntervals.map((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
-                      onChanged: (String? value) {
-                        setState(() {
-                          selectedUpdateInterval = value!;
-                        });
-                      },
-                    ),
-                  ),
-                  ListTile(
-                    title: Text('Tabs to Update',
-                        style: TextStyle(
-                          color:
-                              theme.selectedTheme.textTheme.titleMedium?.color,
-                          fontSize: MediaQuery.of(context).size.width >= 600
-                              ? 24
-                              : 18,
-                          fontWeight: FontWeight.bold,
-                        )),
-                    subtitle: Column(
-                      children: tabsSelection.keys.map((tab) {
-                        return CheckboxListTile(
-                          title: Text(tab),
-                          value: tabsSelection[tab],
-                          onChanged: (bool? value) {
-                            setState(() {
-                              tabsSelection[tab] = value!;
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  ListTile(
-                    title: Text(
-                      'Last Check',
-                      style: TextStyle(
-                        color: theme.selectedTheme.textTheme.titleMedium?.color,
-                        fontSize:
-                            MediaQuery.of(context).size.width >= 600 ? 24 : 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: Text(
-                      fp.trackerLastCheckedAt?.toString() ?? 'Never',
-                    ),
-                  ),
-                  ElevatedButton(
-                    onPressed: _saveSettings,
-                    child: Text('Save Settings',
-                        style: TextStyle(
-                          color:
-                              theme.selectedTheme.textTheme.titleMedium?.color,
-                          fontSize: MediaQuery.of(context).size.width >= 600
-                              ? 24
-                              : 18,
-                          fontWeight: FontWeight.bold,
-                        )),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton.icon(
-                    onPressed: runningNow ? null : _runNow,
-                    icon: runningNow
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.refresh_rounded),
-                    label: const Text('Check Now'),
+                  ButtonSegment(
+                    value: _TrackedLibrary.anime,
+                    label: Text('Anime'),
                   ),
                 ],
-              )),
+                selected: {_library},
+                onSelectionChanged: (value) => _selectLibrary(value.first),
+              ),
+            ),
+            SwitchListTile(
+              title: Text(
+                _library == _TrackedLibrary.manga
+                    ? 'Enable Chapter Tracker'
+                    : 'Enable Episode Tracker',
+                style: TextStyle(
+                  color: theme.selectedTheme.textTheme.titleMedium?.color,
+                  fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              value: activeEnabled,
+              onChanged: (value) {
+                setState(() => trackerEnabled = value);
+                if (_library == _TrackedLibrary.manga) {
+                  fp.setTrackerEnabled(value);
+                } else {
+                  anime.setTrackerEnabled(value);
+                }
+              },
+            ),
+            ListTile(
+              title: Text('Update Interval',
+                  style: TextStyle(
+                    color: theme.selectedTheme.textTheme.titleMedium?.color,
+                    fontSize:
+                        MediaQuery.of(context).size.width >= 600 ? 24 : 18,
+                    fontWeight: FontWeight.bold,
+                  )),
+              subtitle: DropdownButton<String>(
+                value: selectedUpdateInterval,
+                items: updateIntervals.map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                onChanged: (String? value) {
+                  setState(() {
+                    selectedUpdateInterval = value!;
+                  });
+                },
+              ),
+            ),
+            ListTile(
+              title: Text('Tabs to Update',
+                  style: TextStyle(
+                    color: theme.selectedTheme.textTheme.titleMedium?.color,
+                    fontSize:
+                        MediaQuery.of(context).size.width >= 600 ? 24 : 18,
+                    fontWeight: FontWeight.bold,
+                  )),
+              subtitle: Column(
+                children: tabsSelection.keys.map((tab) {
+                  return CheckboxListTile(
+                    title: Text(tab),
+                    value: tabsSelection[tab],
+                    onChanged: (bool? value) {
+                      setState(() {
+                        tabsSelection[tab] = value!;
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
+            ListTile(
+              title: Text(
+                'Last Check',
+                style: TextStyle(
+                  color: theme.selectedTheme.textTheme.titleMedium?.color,
+                  fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                lastCheck?.toString() ?? 'Never',
+              ),
+            ),
+            ElevatedButton(
+              onPressed: _saveSettings,
+              child: Text('Save Settings',
+                  style: TextStyle(
+                    color: theme.selectedTheme.textTheme.titleMedium?.color,
+                    fontSize:
+                        MediaQuery.of(context).size.width >= 600 ? 24 : 18,
+                    fontWeight: FontWeight.bold,
+                  )),
+            ),
+            const SizedBox(height: 8),
+            ElevatedButton.icon(
+              onPressed: runningNow ? null : _runNow,
+              icon: runningNow
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh_rounded),
+              label: const Text('Check Now'),
+            ),
+          ],
+        );
+      }),
     );
   }
 }

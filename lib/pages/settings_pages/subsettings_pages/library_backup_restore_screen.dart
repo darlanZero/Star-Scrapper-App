@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/services/backup_service.dart';
+import 'package:star_scrapper_app/application/library/anime_library_controller.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 
 class LibraryBackupRestoreScreen extends StatefulWidget {
@@ -71,15 +72,19 @@ class _LibraryBackupRestoreScreenState
         ],
       ),
     );
-    if (allow != true) return;
+    if (allow != true || !mounted) return;
+
+    final tabsState = Provider.of<TabsState>(context, listen: false);
+    final fontProvider = Provider.of<FontProvider>(context, listen: false);
+    final animeLibrary =
+        Provider.of<AnimeLibraryController>(context, listen: false);
 
     setState(() => _isBusy = true);
     try {
       await _backupService.restoreBackup(filePath);
-      final tabsState = Provider.of<TabsState>(context, listen: false);
-      final fontProvider = Provider.of<FontProvider>(context, listen: false);
       await tabsState.reloadLibraryStructure();
       await fontProvider.refreshFromStorage();
+      await animeLibrary.initialize();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Backup restored successfully.')),

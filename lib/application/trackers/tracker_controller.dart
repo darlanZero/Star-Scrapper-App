@@ -63,6 +63,14 @@ class TrackerController extends ChangeNotifier {
   String? get connectedUsername =>
       _aniListAccount?.username ?? _malAccount?.username;
 
+  int get connectedTrackerCount =>
+      (_aniListConnectedAndEnabled ? 1 : 0) + (_malConnectedAndEnabled ? 1 : 0);
+
+  bool get _aniListConnectedAndEnabled =>
+      _aniListEnabled && _aniListTokens != null && _aniListAccount != null;
+  bool get _malConnectedAndEnabled =>
+      _malEnabled && _malTokens != null && _malAccount != null;
+
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
     _aniListEnabled = prefs.getBool(_aniListEnabledKey) ?? true;
@@ -215,6 +223,76 @@ class TrackerController extends ChangeNotifier {
     }
     _authError = null;
     notifyListeners();
+  }
+
+  Future<List<String>> addAnimeToConnectedTrackers({
+    required String title,
+    int? malId,
+    int? aniListId,
+  }) async {
+    final operations = <Future<String>>[];
+    if (_aniListConnectedAndEnabled) {
+      operations.add(
+        AniListTrackerService(accessToken: _aniListTokens!.accessToken)
+            .addAnimeToList(
+              aniListId: aniListId,
+              malId: malId,
+              title: title,
+            )
+            .then((_) => 'AniList'),
+      );
+    }
+    if (_malConnectedAndEnabled) {
+      operations.add(
+        MalTrackerService(
+          clientId: _malClientId,
+          accessToken: _malTokens!.accessToken,
+        ).addAnimeToList(malId: malId, title: title).then((_) => 'MyAnimeList'),
+      );
+    }
+    if (operations.isEmpty) {
+      throw const TrackerRequestException(
+        'Connect and enable AniList or MyAnimeList first.',
+      );
+    }
+    return Future.wait(operations);
+  }
+
+  Future<List<String>> updateAnimeProgressOnConnectedTrackers({
+    required String title,
+    required int episode,
+    int? malId,
+    int? aniListId,
+  }) async {
+    final operations = <Future<String>>[];
+    if (_aniListConnectedAndEnabled) {
+      operations.add(
+        AniListTrackerService(accessToken: _aniListTokens!.accessToken)
+            .updateAnimeProgress(
+              aniListId: aniListId,
+              malId: malId,
+              title: title,
+              progress: episode,
+            )
+            .then((_) => 'AniList'),
+      );
+    }
+    if (_malConnectedAndEnabled) {
+      operations.add(
+        MalTrackerService(
+          clientId: _malClientId,
+          accessToken: _malTokens!.accessToken,
+        )
+            .updateAnimeProgress(
+              malId: malId,
+              title: title,
+              progress: episode,
+            )
+            .then((_) => 'MyAnimeList'),
+      );
+    }
+    if (operations.isEmpty) return const [];
+    return Future.wait(operations);
   }
 
   Future<TrackerHomeData> loadHome(TrackedMediaType type) async {

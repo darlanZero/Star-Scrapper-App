@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';
 import 'package:star_scrapper_app/domain/sources/source.dart';
+import 'package:star_scrapper_app/domain/sources/anime_source.dart';
+import 'package:star_scrapper_app/pages/anime_source_catalog_screen.dart';
 import 'package:star_scrapper_app/pages/pages.dart';
 
 class ScrapperActiveFonts extends StatefulWidget {
@@ -276,10 +278,105 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
     );
   }
 
+  Widget _buildAnimeSourceTile(AnimeSource source) {
+    final colors = Theme.of(context).colorScheme;
+    void open(AnimeCatalogFilter filter) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => AnimeSourceCatalogScreen(
+            source: source,
+            initialFilter: filter,
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: colors.primaryContainer,
+                  foregroundColor: colors.onPrimaryContainer,
+                  child: const Icon(Icons.play_arrow_rounded),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        source.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        source.id == 'smart_animes'
+                            ? 'Português (Brasil) · Legendado/Dublado'
+                            : 'All languages · Sub/Dub',
+                        style: TextStyle(color: colors.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Text(
+                    'ACTIVE',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => open(AnimeCatalogFilter.recent),
+                    icon: const Icon(Icons.schedule_rounded),
+                    label: const Text('Latest'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton.tonalIcon(
+                    onPressed: () => open(AnimeCatalogFilter.popular),
+                    icon: const Icon(Icons.trending_up_rounded),
+                    label: const Text('Trending'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<FontProvider>(
       builder: (context, fontProvider, child) {
+        final activeAnimeSources = fontProvider.activeAnimeSources;
         final activeFonts = fontProvider.activeFonts
             .where((source) => source.contentType == _contentType)
             .toList();
@@ -322,7 +419,12 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
               },
             ),
             const SizedBox(height: 12),
-            if (activeFonts.isEmpty)
+            if (_contentType == SourceContentType.anime &&
+                activeAnimeSources.isNotEmpty)
+              ...activeAnimeSources.map(_buildAnimeSourceTile),
+            if ((_contentType == SourceContentType.anime
+                ? activeAnimeSources.isEmpty
+                : activeFonts.isEmpty))
               Card(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -341,7 +443,7 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
                       const SizedBox(height: 12),
                       Text(
                         _contentType == SourceContentType.anime
-                            ? 'Anime sources will appear here.'
+                            ? 'No active anime sources.'
                             : 'No active manga sources.',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.titleMedium,
@@ -349,7 +451,7 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
                       const SizedBox(height: 6),
                       Text(
                         _contentType == SourceContentType.anime
-                            ? 'The anime source contract is ready for future providers.'
+                            ? 'Enable AniTube in the Manage tab.'
                             : 'Enable a source in the Manage tab.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: colors.onSurfaceVariant),
@@ -358,7 +460,8 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
                   ),
                 ),
               ),
-            if (activePinnedFonts.isNotEmpty) ...[
+            if (_contentType == SourceContentType.manga &&
+                activePinnedFonts.isNotEmpty) ...[
               Card(
                 margin: const EdgeInsets.only(bottom: 10),
                 child: ExpansionTile(
@@ -372,28 +475,30 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
                 ),
               ),
             ],
-            ...languageGroups.indexed.map((entry) {
-              final index = entry.$1;
-              final group = entry.$2;
-              final visibleFonts = group.fonts
-                  .where((font) => !activePinnedFonts.contains(font))
-                  .toList();
-              return Card(
-                margin: const EdgeInsets.only(bottom: 10),
-                child: ExpansionTile(
-                  initiallyExpanded: index == 0,
-                  leading: Icon(Icons.language_rounded, color: colors.primary),
-                  title: Text(
-                    group.languagePrefix,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+            if (_contentType == SourceContentType.manga)
+              ...languageGroups.indexed.map((entry) {
+                final index = entry.$1;
+                final group = entry.$2;
+                final visibleFonts = group.fonts
+                    .where((font) => !activePinnedFonts.contains(font))
+                    .toList();
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: ExpansionTile(
+                    initiallyExpanded: index == 0,
+                    leading:
+                        Icon(Icons.language_rounded, color: colors.primary),
+                    title: Text(
+                      group.languagePrefix,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: Text(
+                      '${visibleFonts.length} ${visibleFonts.length == 1 ? 'source' : 'sources'}',
+                    ),
+                    children: visibleFonts.map(_buildFontTile).toList(),
                   ),
-                  subtitle: Text(
-                    '${visibleFonts.length} ${visibleFonts.length == 1 ? 'source' : 'sources'}',
-                  ),
-                  children: visibleFonts.map(_buildFontTile).toList(),
-                ),
-              );
-            }),
+                );
+              }),
           ],
         );
       },

@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
+import 'package:star_scrapper_app/application/library/anime_library_controller.dart';
+import 'package:star_scrapper_app/application/library/library_organization_contracts.dart';
+
+enum _LibraryKind { manga, anime }
 
 class LibraryTabsSettingsScreen extends StatefulWidget {
   const LibraryTabsSettingsScreen({super.key});
@@ -14,6 +18,7 @@ class LibraryTabsSettingsScreen extends StatefulWidget {
 class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
   final TextEditingController _tabController = TextEditingController();
   final Map<String, TextEditingController> _subTabControllers = {};
+  _LibraryKind _kind = _LibraryKind.manga;
 
   TextEditingController _controllerForPrimary(String primary) {
     return _subTabControllers.putIfAbsent(primary, TextEditingController.new);
@@ -57,11 +62,25 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
         iconTheme: IconThemeData(
             color: theme.selectedTheme.textTheme.titleMedium?.color),
       ),
-      body: Consumer<TabsState>(builder: (context, tabsState, child) {
-        final fontProvider = Provider.of<FontProvider>(context, listen: false);
+      body: Consumer2<TabsState, AnimeTabsState>(
+          builder: (context, mangaTabs, animeTabs, child) {
+        final tabsState = _kind == _LibraryKind.manga ? mangaTabs : animeTabs;
+        final LibraryOrganizationUpdater organizer = _kind == _LibraryKind.manga
+            ? context.read<FontProvider>()
+            : context.read<AnimeLibraryController>();
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            SegmentedButton<_LibraryKind>(
+              segments: const [
+                ButtonSegment(value: _LibraryKind.manga, label: Text('Manga')),
+                ButtonSegment(value: _LibraryKind.anime, label: Text('Anime')),
+              ],
+              selected: {_kind},
+              onSelectionChanged: (value) =>
+                  setState(() => _kind = value.first),
+            ),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -106,7 +125,7 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
                     key: ValueKey('primary-${tabsState.libraryTabs[i]}'),
                     primaryTab: tabsState.libraryTabs[i],
                     tabsState: tabsState,
-                    fontProvider: fontProvider,
+                    organizer: organizer,
                   ),
               ],
             ),
@@ -120,7 +139,7 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
     required Key key,
     required String primaryTab,
     required TabsState tabsState,
-    required FontProvider fontProvider,
+    required LibraryOrganizationUpdater organizer,
   }) {
     final theme = Provider.of<ThemeProvider>(context, listen: false);
     final subTabs = tabsState.getSubTabsForPrimary(primaryTab);
@@ -133,7 +152,7 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
         tabsState.nestPrimaryTabAsSubTab(
           tabToNest: details.data,
           targetPrimary: primaryTab,
-          organizer: fontProvider,
+          organizer: organizer,
         );
       },
       builder: (context, candidateData, rejectedData) {
@@ -197,7 +216,7 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
                                   tabsState.renameLibraryTab(
                                     index,
                                     newName.trim(),
-                                    fontProvider,
+                                    organizer,
                                   );
                                 }
                               }
@@ -209,7 +228,7 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
                               final index =
                                   tabsState.libraryTabs.indexOf(primaryTab);
                               if (index != -1) {
-                                tabsState.removeLibraryTab(index, fontProvider);
+                                tabsState.removeLibraryTab(index, organizer);
                               }
                             },
                           ),
@@ -250,7 +269,7 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
                                     primaryTab,
                                     idx,
                                     newName.trim(),
-                                    fontProvider,
+                                    organizer,
                                   );
                                 }
                               },
@@ -259,7 +278,7 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
                               icon: const Icon(Icons.delete),
                               onPressed: () {
                                 tabsState.removeSubTabFromPrimary(
-                                    primaryTab, idx, fontProvider);
+                                    primaryTab, idx, organizer);
                               },
                             ),
                           ],

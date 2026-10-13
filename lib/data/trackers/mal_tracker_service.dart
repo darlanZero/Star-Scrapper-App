@@ -277,6 +277,92 @@ class MalTrackerService implements TrackerService {
     );
   }
 
+  Future<void> addAnimeToList({
+    int? malId,
+    required String title,
+  }) async {
+    _requireConfiguration();
+    if (accessToken == null || accessToken!.isEmpty) {
+      throw const TrackerRequestException('MyAnimeList is not connected.');
+    }
+    var id = malId;
+    if (id == null) {
+      final results = await search(
+        TrackerSearchRequest(
+          query: title,
+          type: TrackedMediaType.anime,
+          tags: const [],
+          sort: TrackerSort.popularity,
+          includeAdult: true,
+        ),
+      );
+      id = results.items.firstOrNull?.malId;
+    }
+    if (id == null) {
+      throw TrackerRequestException('MyAnimeList could not match "$title".');
+    }
+    final uri = _baseUri.resolve('/v2/anime/$id/my_list_status');
+    final response = await _client.put(
+      uri,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-MAL-CLIENT-ID': clientId,
+        'Authorization': 'Bearer $accessToken',
+      },
+      body: {'status': 'watching'},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw TrackerRequestException(
+        'MyAnimeList update failed (${response.statusCode}).',
+      );
+    }
+  }
+
+  Future<void> updateAnimeProgress({
+    int? malId,
+    required String title,
+    required int progress,
+  }) async {
+    _requireConfiguration();
+    if (accessToken == null || accessToken!.isEmpty) {
+      throw const TrackerRequestException('MyAnimeList is not connected.');
+    }
+    var id = malId;
+    if (id == null) {
+      final results = await search(
+        TrackerSearchRequest(
+          query: title,
+          type: TrackedMediaType.anime,
+          includeAdult: true,
+        ),
+      );
+      id = results.items.firstOrNull?.malId;
+    }
+    if (id == null) {
+      throw TrackerRequestException('MyAnimeList could not match "$title".');
+    }
+    final uri = _baseUri.resolve('/v2/anime/$id/my_list_status');
+    final response = await _client.put(
+      uri,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-MAL-CLIENT-ID': clientId,
+        'Authorization': 'Bearer $accessToken',
+      },
+      body: {
+        'status': 'watching',
+        'num_watched_episodes': '$progress',
+      },
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw TrackerRequestException(
+        'MyAnimeList progress update failed (${response.statusCode}).',
+      );
+    }
+  }
+
   Future<List<TrackerMedia>> _ranking(
     TrackedMediaType type,
     String rankingType, {

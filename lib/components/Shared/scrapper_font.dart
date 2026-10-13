@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
+import 'package:star_scrapper_app/domain/sources/anime_source.dart';
 import 'package:star_scrapper_app/domain/sources/source.dart';
 
 export 'package:star_scrapper_app/domain/sources/source.dart';
@@ -109,12 +110,44 @@ class _ScrapperDownloaderFontsState extends State<ScrapperDownloaderFonts> {
         .toggleFontState(font);
   }
 
+  Widget _buildAnimeSourceTile(
+    AnimeSource source,
+    FontProvider provider,
+  ) {
+    final active = provider.isAnimeSourceActive(source);
+    final colors = Theme.of(context).colorScheme;
+    return Card(
+      margin: const EdgeInsets.only(top: 12),
+      child: SwitchListTile(
+        value: active,
+        onChanged: (_) => provider.toggleAnimeSource(source),
+        secondary: CircleAvatar(
+          backgroundColor: colors.primaryContainer,
+          foregroundColor: colors.onPrimaryContainer,
+          child: const Icon(Icons.play_arrow_rounded),
+        ),
+        title: Text(
+          source.name,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        subtitle: Text(
+          source.id == 'smart_animes'
+              ? 'Português (Brasil) · Google Drive'
+              : 'All languages · Sub/Dub · HLS · Subtitles',
+          style: TextStyle(color: colors.onSurfaceVariant),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<FontProvider>(builder: (context, fontProvider, __) {
-      final visibleSources = fontProvider.fonts
-          .where((source) => source.contentType == _contentType)
-          .toList();
+      final visibleSources = _contentType == SourceContentType.manga
+          ? fontProvider.fonts
+              .where((source) => source.contentType == _contentType)
+              .toList()
+          : <Fonte>[];
       languageGroups = _groupFonts(visibleSources);
       return Card(
         color: Color(0xFF262335),
@@ -146,7 +179,31 @@ class _ScrapperDownloaderFontsState extends State<ScrapperDownloaderFonts> {
                 setState(() => _contentType = selection.first);
               },
             ),
-            if (visibleSources.isEmpty) ...[
+            if (_contentType == SourceContentType.anime) ...[
+              const SizedBox(height: 18),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Anime sources',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Enable providers to browse and play episodes.',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              ...fontProvider.animeSources.map(
+                (source) => _buildAnimeSourceTile(source, fontProvider),
+              ),
+            ] else if (visibleSources.isEmpty) ...[
               const SizedBox(height: 28),
               const Icon(Icons.ondemand_video_outlined, size: 48),
               const SizedBox(height: 12),
@@ -156,10 +213,12 @@ class _ScrapperDownloaderFontsState extends State<ScrapperDownloaderFonts> {
               ),
             ],
             SizedBox(height: 10),
-            if (visibleSources.isNotEmpty)
+            if (_contentType == SourceContentType.manga &&
+                visibleSources.isNotEmpty)
               _buildFontSection('Active Sources', true),
             SizedBox(height: 10),
-            if (visibleSources.isNotEmpty)
+            if (_contentType == SourceContentType.manga &&
+                visibleSources.isNotEmpty)
               _buildFontSection('Inactive Sources', false),
           ],
         ),

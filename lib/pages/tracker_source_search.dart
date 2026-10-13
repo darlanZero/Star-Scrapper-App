@@ -4,11 +4,32 @@ import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/domain/sources/source.dart';
 import 'package:star_scrapper_app/domain/trackers/tracker.dart';
 import 'package:star_scrapper_app/pages/search_screen.dart';
+import 'package:star_scrapper_app/pages/anime_source_catalog_screen.dart';
 
 void openTrackerSourceSearch(BuildContext context, TrackerMedia media) {
   final sourceType = media.type == TrackedMediaType.anime
       ? SourceContentType.anime
       : SourceContentType.manga;
+  final provider = context.read<FontProvider>();
+  if (sourceType == SourceContentType.anime) {
+    final sources = provider.activeAnimeSources;
+    if (sources.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Enable an anime source before searching.')),
+      );
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AnimeSourceCatalogScreen(
+          source: sources.first,
+          initialQuery: media.title.searchTerms.first,
+        ),
+      ),
+    );
+    return;
+  }
   final hasMatchingSource = context
       .read<FontProvider>()
       .activeFonts

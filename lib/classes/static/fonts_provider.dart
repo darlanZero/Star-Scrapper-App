@@ -9,10 +9,12 @@ import 'package:star_scrapper_app/application/library/reading_progress_controlle
 import 'package:star_scrapper_app/application/library/tabs_state.dart';
 import 'package:star_scrapper_app/application/notifications/library_update_notifier.dart';
 import 'package:star_scrapper_app/application/sources/source_controller.dart';
+import 'package:star_scrapper_app/application/sources/anime_source_controller.dart';
 import 'package:star_scrapper_app/application/sources/source_health_monitor.dart';
 import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 import 'package:star_scrapper_app/data/library/library_storage.dart';
 import 'package:star_scrapper_app/domain/sources/source.dart';
+import 'package:star_scrapper_app/domain/sources/anime_source.dart';
 
 export 'package:star_scrapper_app/application/sources/source_health_monitor.dart'
     show FontHostStatus;
@@ -20,6 +22,7 @@ export 'package:star_scrapper_app/application/sources/source_health_monitor.dart
 class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
   late final Future<void> _sourcesLoaded;
   late final SourceController _sourceController;
+  late final AnimeSourceController _animeSourceController;
   late final SourceHealthMonitor _sourceHealthMonitor;
   late final ChapterUpdateScheduler _chapterUpdateScheduler;
   late final LibraryOrganizer _libraryOrganizer;
@@ -35,6 +38,7 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
       onChanged: notifyListeners,
     );
     _sourceController = SourceController(onChanged: notifyListeners);
+    _animeSourceController = AnimeSourceController(onChanged: notifyListeners);
     _sourceHealthMonitor = SourceHealthMonitor(
       sources: _sourceController.sources,
       onChanged: notifyListeners,
@@ -44,7 +48,10 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
       onRun: _updateLibraryBooks,
       onChanged: notifyListeners,
     );
-    _sourcesLoaded = _sourceController.initialize();
+    _sourcesLoaded = Future.wait([
+      _sourceController.initialize(),
+      _animeSourceController.initialize(),
+    ]);
     unawaited(_loadLibraryState());
 
     unawaited(_chapterUpdateScheduler.initialize());
@@ -59,6 +66,9 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
   }
 
   List<Fonte> get fonts => _sourceController.sources;
+  List<AnimeSource> get animeSources => _animeSourceController.sources;
+  List<AnimeSource> get activeAnimeSources => _animeSourceController.active;
+  List<AnimeSource> get inactiveAnimeSources => _animeSourceController.inactive;
   Future<void> get sourcesLoaded => _sourcesLoaded;
   List<Map<String, dynamic>> get favoritedBooks => _libraryOrganizer.books;
   List<Map<String, dynamic>> get readBooks => _readingProgress.readBooks;
@@ -96,6 +106,12 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
   Future<void> toggleFontState(Fonte font) async {
     await _sourceController.toggle(font);
   }
+
+  bool isAnimeSourceActive(AnimeSource source) =>
+      _animeSourceController.isActive(source);
+
+  Future<void> toggleAnimeSource(AnimeSource source) =>
+      _animeSourceController.toggle(source);
 
   //update single book details
   Future<void> updateBookDetails(String bookId, {Scrapper? scrapper}) async {
@@ -248,6 +264,7 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
 
   Future<void> refreshFromStorage() async {
     await _sourceController.initialize();
+    await _animeSourceController.initialize();
     await _loadLibraryState();
     await _chapterUpdateScheduler.initialize();
     await _libraryUpdateTracker.initialize();
