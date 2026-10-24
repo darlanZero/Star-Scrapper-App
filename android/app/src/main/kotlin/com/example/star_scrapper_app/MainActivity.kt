@@ -10,11 +10,16 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import org.json.JSONObject
 import java.io.File
 
 class MainActivity: FlutterActivity() {
+    private var readerWebView: WebView? = null
+    private val readerHandler = Handler(Looper.getMainLooper())
+    private var readerActive = false
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(
@@ -41,15 +46,31 @@ class MainActivity: FlutterActivity() {
                     userAgent = call.argument<String>("userAgent"),
                     result = result,
                 )
-                "loadReaderPages" -> loadReaderPagesInWebView(
-                    url = call.argument<String>("url"),
-                    userAgent = call.argument<String>("userAgent"),
-                    pageCount = call.argument<Int>("pageCount") ?: 0,
-                    result = result,
-                )
                 else -> result.notImplemented()
             }
         }
+
+        // Streams reader page file paths one at a time as they are extracted,
+        // so the Dart reader can render progressively instead of waiting for the
+        // whole chapter.
+        EventChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "starslibrary/reader_pages",
+        ).setStreamHandler(object : EventChannel.StreamHandler {
+            override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                val args = arguments as? Map<*, *>
+                startReaderStream(
+                    url = args?.get("url") as? String,
+                    userAgent = args?.get("userAgent") as? String,
+                    pageCount = (args?.get("pageCount") as? Int) ?: 0,
+                    events = events,
+                )
+            }
+
+            override fun onCancel(arguments: Any?) {
+                stopReaderStream()
+            }
+        })
     }
 
     private fun loadHtmlInWebView(
@@ -196,29 +217,49 @@ class MainActivity: FlutterActivity() {
         webView.loadUrl(url)
     }
 
+    /** Tears down any in-flight reader WebView and cancels its pending work. */
+    private fun stopReaderStream() {
+        readerActive = false
+        readerHandler.removeCallbacksAndMessages(null)
+        val webView = readerWebView
+        readerWebView = null
+        if (webView != null) {
+            (webView.parent as? ViewGroup)?.removeView(webView)
+            webView.stopLoading()
+            webView.destroy()
+        }
+    }
+
     /**
      * Drives the HDoujin SPA reader inside an offscreen WebView (which clears
-     * Cloudflare) and extracts every page image as bytes.
+     * Cloudflare) and streams each page image as it becomes available.
      *
      * A JS "driver" accumulates each page as a data URL into `window.__hd`,
      * handling both the continuous (all imgs in the DOM) and paged (one img,
      * click Next) layouts. The native side polls `window.__hd`, drains one page
-     * at a time, decodes it and writes each file under
-     * `cacheDir/hdoujin_reader/<timestamp>/NNNN.<ext>`, returning the absolute
-     * paths. On timeout it returns whatever was collected so far.
+     * at a time, decodes it, writes it under
+     * `cacheDir/hdoujin_reader/<timestamp>/NNNN.<ext>` and emits the absolute
+     * path through the event sink. The stream ends when the driver is done or
+     * the overall timeout fires (whatever was collected is kept).
      */
-    private fun loadReaderPagesInWebView(
+    private fun startReaderStream(
         url: String?,
         userAgent: String?,
         pageCount: Int,
-        result: MethodChannel.Result,
+        events: EventChannel.EventSink?,
     ) {
+        if (events == null) return
         if (url.isNullOrBlank()) {
-            result.error("invalid_url", "A URL is required.", null)
+            events.error("invalid_url", "A URL is required.", null)
+            events.endOfStream()
             return
         }
-        val handler = Handler(Looper.getMainLooper())
+        // Only one reader stream at a time.
+        stopReaderStream()
+        readerActive = true
+
         val webView = WebView(this)
+        readerWebView = webView
         // A real-ish offscreen viewport so the reader lays out and can advance.
         val layoutParams = FrameLayout.LayoutParams(1080, 1920)
         webView.alpha = 0.01f
@@ -238,24 +279,18 @@ class MainActivity: FlutterActivity() {
             System.currentTimeMillis().toString(),
         )
         outputDir.mkdirs()
-        val paths = ArrayList<String>()
+        var written = 0
 
-        var finished = false
-        fun dispose() {
-            (webView.parent as? ViewGroup)?.removeView(webView)
-            webView.stopLoading()
-            webView.destroy()
-        }
         fun finish() {
-            if (finished) return
-            finished = true
-            result.success(paths)
-            dispose()
+            if (!readerActive) return
+            readerActive = false
+            events.endOfStream()
+            stopReaderStream()
         }
 
         val overallTimeout = (maxOf(pageCount, 1).toLong() * 6_000L + 20_000L)
             .coerceAtMost(600_000L)
-        handler.postDelayed({ finish() }, overallTimeout)
+        readerHandler.postDelayed({ finish() }, overallTimeout)
 
         // Injected once per document; re-injecting is a no-op (guarded below).
         val driver = """
@@ -364,7 +399,7 @@ class MainActivity: FlutterActivity() {
             })()
         """.trimIndent()
 
-        fun writePage(dataUrl: String) {
+        fun writeAndEmit(dataUrl: String) {
             val comma = dataUrl.indexOf(',')
             if (comma < 0) return
             val meta = dataUrl.substring(0, comma)
@@ -377,40 +412,41 @@ class MainActivity: FlutterActivity() {
             }
             val bytes = Base64.decode(base64, Base64.DEFAULT)
             if (bytes.isEmpty()) return
-            val file = File(outputDir, "%04d.%s".format(paths.size, ext))
+            val file = File(outputDir, "%04d.%s".format(written, ext))
             file.writeBytes(bytes)
-            paths.add(file.absolutePath)
+            written += 1
+            events.success(file.absolutePath)
         }
 
         fun poll() {
-            if (finished) return
-            webView.evaluateJavascript(drainJs) { encoded ->
-                if (finished) return@evaluateJavascript
+            if (!readerActive) return
+            val view = readerWebView ?: return
+            view.evaluateJavascript(drainJs) { encoded ->
+                if (!readerActive) return@evaluateJavascript
                 if (encoded == null || encoded == "null") {
-                    handler.postDelayed({ poll() }, 300)
+                    readerHandler.postDelayed({ poll() }, 300)
                     return@evaluateJavascript
                 }
                 val payload = try {
-                    val json = JSONObject("{\"v\":$encoded}").getString("v")
-                    JSONObject(json)
+                    JSONObject(JSONObject("{\"v\":$encoded}").getString("v"))
                 } catch (error: Exception) {
                     null
                 }
                 if (payload == null) {
-                    handler.postDelayed({ poll() }, 300)
+                    readerHandler.postDelayed({ poll() }, 300)
                     return@evaluateJavascript
                 }
                 val page = if (payload.isNull("page")) null else payload.optString("page")
                 if (!page.isNullOrEmpty()) {
-                    try { writePage(page) } catch (_: Exception) {}
+                    try { writeAndEmit(page) } catch (_: Exception) {}
                     // Keep draining immediately while pages are available.
-                    handler.post { poll() }
+                    readerHandler.post { poll() }
                     return@evaluateJavascript
                 }
                 if (payload.optBoolean("done", false)) {
                     finish()
                 } else {
-                    handler.postDelayed({ poll() }, 300)
+                    readerHandler.postDelayed({ poll() }, 300)
                 }
             }
         }
@@ -418,13 +454,13 @@ class MainActivity: FlutterActivity() {
         var polling = false
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, loadedUrl: String?) {
-                if (finished) return
+                if (!readerActive) return
                 // Re-inject each document (e.g. after a Cloudflare reload); the
                 // driver self-guards against double-injection.
                 webView.evaluateJavascript(driver, null)
                 if (!polling) {
                     polling = true
-                    handler.postDelayed({ poll() }, 800)
+                    readerHandler.postDelayed({ poll() }, 800)
                 }
             }
         }

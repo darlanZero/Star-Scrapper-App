@@ -49,6 +49,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   final Set<int> _preloadingPageIndexes = <int>{};
   StreamSubscription<MangaReaderPage>? _chapterImagesSubscription;
   bool _showWebView = false;
+  bool _streamDone = false;
   flutter_webview.WebViewController? _androidWebViewController;
   int _webViewProgress = 0;
   String? _webViewError;
@@ -108,6 +109,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
         _tryRestoreScrollPosition();
       },
       onError: (_) {
+        if (mounted) setState(() => _streamDone = true);
         // Falha ao resolver páginas → cai para a WebView se houver URL.
         if (_chapterImages.isEmpty &&
             _chapterWebViewUrl.isNotEmpty &&
@@ -116,6 +118,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
         }
       },
       onDone: () {
+        if (mounted) setState(() => _streamDone = true);
         // Se a fonte não forneceu imagens (ex.: conteúdo protegido por DRM),
         // abre automaticamente a WebView com a URL do capítulo.
         if (_chapterImages.isEmpty &&
@@ -220,6 +223,56 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
           'The site finished loading but did not expose any reader pages. '
           'It may require browser verification.';
     });
+  }
+
+  bool get _isInitialBuffering =>
+      !_showWebView &&
+      !_streamDone &&
+      _chapterImages.length < _preloadWindowSize;
+
+  Widget _buildReaderLoader() {
+    final loaded = _chapterImages.length;
+    final label = loaded == 0
+        ? 'Loading pages…'
+        : '$loaded ${loaded == 1 ? 'page ready' : 'pages ready'}';
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.black, Color(0xFF14101E)],
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 46,
+              height: 46,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                color: Colors.deepPurpleAccent,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Preparing the reader',
+              style: TextStyle(color: Colors.white38, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildPageImage(MangaReaderPage page, {BoxFit fit = BoxFit.contain}) {
@@ -679,7 +732,9 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
           : null,
       body: _showWebView
           ? _buildWebView(context)
-          : GestureDetector(
+          : _isInitialBuffering
+              ? _buildReaderLoader()
+              : GestureDetector(
               onTap: () {
                 _setControlsVisible(!_showControls);
               },

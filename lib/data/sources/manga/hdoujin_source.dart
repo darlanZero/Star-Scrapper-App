@@ -229,14 +229,8 @@ class HDoujinSource
       // Fall back to letting the native driver discover the page count.
       pageCount = 0;
     }
-    final paths = await BrowserHtmlLoader.loadReaderPages(
-      readerUri,
-      _userAgent,
-      pageCount,
-    );
-    for (final path in paths) {
-      yield MangaReaderPage.file(path);
-    }
+    yield* BrowserHtmlLoader.readerPages(readerUri, _userAgent, pageCount)
+        .map((path) => MangaReaderPage.file(path));
   }
 
   @override

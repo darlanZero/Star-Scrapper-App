@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 
 abstract final class BrowserHtmlLoader {
   static const _channel = MethodChannel('starslibrary/webview_cookies');
+  static const _readerPagesChannel =
+      EventChannel('starslibrary/reader_pages');
   static Future<void> _pending = Future.value();
   static final Map<String, Future<Uint8List>> _imageCache = {};
   static const _defaultReadySelector =
@@ -59,30 +61,22 @@ abstract final class BrowserHtmlLoader {
         });
       });
 
-  /// Drives a blob-based SPA reader inside the native WebView and returns the
-  /// absolute paths of the extracted page images, in reading order.
-  static Future<List<String>> loadReaderPages(
+  /// Streams the absolute file path of each extracted reader page, in reading
+  /// order, as the native driver pulls them out of the blob-based SPA reader.
+  ///
+  /// Cancelling the subscription tears down the underlying WebView.
+  static Stream<String> readerPages(
     Uri uri,
     String userAgent,
     int pageCount,
   ) {
-    final operation = _pending.then(
-      (_) => _channel.invokeMethod<List<dynamic>>('loadReaderPages', {
-        'url': uri.toString(),
-        'userAgent': userAgent,
-        'pageCount': pageCount,
-      }),
-    );
-    _pending = operation.then<void>((_) {}, onError: (_) {});
-    return operation.then((pages) {
-      final paths = (pages ?? const [])
-          .map((path) => path.toString())
-          .where((path) => path.isNotEmpty)
-          .toList(growable: false);
-      if (paths.isEmpty) {
-        throw StateError('The browser returned no reader pages.');
-      }
-      return paths;
-    });
+    return _readerPagesChannel
+        .receiveBroadcastStream(<String, dynamic>{
+          'url': uri.toString(),
+          'userAgent': userAgent,
+          'pageCount': pageCount,
+        })
+        .map((event) => event?.toString() ?? '')
+        .where((path) => path.isNotEmpty);
   }
 }
