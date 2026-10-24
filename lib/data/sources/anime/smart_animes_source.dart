@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/domain/sources/anime_source.dart';
 
+typedef BrowserHtmlLoad = Future<String> Function(Uri uri, String userAgent);
+
 /// Brazilian Portuguese catalog backed by smartanimes.net.
 ///
 /// Cloudflare's browser verification is completed in a WebView and its
@@ -26,13 +28,18 @@ class SmartAnimesSource
 
   final http.Client _client;
   final Uri _baseUri;
+  final BrowserHtmlLoad? _browserHtmlLoader;
   Map<String, String> _cookies = const {};
   String _userAgent = _defaultUserAgent;
   bool _sessionLoaded = false;
 
-  SmartAnimesSource({http.Client? client, Uri? baseUri})
-      : _client = client ?? http.Client(),
-        _baseUri = baseUri ?? _defaultBaseUri;
+  SmartAnimesSource({
+    http.Client? client,
+    Uri? baseUri,
+    BrowserHtmlLoad? browserHtmlLoader,
+  })  : _client = client ?? http.Client(),
+        _baseUri = baseUri ?? _defaultBaseUri,
+        _browserHtmlLoader = browserHtmlLoader;
 
   @override
   String get id => 'smart_animes';
@@ -344,11 +351,20 @@ class SmartAnimesSource
     await _loadSession();
     final response = await _client.get(uri, headers: requestHeaders);
     final body = utf8.decode(response.bodyBytes, allowMalformed: true);
-    if (response.statusCode == 403 ||
-        body.toLowerCase().contains('just a moment') ||
-        body.toLowerCase().contains('cf-chl-')) {
+    if (_isBrowserChallenge(response.statusCode, body)) {
+      final loader = _browserHtmlLoader;
+      if (loader != null && _cookies.isNotEmpty) {
+        try {
+          final browserBody = await loader(uri, _userAgent);
+          if (!_isBrowserChallenge(200, browserBody)) {
+            return html_parser.parse(browserBody);
+          }
+        } catch (_) {
+          // Fall through to the actionable session error below.
+        }
+      }
       throw const AnimeSourceSessionRequired(
-        'Smart Animes precisa concluir a verificação do navegador.',
+        'Smart Animes requires browser verification to continue.',
       );
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -358,6 +374,14 @@ class SmartAnimesSource
       );
     }
     return html_parser.parse(body);
+  }
+
+  static bool _isBrowserChallenge(int statusCode, String body) {
+    final normalized = body.toLowerCase();
+    return statusCode == 403 ||
+        normalized.contains('just a moment') ||
+        normalized.contains('cf-chl-') ||
+        normalized.contains('challenge-platform');
   }
 
   Future<void> _loadSession() async {

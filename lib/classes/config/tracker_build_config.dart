@@ -4,7 +4,10 @@ abstract final class TrackerBuildConfig {
     defaultValue: 'StarsLibrary',
   );
 
-  static const aniListClientId = String.fromEnvironment('AnilistClientId');
+  /// Public OAuth application identifier registered for StarsLibrary.
+  ///
+  /// This is intentionally part of the build and must not be user-editable.
+  static const aniListClientId = '53713';
 
   static const _aniListOAuthUrl = String.fromEnvironment('AnilistOAuthUrl');
 
@@ -23,5 +26,5 @@ abstract final class TrackerBuildConfig {
     return 'https://anilist.co/api/v2/oauth/authorize';
   }
 
-  static bool get hasAniListClient => aniListClientId.trim().isNotEmpty;
+  static const hasAniListClient = true;
 }

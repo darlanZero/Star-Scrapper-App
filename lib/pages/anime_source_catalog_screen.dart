@@ -96,10 +96,6 @@ class _AnimeSourceCatalogScreenState extends State<AnimeSourceCatalogScreen> {
     } catch (error) {
       if (!mounted || generation != _requestGeneration) return;
       setState(() => _error = error);
-      if (error is AnimeSourceSessionRequired &&
-          widget.source is BrowserSessionAnimeSource) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _verifySession());
-      }
     } finally {
       if (mounted && generation == _requestGeneration) {
         setState(() => _loading = false);
@@ -237,8 +233,12 @@ class _AnimeSourceCatalogScreenState extends State<AnimeSourceCatalogScreen> {
                   icon: Icons.cloud_off_rounded,
                   title: 'Could not load ${widget.source.name}',
                   message: _error.toString(),
-                  actionLabel: 'Try again',
-                  onAction: () => _load(reset: true),
+                  actionLabel: _error is AnimeSourceSessionRequired
+                      ? 'Verify in browser'
+                      : 'Try again',
+                  onAction: _error is AnimeSourceSessionRequired
+                      ? _verifySession
+                      : () => _load(reset: true),
                 ),
               )
             else if (!_loading && _items.isEmpty)

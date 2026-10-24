@@ -25,8 +25,8 @@ class TrackerController extends ChangeNotifier {
   bool _includeAdult = false;
   bool _preferEnglishTitles = false;
   String _malClientId = '';
-  String _aniListClientId = '';
-  String _aniListRedirectUri = 'starslibrary://oauth/anilist';
+  String _aniListClientId = TrackerBuildConfig.aniListClientId;
+  String _aniListRedirectUri = TrackerBuildConfig.aniListRedirectUrl;
   String _malRedirectUri = 'starslibrary://oauth/mal';
   TrackerTokens? _aniListTokens;
   TrackerTokens? _malTokens;
