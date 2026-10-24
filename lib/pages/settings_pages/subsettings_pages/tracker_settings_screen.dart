@@ -65,7 +65,7 @@ class _TrackerSettingsScreenState extends State<TrackerSettingsScreen> {
                     leading: const Icon(Icons.developer_mode_rounded),
                     title: const Text('Configured by this build'),
                     subtitle: Text(
-                      '${tracker.aniListClientName} · ${tracker.aniListRedirectUri}',
+                      '${tracker.aniListClientName} · Client ID ${tracker.aniListClientId}\n${tracker.aniListRedirectUri}',
                     ),
                   )
                 else

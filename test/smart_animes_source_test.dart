@@ -137,8 +137,42 @@ void main() {
 
     await expectLater(
       source.browse(),
-      throwsA(isA<AnimeSourceSessionRequired>()),
+      throwsA(
+        isA<AnimeSourceSessionRequired>().having(
+          (error) => error.message,
+          'message',
+          'Smart Animes requires browser verification to continue.',
+        ),
+      ),
     );
+  });
+
+  test('falls back to the browser engine after Cloudflare verification',
+      () async {
+    SharedPreferences.setMockInitialValues({
+      'smart_animes_browser_cookies': jsonEncode({'cf_clearance': 'valid'}),
+      'smart_animes_browser_user_agent': 'Verified WebView',
+    });
+    Uri? loadedUri;
+    String? loadedUserAgent;
+    final source = SmartAnimesSource(
+      baseUri: Uri.parse('https://example.test/'),
+      client: MockClient(
+        (request) async =>
+            http.Response('<title>Just a moment...</title>', 403),
+      ),
+      browserHtmlLoader: (uri, userAgent) async {
+        loadedUri = uri;
+        loadedUserAgent = userAgent;
+        return _catalogHtml;
+      },
+    );
+
+    final page = await source.browse();
+
+    expect(loadedUri, Uri.parse('https://example.test/anime/?order=update'));
+    expect(loadedUserAgent, 'Verified WebView');
+    expect(page.items.single.title, 'Gensou Suikoden');
   });
 }
 

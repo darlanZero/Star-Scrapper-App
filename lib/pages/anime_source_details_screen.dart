@@ -69,10 +69,6 @@ class _AnimeSourceDetailsScreenState extends State<AnimeSourceDetailsScreen> {
     } catch (error) {
       if (mounted) {
         setState(() => _error = error);
-        if (error is AnimeSourceSessionRequired &&
-            widget.source is BrowserSessionAnimeSource) {
-          WidgetsBinding.instance.addPostFrameCallback((_) => _verifySession());
-        }
       }
     }
   }
@@ -423,7 +419,16 @@ class _AnimeSourceDetailsScreenState extends State<AnimeSourceDetailsScreen> {
                 const SizedBox(height: 12),
                 Text(_error.toString(), textAlign: TextAlign.center),
                 const SizedBox(height: 16),
-                FilledButton(onPressed: _load, child: const Text('Try again')),
+                FilledButton(
+                  onPressed: _error is AnimeSourceSessionRequired
+                      ? _verifySession
+                      : _load,
+                  child: Text(
+                    _error is AnimeSourceSessionRequired
+                        ? 'Verify in browser'
+                        : 'Try again',
+                  ),
+                ),
               ],
             ),
           ),
