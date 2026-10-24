@@ -231,43 +231,47 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
       _chapterImages.length < _preloadWindowSize;
 
   Widget _buildReaderLoader() {
+    final colors = Theme.of(context).colorScheme;
     final loaded = _chapterImages.length;
     final label = loaded == 0
         ? 'Loading pages…'
         : '$loaded ${loaded == 1 ? 'page ready' : 'pages ready'}';
-    return Container(
-      decoration: const BoxDecoration(
+    return DecoratedBox(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Colors.black, Color(0xFF14101E)],
+          colors: [
+            Theme.of(context).scaffoldBackgroundColor,
+            colors.surface,
+          ],
         ),
       ),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(
+            SizedBox(
               width: 46,
               height: 46,
               child: CircularProgressIndicator(
                 strokeWidth: 3,
-                color: Colors.deepPurpleAccent,
+                color: colors.primary,
               ),
             ),
             const SizedBox(height: 20),
             Text(
               label,
-              style: const TextStyle(
-                color: Colors.white70,
+              style: TextStyle(
+                color: colors.onSurface,
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'Preparing the reader',
-              style: TextStyle(color: Colors.white38, fontSize: 12),
+              style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
             ),
           ],
         ),
@@ -499,9 +503,10 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   }
 
   void _showReaderPreferences() {
+    final colors = Theme.of(context).colorScheme;
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF151026),
+      backgroundColor: colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -515,12 +520,24 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 14),
+                        decoration: BoxDecoration(
+                          color: colors.outlineVariant,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    Text(
                       'Reader preferences',
                       style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: colors.onSurface,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     SwitchListTile(
@@ -534,9 +551,10 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                               initialPage: _currentPage, viewportFraction: 1.0);
                         });
                       },
-                      title: const Text('Paginated mode',
-                          style: TextStyle(color: Colors.white)),
-                      activeThumbColor: Colors.deepPurpleAccent,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('Paginated mode',
+                          style: TextStyle(color: colors.onSurface)),
+                      activeThumbColor: colors.primary,
                     ),
                     SwitchListTile(
                       value: _reverseReading,
@@ -545,9 +563,10 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                         setState(() => _reverseReading = v);
                         _preloadPagesAround(_currentPage);
                       },
-                      title: const Text('Reverse reading direction',
-                          style: TextStyle(color: Colors.white)),
-                      activeThumbColor: Colors.deepPurpleAccent,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('Reverse reading direction',
+                          style: TextStyle(color: colors.onSurface)),
+                      activeThumbColor: colors.primary,
                     ),
                   ],
                 ),
@@ -687,47 +706,71 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   Widget build(BuildContext context) {
     final displayTitle =
         widget.chapterTitle ?? widget.chapterNumber ?? 'Chapter';
+    final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: _showControls
-          ? AppBar(
-              title: Text('${widget.bookTitle} - $displayTitle',
-                  style: const TextStyle(
-                      color: Color.fromARGB(255, 224, 224, 224),
-                      fontWeight: FontWeight.bold)),
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(kToolbarHeight),
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
                   bottom: Radius.circular(20),
                 ),
-              ),
-              backgroundColor: Color.fromARGB(158, 60, 16, 180),
-              elevation: 0,
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.tune_rounded),
-                  onPressed: _showReaderPreferences,
-                ),
-                IconButton(
-                  icon: Icon(Icons.open_in_new_rounded),
-                  tooltip: _showWebView ? 'Open externally' : 'Browser reader',
-                  onPressed: () {
-                    if (_showWebView) {
-                      launchUrl(Uri.parse(_chapterWebViewUrl));
-                    } else {
-                      _activateWebView();
-                    }
-                  },
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.deepPurple.withValues(alpha: 0.5),
-                    highlightColor: Colors.white,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                  child: AppBar(
+                    title: Text(
+                      '${widget.bookTitle} - $displayTitle',
+                      style: TextStyle(
+                        color: colors.onSurface,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(
+                        bottom: Radius.circular(20),
+                      ),
+                    ),
+                    backgroundColor: colors.surface.withValues(alpha: 0.82),
+                    foregroundColor: colors.onSurface,
+                    elevation: 0,
+                    actions: [
+                      IconButton(
+                        icon: const Icon(Icons.tune_rounded),
+                        color: colors.onSurface,
+                        onPressed: _showReaderPreferences,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: IconButton(
+                          icon: const Icon(Icons.open_in_new_rounded),
+                          tooltip: _showWebView
+                              ? 'Open externally'
+                              : 'Browser reader',
+                          onPressed: () {
+                            if (_showWebView) {
+                              launchUrl(Uri.parse(_chapterWebViewUrl));
+                            } else {
+                              _activateWebView();
+                            }
+                          },
+                          style: IconButton.styleFrom(
+                            backgroundColor:
+                                colors.primary.withValues(alpha: 0.18),
+                            foregroundColor: colors.primary,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                )
-              ],
+                ),
+              ),
             )
           : null,
       body: _showWebView
@@ -735,61 +778,62 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
           : _isInitialBuffering
               ? _buildReaderLoader()
               : GestureDetector(
-              onTap: () {
-                _setControlsVisible(!_showControls);
-              },
-              onLongPress: () {
-                if (_chapterImages.isEmpty) return;
-                final safeIndex =
-                    _currentPage.clamp(0, _chapterImages.length - 1).toInt();
-                _showImageOptions(_chapterImages[safeIndex]);
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black,
-                      Colors.grey[900]!,
-                    ],
+                  onTap: () {
+                    _setControlsVisible(!_showControls);
+                  },
+                  onLongPress: () {
+                    if (_chapterImages.isEmpty) return;
+                    final safeIndex = _currentPage
+                        .clamp(0, _chapterImages.length - 1)
+                        .toInt();
+                    _showImageOptions(_chapterImages[safeIndex]);
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Theme.of(context).scaffoldBackgroundColor,
+                          colors.surface,
+                        ],
+                      ),
+                    ),
+                    child: _isPaginatedView
+                        ? PageView.builder(
+                            onPageChanged: (index) {
+                              setState(() {
+                                _currentPage = index;
+                              });
+                              _preloadPagesAround(index);
+                              _scheduleControlsAutoHide();
+                            },
+                            reverse: _reverseReading,
+                            scrollBehavior: ScrollBehavior().copyWith(
+                              dragDevices: {
+                                PointerDeviceKind.touch,
+                                PointerDeviceKind.mouse,
+                              },
+                            ),
+                            controller: _pageController,
+                            itemCount: _chapterImages.length,
+                            itemBuilder: (context, index) {
+                              return _buildPageImage(_chapterImages[index]);
+                            },
+                          )
+                        : ListView.builder(
+                            controller: _scrollController,
+                            reverse: _reverseReading,
+                            itemCount: _chapterImages.length,
+                            itemBuilder: (context, index) {
+                              return Container(
+                                key: _imageItemKeys[index],
+                                child: _buildPageImage(_chapterImages[index]),
+                              );
+                            },
+                          ),
                   ),
                 ),
-                child: _isPaginatedView
-                    ? PageView.builder(
-                        onPageChanged: (index) {
-                          setState(() {
-                            _currentPage = index;
-                          });
-                          _preloadPagesAround(index);
-                          _scheduleControlsAutoHide();
-                        },
-                        reverse: _reverseReading,
-                        scrollBehavior: ScrollBehavior().copyWith(
-                          dragDevices: {
-                            PointerDeviceKind.touch,
-                            PointerDeviceKind.mouse,
-                          },
-                        ),
-                        controller: _pageController,
-                        itemCount: _chapterImages.length,
-                        itemBuilder: (context, index) {
-                          return _buildPageImage(_chapterImages[index]);
-                        },
-                      )
-                    : ListView.builder(
-                        controller: _scrollController,
-                        reverse: _reverseReading,
-                        itemCount: _chapterImages.length,
-                        itemBuilder: (context, index) {
-                          return Container(
-                            key: _imageItemKeys[index],
-                            child: _buildPageImage(_chapterImages[index]),
-                          );
-                        },
-                      ),
-              ),
-            ),
       floatingActionButton: _showControls
           ? FloatingActionButton(
               onPressed: () async {
@@ -810,30 +854,37 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(18),
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: const Color.fromARGB(185, 42, 19, 107),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.15),
-                        ),
+                        color: colors.surfaceContainer.withValues(alpha: 0.78),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: colors.outlineVariant),
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (_chapterImages.length > 1)
-                            Slider(
-                              value: _currentPage
-                                  .clamp(0, _chapterImages.length - 1)
-                                  .toDouble(),
-                              min: 0,
-                              max: (_chapterImages.length - 1).toDouble(),
-                              activeColor: Colors.white,
-                              inactiveColor: Colors.white24,
-                              onChanged: (v) => _jumpToPage(v.round()),
+                            SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                activeTrackColor: colors.primary,
+                                inactiveTrackColor: colors.onSurfaceVariant
+                                    .withValues(alpha: 0.25),
+                                thumbColor: colors.primary,
+                                overlayColor:
+                                    colors.primary.withValues(alpha: 0.15),
+                                trackHeight: 3,
+                              ),
+                              child: Slider(
+                                value: _currentPage
+                                    .clamp(0, _chapterImages.length - 1)
+                                    .toDouble(),
+                                min: 0,
+                                max: (_chapterImages.length - 1).toDouble(),
+                                onChanged: (v) => _jumpToPage(v.round()),
+                              ),
                             ),
                           Padding(
                             padding: const EdgeInsets.fromLTRB(6, 0, 6, 4),
@@ -842,12 +893,13 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                               children: [
                                 IconButton(
                                   icon: const Icon(Icons.skip_previous_rounded),
+                                  color: colors.onSurface,
                                   onPressed: () => _openAdjacentChapter(false),
                                 ),
                                 Text(
                                   '${_chapterImages.isEmpty ? 0 : _currentPage + 1}/${_chapterImages.length} • ${_chapterImages.isEmpty ? 0 : (((_currentPage + 1) / _chapterImages.length) * 100).round()}%',
-                                  style: const TextStyle(
-                                    color: Colors.white70,
+                                  style: TextStyle(
+                                    color: colors.onSurfaceVariant,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -855,10 +907,12 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                                   icon: Icon(_isPaginatedView
                                       ? Icons.view_agenda_rounded
                                       : Icons.view_carousel_rounded),
+                                  color: colors.onSurface,
                                   onPressed: _toggleView,
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.skip_next_rounded),
+                                  color: colors.onSurface,
                                   onPressed: () => _openAdjacentChapter(true),
                                 ),
                               ],
