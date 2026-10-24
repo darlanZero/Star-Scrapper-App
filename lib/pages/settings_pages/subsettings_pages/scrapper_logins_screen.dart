@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:star_scrapper_app/classes/Scrappers/engine/auth_webview_screen.dart';
-import 'package:star_scrapper_app/classes/Scrappers/engine/scrapper_profile.dart';
-import 'package:star_scrapper_app/classes/Scrappers/engine/session_manager.dart';
+import 'package:star_scrapper_app/data/sources/manga/engine/auth_webview_screen.dart';
+import 'package:star_scrapper_app/data/sources/manga/engine/scrapper_profile.dart';
+import 'package:star_scrapper_app/data/sources/manga/engine/session_manager.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';
+import 'package:star_scrapper_app/data/sources/manga/engine/base_html_manga_source.dart'
+    show ProfileAuthMangaSource;
+import 'package:star_scrapper_app/domain/sources/manga_source.dart';
+import 'package:star_scrapper_app/domain/sources/source.dart';
 
 /// ─────────────────────────────────────────────────────────────────────────────
 /// ScrapperLoginsScreen
@@ -35,11 +39,11 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
   Future<void> _loadAllSessions() async {
     final fontProvider = Provider.of<FontProvider>(context, listen: false);
     final authFonts = fontProvider.fonts.where(
-      (f) => f.api.scrapperProfile != null,
+      (f) => f.api is ProfileAuthMangaSource,
     );
     final Map<String, Map<String, String>> loaded = {};
     for (final font in authFonts) {
-      final key = font.api.siteKey;
+      final key = (font.api as ProfileAuthMangaSource).sessionKey;
       if (key.isNotEmpty) {
         loaded[key] = await SessionManager.loadCookies(key);
       }
@@ -54,11 +58,14 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
   }
 
   Future<void> _doLogin(Fonte font) async {
-    final profile = font.api.scrapperProfile!;
+    final profile = (font.api as ProfileAuthMangaSource).authProfile;
     await showAuthWebView(
       context: context,
       profile: profile,
-      onSuccess: (cookies) => font.api.updateSession(cookies),
+      onSuccess: (cookies) => font.api is BrowserSessionMangaSource
+          ? (font.api as BrowserSessionMangaSource)
+              .updateBrowserSession(cookies)
+          : Future.value(),
     );
     await _loadAllSessions();
   }
@@ -84,7 +91,9 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
       ),
     );
     if (confirmed == true) {
-      await font.api.logout();
+      if (font.api is BrowserSessionMangaSource) {
+        await (font.api as BrowserSessionMangaSource).logout();
+      }
       await _loadAllSessions();
     }
   }
@@ -99,7 +108,7 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
 
     final authFonts = fontProvider.fonts
         .where(
-          (f) => f.api.scrapperProfile != null,
+          (f) => f.api is ProfileAuthMangaSource,
         )
         .toList();
 
@@ -170,10 +179,11 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
                     )
                   else
                     ...authFonts.map((font) {
-                      final key = font.api.siteKey;
+                      final profileSource = font.api as ProfileAuthMangaSource;
+                      final key = profileSource.sessionKey;
                       final session = _sessions[key] ?? {};
                       final isLoggedIn = session.isNotEmpty;
-                      final profile = font.api.scrapperProfile!;
+                      final profile = profileSource.authProfile;
 
                       return _ScrapperLoginCard(
                         font: font,

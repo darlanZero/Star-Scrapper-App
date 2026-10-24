@@ -1,4 +1,4 @@
-import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
+import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 
 enum SourceContentType { manga, anime }
 
@@ -12,7 +12,7 @@ class Fonte {
   final String name;
   final String languagePrefix;
   final List<String> flags;
-  final Scrapper api;
+  final MangaSource api;
   final SourceContentType contentType;
   bool isActive;
   bool isRRated;

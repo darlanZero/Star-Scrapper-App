@@ -109,16 +109,15 @@ class _SearchScreenState extends State<SearchScreen> {
         activeFonts.map((font) async {
           try {
             final matches = await Future.wait(
-              normalizedQueries.map(font.api.searchTitle),
+              normalizedQueries.map((q) => font.api.search(q)),
             );
-            final unique = <dynamic>[];
+            final unique = <Map<String, dynamic>>[];
             final ids = <String>{};
-            for (final list in matches) {
-              for (final book in list) {
-                final id = font.api.getBookId(book);
-                final title = font.api.getTitle(book);
-                final key = id.isEmpty ? title.toLowerCase() : id;
-                if (ids.add(key)) unique.add(book);
+            for (final page in matches) {
+              for (final item in page.items) {
+                final key =
+                    item.id.isEmpty ? item.title.toLowerCase() : item.id;
+                if (ids.add(key)) unique.add(item.toJson());
               }
             }
             return MapEntry(font.name, unique);
@@ -304,23 +303,19 @@ class _SearchScreenState extends State<SearchScreen> {
                                 orElse: () => fontProvider.fonts.first,
                               );
                               return _BookListTile(
-                                title: font.api.getTitle(book),
-                                subtitle: (book['status'] ?? '').toString(),
-                                coverUrl: font.api.getCoverImageUrl(book),
+                                title: (book['title'] ?? '').toString(),
+                                subtitle: (book['latestChapter'] ?? '')
+                                    .toString(),
+                                coverUrl:
+                                    (book['coverImageUrl'] ?? '').toString(),
                                 onTap: () {
-                                  // Normaliza os campos para que BookDetailsScreen
-                                  // os encontre independente da fonte
-                                  final normalizedBook =
-                                      Map<String, dynamic>.from(book as Map);
-                                  normalizedBook['coverImageUrl'] ??=
-                                      font.api.getCoverImageUrl(book);
-                                  normalizedBook['title'] ??=
-                                      font.api.getTitle(book);
                                   Navigator.push(
                                       context,
                                       MaterialPageRoute(
                                         builder: (_) => BookDetailsScreen(
-                                          bookDetails: normalizedBook,
+                                          bookDetails:
+                                              Map<String, dynamic>.from(
+                                                  book as Map),
                                           scrapper: font.api,
                                         ),
                                       ));

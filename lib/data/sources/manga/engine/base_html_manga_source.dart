@@ -1,11 +1,20 @@
 import 'package:flutter/foundation.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
-import 'package:star_scrapper_app/classes/Scrappers/engine/scrapper_profile.dart';
-import 'package:star_scrapper_app/classes/Scrappers/engine/session_manager.dart';
+import 'package:star_scrapper_app/data/sources/manga/engine/scrapper_profile.dart';
+import 'package:star_scrapper_app/data/sources/manga/engine/session_manager.dart';
 import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 
-export 'package:star_scrapper_app/classes/Scrappers/engine/scrapper_profile.dart';
+export 'package:star_scrapper_app/data/sources/manga/engine/scrapper_profile.dart';
+
+/// Capability for sources that expose a [ScrapperProfile] so the auth WebView UI
+/// and the logins settings screen can drive a login flow generically.
+abstract interface class ProfileAuthMangaSource {
+  ScrapperProfile get authProfile;
+
+  /// Stable key under which the session is persisted (snake_case).
+  String get sessionKey;
+}
 
 /// Base for manga sources served over authenticated HTTP (Django/generic form
 /// login, cookie session). It provides the session plumbing and HTTP helpers so
@@ -18,7 +27,8 @@ abstract class BaseHtmlMangaSource
     implements
         MangaSource,
         CredentialAuthMangaSource,
-        BrowserSessionMangaSource {
+        BrowserSessionMangaSource,
+        ProfileAuthMangaSource {
   final ScrapperProfile profile;
   final http.Client _client;
 
@@ -33,7 +43,11 @@ abstract class BaseHtmlMangaSource
       profile.name.toLowerCase().replaceAll(RegExp(r'\s+'), '_');
 
   /// Exposes the profile so the auth WebView UI can drive a login flow.
+  @override
   ScrapperProfile get authProfile => profile;
+
+  @override
+  String get sessionKey => siteKey;
 
   @override
   Uri get loginUri => Uri.parse(profile.auth.loginUrl);

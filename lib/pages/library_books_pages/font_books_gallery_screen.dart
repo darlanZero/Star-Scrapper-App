@@ -5,10 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:webview_windows/webview_windows.dart' as wvw;
-import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
-import 'package:star_scrapper_app/classes/Scrappers/engine/auth_webview_screen.dart';
-import 'package:star_scrapper_app/classes/Scrappers/engine/base_html_scrapper.dart';
-import 'package:star_scrapper_app/classes/Scrappers/engine/scrapper_profile.dart';
+import 'package:star_scrapper_app/data/sources/manga/engine/auth_webview_screen.dart';
+import 'package:star_scrapper_app/data/sources/manga/engine/scrapper_profile.dart';
+import 'package:star_scrapper_app/data/sources/manga/engine/base_html_manga_source.dart'
+    show BaseHtmlMangaSource, ProfileAuthMangaSource;
+import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';
@@ -34,6 +35,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   bool _isLoadingMore = false;
   bool _hasMore = true;
   bool _authRequired = false;
+  String? _nextCursor;
   List<dynamic> allBooksData = [];
 
   /// Referência ao WebviewController após login WebView no Windows.
@@ -63,29 +65,45 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     super.dispose();
   }
 
+  MangaCatalogFilter _filterFor(String view) =>
+      view.toLowerCase() == 'recent'
+          ? MangaCatalogFilter.recent
+          : MangaCatalogFilter.popular;
+
   Future<List<dynamic>> _fetchBooks() async {
     final api = widget.selectedFont.api;
     // Restaura sessão persistida (cookies/tokens do SessionManager) antes de qualquer
-    // request. No-op para scrapers que não usam SessionManager (ex.: Luratoons via WebView).
-    await api.restoreSession();
-    final booksData = await api.getAll(currentView);
+    // request. Só para fontes com sessão de browser (ex.: MediocreScan/LuraToons).
+    if (api is BrowserSessionMangaSource) {
+      await (api as BrowserSessionMangaSource).restoreSession();
+    }
+    final page = await api.browse(filter: _filterFor(currentView));
+    _nextCursor = page.nextCursor;
+    final booksData = page.items.map((item) => item.toJson()).toList();
     setState(() => allBooksData = booksData);
     return booksData;
   }
 
   Future<void> _loadMoreBooks() async {
     if (_isLoadingMore || !_hasMore) return;
+    if (_nextCursor == null) {
+      setState(() => _hasMore = false);
+      return;
+    }
     setState(() => _isLoadingMore = true);
     try {
       final api = widget.selectedFont.api;
-      final moreBooksData = await api.loadMore(currentView);
+      final page =
+          await api.browse(filter: _filterFor(currentView), cursor: _nextCursor);
+      _nextCursor = page.nextCursor;
+      final moreBooksData = page.items.map((item) => item.toJson()).toList();
       if (!mounted) return;
       setState(() {
         _isLoadingMore = false;
-        if (moreBooksData.isEmpty) {
-          // Scrapper retornou lista vazia → chegamos na última página
+        if (moreBooksData.isEmpty || _nextCursor == null) {
           _hasMore = false;
-        } else {
+        }
+        if (moreBooksData.isNotEmpty) {
           allBooksData = List.from(allBooksData)..addAll(moreBooksData);
         }
       });
@@ -108,8 +126,8 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   /// Inicia o fluxo de login adequado para o scrapper selecionado.
   void _handleLogin() {
     final api = widget.selectedFont.api;
-    final profile = api.scrapperProfile;
-    if (profile == null) return;
+    if (api is! ProfileAuthMangaSource) return;
+    final profile = (api as ProfileAuthMangaSource).authProfile;
 
     final authType = profile.auth.type;
 
@@ -123,7 +141,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   }
 
   /// Exibe um bottom sheet com as opções de login disponíveis para o scrapper.
-  void _showLoginOptions(Scrapper api, ScrapperProfile profile) {
+  void _showLoginOptions(MangaSource api, ScrapperProfile profile) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -177,11 +195,13 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   }
 
   /// Abre [AuthWebViewScreen] para login visual (form SPA, OAuth, etc.).
-  Future<void> _openWebViewLogin(Scrapper api, ScrapperProfile profile) async {
+  Future<void> _openWebViewLogin(MangaSource api, ScrapperProfile profile) async {
     final cookies = await showAuthWebView(
       context: context,
       profile: profile,
-      onSuccess: (cookies) => api.updateSession(cookies),
+      onSuccess: (cookies) => api is BrowserSessionMangaSource
+          ? (api as BrowserSessionMangaSource).updateBrowserSession(cookies)
+          : Future.value(),
       onSuccessWithController: (cookies, controller) async {
         // Guarda referência para poder limpar cookies do WebView2 mais tarde (ex.: debug logout).
         _proxyController?.dispose();
@@ -192,11 +212,12 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
         final missing = profile.auth.sessionCookieNames.any(
           (n) => !cookies.containsKey(n),
         );
-        if (missing && api is BaseHtmlScrapper) {
-          api.setHttpGetProxy(
+        if (missing && api is BaseHtmlMangaSource) {
+          final BaseHtmlMangaSource htmlApi = api;
+          htmlApi.setHttpGetProxy(
             _buildWebViewProxy(
               controller,
-              onDisconnect: () => api.setHttpGetProxy(null),
+              onDisconnect: () => htmlApi.setHttpGetProxy(null),
             ),
           );
         }
@@ -208,7 +229,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   }
 
   /// Exibe diálogo de email + senha para form login via HTTP.
-  void _showCredentialsDialog(Scrapper api) {
+  void _showCredentialsDialog(MangaSource api) {
     final emailCtrl = TextEditingController();
     final passCtrl = TextEditingController();
     var loading = false;
@@ -230,7 +251,8 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
             }
             setDialogState(() => loading = true);
             try {
-              await api.authenticateWithCredentials(email, pass);
+              await (api as CredentialAuthMangaSource)
+                  .authenticateWithCredentials(email, pass);
               if (mounted) {
                 Navigator.pop(ctx);
                 _loadBooks();
@@ -312,8 +334,10 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     final api = widget.selectedFont.api;
 
     // 1. Zera sessão no SharedPreferences e remove proxy HTTP.
-    await api.logout();
-    if (api is BaseHtmlScrapper) api.setHttpGetProxy(null);
+    if (api is BrowserSessionMangaSource) {
+      await (api as BrowserSessionMangaSource).logout();
+    }
+    if (api is BaseHtmlMangaSource) api.setHttpGetProxy(null);
 
     // 2. Limpa o cookie store persistente do WebView2 (Windows).
     if (defaultTargetPlatform == TargetPlatform.windows) {
@@ -569,7 +593,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   /// Widget exibido quando o scrapper exige login para acessar o conteúdo.
   Widget _buildAuthRequiredWidget() {
     final api = widget.selectedFont.api;
-    final hasProfile = api.scrapperProfile != null;
+    final hasProfile = api is ProfileAuthMangaSource;
 
     return Center(
       child: Padding(
@@ -617,10 +641,12 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   Widget _buildBookTile(
       dynamic bookDetails, ThemeProvider theme, bool isFavorited) {
     final api = widget.selectedFont.api;
-    final String title = api.getTitle(bookDetails);
-    final String imageUrl = api.getCoverImageUrl(bookDetails);
-    final imageHeaders = api.imageHeaders;
-    final String mangaId = api.getBookId(bookDetails);
+    final book = bookDetails as Map<String, dynamic>;
+    final String title = (book['title'] ?? '').toString();
+    final String imageUrl =
+        (book['coverImageUrl'] ?? book['imageurl'] ?? '').toString();
+    final imageHeaders = api.coverImageHeaders;
+    final String mangaId = (book['id'] ?? '').toString();
     final fontProvider = Provider.of<FontProvider>(context, listen: false);
     final bool isBookFavorited = fontProvider.isFavorited(bookDetails);
 
@@ -718,7 +744,8 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     ScaffoldMessenger.of(context).showSnackBar(loadingSnackBar);
 
     try {
-      final bookDetails = await widget.selectedFont.api.getBookDetails(bookId);
+      final bookDetails =
+          (await widget.selectedFont.api.getDetails(bookId)).toJson();
       if (kDebugMode) print(bookDetails);
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 

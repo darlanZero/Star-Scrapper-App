@@ -1,6 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 import 'package:star_scrapper_app/data/sources/source_catalog.dart';
+import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 import 'package:star_scrapper_app/domain/sources/source.dart';
 
 /// Owns bundled sources, activation preferences and book-to-source resolution.
@@ -20,7 +20,7 @@ class SourceController {
         orElse: () => sources.first,
       );
 
-  Scrapper get selectedApi => selected.api;
+  MangaSource get selectedApi => selected.api;
 
   List<Fonte> get active => sources.where((source) => source.isActive).toList();
 
@@ -49,17 +49,14 @@ class SourceController {
     onChanged();
   }
 
-  Scrapper? findScrapperForBook(Map<String, dynamic> book) {
+  MangaSource? findScrapperForBook(Map<String, dynamic> book) {
     final coverUrl = (book['coverImageUrl'] ?? book['link'] ?? '').toString();
     if (coverUrl.isEmpty) return null;
     final coverHost = Uri.tryParse(coverUrl)?.host;
     if (coverHost == null || coverHost.isEmpty) return null;
 
     for (final source in sources) {
-      final baseHost = Uri.tryParse(
-            source.api.scrapperProfile?.baseUrl ?? '',
-          )?.host ??
-          '';
+      final baseHost = source.api.baseUri.host;
       if (_hostsMatch(coverHost, baseHost)) return source.api;
 
       final imageHost = Uri.tryParse(source.image)?.host ?? '';

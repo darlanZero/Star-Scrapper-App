@@ -49,8 +49,10 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                       ? fontProvider.lastReadedChapterId[bookId]
                       : null;
                   final chapterTitle = lastChapter?['title'] ?? 'N/A';
-                  final coverUrl = scrapper.getCoverImageUrl(book);
-                  final imageHeaders = scrapper.imageHeaders;
+                  final coverUrl =
+                      (book['coverImageUrl'] ?? book['imageurl'] ?? '')
+                          .toString();
+                  final imageHeaders = scrapper.coverImageHeaders;
 
                   return InkWell(
                     onTap: () => Navigator.push(
@@ -137,8 +139,10 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                   final selectedChapters = bookId != null
                       ? (fontProvider.selectedChapterIds[bookId] ?? [])
                       : <Map<String, String>>[];
-                  final coverUrl = scrapper.getCoverImageUrl(book);
-                  final imageHeaders = scrapper.imageHeaders;
+                  final coverUrl =
+                      (book['coverImageUrl'] ?? book['imageurl'] ?? '')
+                          .toString();
+                  final imageHeaders = scrapper.coverImageHeaders;
 
                   return InkWell(
                     onTap: () => Navigator.push(
@@ -216,7 +220,7 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    scrapper.getTitle(book),
+                                    (book['title'] ?? '').toString(),
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(

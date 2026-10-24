@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart'
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
-import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
+import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 import 'package:star_scrapper_app/pages/library_books_pages/chapter_book_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart' as flutter_webview;
@@ -15,7 +15,7 @@ class BookDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> bookDetails;
 
   /// Scrapper a ser usado nesta tela. Se null, usa o selectedFontApi global.
-  final Scrapper? scrapper;
+  final MangaSource? scrapper;
   const BookDetailsScreen({
     super.key,
     required this.bookDetails,
@@ -780,24 +780,27 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     final fontApi = widget.scrapper ??
                         fontProvider.findScrapperForBook(bookDetails) ??
                         fontProvider.selectedFontApi;
-                    await for (final chapterData
-                        in fontApi.getChapter(chapterId, bookDetails['id'])) {
-                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => ChapterBookScreen(
-                                    bookTitle: bookDetails['title'],
-                                    chapterId: chapterData['chapterID'],
-                                    chapterTitle: chapter['title'],
-                                    mangaID: bookDetails['id'],
-                                    chapterNumber: chapterNumber,
-                                    chapterWebViewUrl:
-                                        chapterData['chapterWebviewUrl'],
-                                    scrapper: fontApi,
-                                  )));
-                      break;
-                    }
+                    final webViewUrl = fontApi is WebViewChapterMangaSource
+                        ? (fontApi as WebViewChapterMangaSource)
+                            .chapterWebUri(
+                              mangaId: bookDetails['id'].toString(),
+                              chapterId: chapterId,
+                            )
+                            .toString()
+                        : '';
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => ChapterBookScreen(
+                                  bookTitle: bookDetails['title'],
+                                  chapterId: chapterId,
+                                  chapterTitle: chapter['title'],
+                                  mangaID: bookDetails['id'].toString(),
+                                  chapterNumber: chapterNumber,
+                                  chapterWebViewUrl: webViewUrl,
+                                  scrapper: fontApi,
+                                )));
                   } catch (e) {
                     ScaffoldMessenger.of(context).hideCurrentSnackBar();
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(

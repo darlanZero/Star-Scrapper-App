@@ -14,6 +14,7 @@ import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 class MangadexSource
     implements MangaSource, ChapterNavigationMangaSource {
   static final Uri _defaultBaseUri = Uri.parse('https://api.mangadex.org');
+  static final Uri _siteUri = Uri.parse('https://mangadex.org');
 
   static const _imageUserAgent =
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
@@ -34,8 +35,10 @@ class MangadexSource
   @override
   String get name => 'Mangadex';
 
+  /// Public site, used for host matching and health checks. API requests use
+  /// the separate [_apiBaseUri].
   @override
-  Uri get baseUri => _apiBaseUri;
+  Uri get baseUri => _siteUri;
 
   @override
   Map<String, String> get requestHeaders => const {

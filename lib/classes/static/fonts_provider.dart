@@ -11,10 +11,10 @@ import 'package:star_scrapper_app/application/notifications/library_update_notif
 import 'package:star_scrapper_app/application/sources/source_controller.dart';
 import 'package:star_scrapper_app/application/sources/anime_source_controller.dart';
 import 'package:star_scrapper_app/application/sources/source_health_monitor.dart';
-import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
 import 'package:star_scrapper_app/data/library/library_storage.dart';
 import 'package:star_scrapper_app/domain/sources/source.dart';
 import 'package:star_scrapper_app/domain/sources/anime_source.dart';
+import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 
 export 'package:star_scrapper_app/application/sources/source_health_monitor.dart'
     show FontHostStatus;
@@ -73,7 +73,7 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
   List<Map<String, dynamic>> get favoritedBooks => _libraryOrganizer.books;
   List<Map<String, dynamic>> get readBooks => _readingProgress.readBooks;
   Fonte get selectedFont => _sourceController.selected;
-  Scrapper get selectedFontApi => _sourceController.selectedApi;
+  MangaSource get selectedFontApi => _sourceController.selectedApi;
 
   /// Detecta o scrapper correto para um livro a partir da URL da capa (ou link).
   ///
@@ -82,7 +82,7 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
   /// incorretamente quando a fonte ativa não é a que gerou o livro.
   ///
   /// Estratégia: compara o host da URL com a base ou a imagem de cada fonte.
-  Scrapper? findScrapperForBook(Map<String, dynamic> book) =>
+  MangaSource? findScrapperForBook(Map<String, dynamic> book) =>
       _sourceController.findScrapperForBook(book);
 
   Map<String, List<Map<String, String>>> get selectedChapterIds =>
@@ -114,11 +114,11 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
       _animeSourceController.toggle(source);
 
   //update single book details
-  Future<void> updateBookDetails(String bookId, {Scrapper? scrapper}) async {
+  Future<void> updateBookDetails(String bookId, {MangaSource? scrapper}) async {
     final fontApi = scrapper ?? selectedFontApi;
 
-    Map<String, dynamic> updatedBookDetails =
-        await fontApi.getBookDetails(bookId);
+    final Map<String, dynamic> updatedBookDetails =
+        (await fontApi.getDetails(bookId)).toJson();
 
     if (_libraryOrganizer
         .replaceBookPreservingOrganization(updatedBookDetails)) {
@@ -182,7 +182,7 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
       loadDetails: (book, bookId) async {
         final scrapper = findScrapperForBook(book) ?? selectedFontApi;
         final Map<String, dynamic> details =
-            await scrapper.getBookDetails(bookId);
+            (await scrapper.getDetails(bookId)).toJson();
         return details;
       },
       onBookRefreshed: _replaceBookPreservingOrganization,

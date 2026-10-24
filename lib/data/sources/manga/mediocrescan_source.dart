@@ -5,8 +5,10 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:star_scrapper_app/classes/Scrappers/engine/scrapper_profile.dart';
-import 'package:star_scrapper_app/classes/Scrappers/engine/session_manager.dart';
+import 'package:star_scrapper_app/data/sources/manga/engine/scrapper_profile.dart';
+import 'package:star_scrapper_app/data/sources/manga/engine/session_manager.dart';
+import 'package:star_scrapper_app/data/sources/manga/engine/base_html_manga_source.dart'
+    show ProfileAuthMangaSource;
 import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 
 /// MediocreScan / MediocreToons (https://mediocrescan.com) — Next.js 14 app with
@@ -20,7 +22,8 @@ class MediocrescanSource
         MangaSource,
         BrowserSessionMangaSource,
         WebViewChapterMangaSource,
-        ChapterNavigationMangaSource {
+        ChapterNavigationMangaSource,
+        ProfileAuthMangaSource {
   static const String _base = 'https://mediocrescan.com';
   static const List<String> _apiBases = <String>[
     'https://api.mediocretoons.net',
@@ -69,7 +72,11 @@ class MediocrescanSource
   MediocrescanSource({http.Client? client})
       : _client = client ?? http.Client();
 
+  @override
   ScrapperProfile get authProfile => _profile;
+
+  @override
+  String get sessionKey => 'mediocrescan';
 
   @override
   String get id => 'mediocrescan';

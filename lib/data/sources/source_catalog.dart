@@ -1,7 +1,3 @@
-import 'package:star_scrapper_app/classes/Scrappers/mangadex_scrapper.dart';
-import 'package:star_scrapper_app/classes/Scrappers/pt-br/demon_sect_scrapper.dart';
-import 'package:star_scrapper_app/classes/Scrappers/sites/luratoons_scrapper.dart';
-import 'package:star_scrapper_app/classes/Scrappers/sites/mediocrescan_scrapper.dart';
 import 'package:star_scrapper_app/domain/sources/source.dart';
 import 'package:star_scrapper_app/domain/sources/anime_source.dart';
 import 'package:star_scrapper_app/domain/sources/manga_source.dart';
@@ -39,7 +35,7 @@ abstract final class SourceCatalog {
           name: 'Mangadex',
           languagePrefix: 'All',
           flags: ['https://cdn-icons-png.flaticon.com/512/44/44386.png'],
-          api: MangadexScrapper(),
+          api: MangadexSource(),
           contentType: SourceContentType.manga,
           isRRated: true,
         ),
@@ -52,7 +48,7 @@ abstract final class SourceCatalog {
           flags: [
             'https://cdn.countryflags.com/thumbs/brazil/flag-3d-250.png',
           ],
-          api: DemonSectScrapper(),
+          api: SeitaCelestialSource(),
           contentType: SourceContentType.manga,
         ),
         Fonte(
@@ -64,7 +60,7 @@ abstract final class SourceCatalog {
           flags: [
             'https://cdn.countryflags.com/thumbs/brazil/flag-3d-250.png',
           ],
-          api: LuraToonsScrapper(),
+          api: LuraToonsSource(),
           contentType: SourceContentType.manga,
         ),
         Fonte(
@@ -76,7 +72,7 @@ abstract final class SourceCatalog {
           flags: [
             'https://cdn.countryflags.com/thumbs/brazil/flag-3d-250.png',
           ],
-          api: MediocreScanScrapper(),
+          api: MediocrescanSource(),
           contentType: SourceContentType.manga,
         ),
       ];

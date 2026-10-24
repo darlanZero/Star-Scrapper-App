@@ -3,8 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart' as wv;
 import 'package:webview_windows/webview_windows.dart' as wvw;
-import 'package:star_scrapper_app/classes/Scrappers/engine/scrapper_profile.dart';
-import 'package:star_scrapper_app/classes/Scrappers/engine/session_manager.dart';
+import 'package:star_scrapper_app/data/sources/manga/engine/scrapper_profile.dart';
+import 'package:star_scrapper_app/data/sources/manga/engine/session_manager.dart';
 
 /// ─────────────────────────────────────────────────────────────────────────────
 /// AuthWebViewScreen

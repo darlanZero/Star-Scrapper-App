@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:star_scrapper_app/classes/Scrappers/class_scrappers.dart';
+import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -19,7 +19,7 @@ class ChapterBookScreen extends StatefulWidget {
   final String? chapterNumber;
   final String mangaID;
   final String chapterWebViewUrl;
-  final Scrapper? scrapper;
+  final MangaSource? scrapper;
 
   const ChapterBookScreen({
     super.key,
@@ -41,9 +41,9 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   int _currentPage = 0;
   bool _isPaginatedView = false;
   bool _reverseReading = false;
-  final List<String> _chapterImages = [];
+  final List<MangaReaderPage> _chapterImages = [];
   final List<GlobalKey> _imageItemKeys = [];
-  StreamSubscription<Map<String, dynamic>>? _chapterImagesSubscription;
+  StreamSubscription<MangaReaderPage>? _chapterImagesSubscription;
   bool _showWebView = false;
   int? _pendingRestorePage;
   bool _recalcScheduled = false;
@@ -53,7 +53,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   late ScrollController _scrollController;
   // ignore: unused_field
   late FontProvider _fontProvider;
-  late Scrapper _activeScrapper;
+  late MangaSource _activeScrapper;
   late String _chapterWebViewUrl;
 
   @override
@@ -84,28 +84,87 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   }
 
   Future<void> _loadChapterImages() async {
-    _chapterImagesSubscription =
-        _activeScrapper.getChapter(widget.chapterId, widget.mangaID).listen(
-      (imageData) {
-        if (imageData['type'] == 'image') {
-          setState(() {
-            _chapterImages.add(imageData['imagePath']);
-            _imageItemKeys.add(GlobalKey());
-          });
-          _tryRestoreScrollPosition();
-        } else if (imageData['type'] == 'info') {
-          _chapterWebViewUrl = imageData['chapterWebviewUrl'];
+    _chapterImagesSubscription = _activeScrapper
+        .readChapter(mangaId: widget.mangaID, chapterId: widget.chapterId)
+        .listen(
+      (page) {
+        setState(() {
+          _chapterImages.add(page);
+          _imageItemKeys.add(GlobalKey());
+        });
+        _tryRestoreScrollPosition();
+      },
+      onError: (_) {
+        // Falha ao resolver páginas → cai para a WebView se houver URL.
+        if (_chapterImages.isEmpty && _chapterWebViewUrl.isNotEmpty && mounted) {
+          setState(() => _showWebView = true);
         }
       },
       onDone: () {
-        // Se o scrapper não forneceu imagens (ex.: conteúdo protegido por DRM),
+        // Se a fonte não forneceu imagens (ex.: conteúdo protegido por DRM),
         // abre automaticamente a WebView com a URL do capítulo.
-        if (_chapterImages.isEmpty && _chapterWebViewUrl.isNotEmpty) {
+        if (_chapterImages.isEmpty && _chapterWebViewUrl.isNotEmpty && mounted) {
           setState(() {
             _showWebView = true;
           });
         }
       },
+    );
+  }
+
+  Widget _buildPageImage(MangaReaderPage page, {BoxFit fit = BoxFit.contain}) {
+    if (page.isLocal) {
+      return Image.file(File(page.filePath!), fit: fit);
+    }
+    return Image.network(
+      page.uri.toString(),
+      headers: page.headers.isEmpty ? null : page.headers,
+      fit: fit,
+    );
+  }
+
+  Future<void> _openAdjacentChapter(bool next) async {
+    final api = _activeScrapper;
+    if (api is! ChapterNavigationMangaSource) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Navegação entre capítulos não é suportada nesta fonte.'),
+        ),
+      );
+      return;
+    }
+    final nav = api as ChapterNavigationMangaSource;
+    final targetId = next
+        ? await nav.nextChapterId(widget.mangaID, widget.chapterId)
+        : await nav.previousChapterId(widget.mangaID, widget.chapterId);
+    if (!mounted) return;
+    if (targetId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            next ? 'Não há próximo capítulo.' : 'Não há capítulo anterior.',
+          ),
+        ),
+      );
+      return;
+    }
+    final webViewUrl = api is WebViewChapterMangaSource
+        ? (api as WebViewChapterMangaSource)
+            .chapterWebUri(mangaId: widget.mangaID, chapterId: targetId)
+            .toString()
+        : '';
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChapterBookScreen(
+          bookTitle: widget.bookTitle,
+          chapterId: targetId,
+          mangaID: widget.mangaID,
+          chapterWebViewUrl: webViewUrl,
+          scrapper: _activeScrapper,
+        ),
+      ),
     );
   }
 
@@ -306,15 +365,15 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
     );
   }
 
-  Future<void> _downloadImage(String imagePath) async {
+  Future<void> _downloadImage(MangaReaderPage page) async {
     // TODO: Implement image download logic
   }
 
-  Future<void> _shareImage(String imagePath) async {
+  Future<void> _shareImage(MangaReaderPage page) async {
     // TODO: Implement image sharing logic
   }
 
-  void _showImageOptions(String imagePath) {
+  void _showImageOptions(MangaReaderPage page) {
     showDialog(
         context: context,
         builder: (BuildContext context) {
@@ -327,7 +386,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                   leading: Icon(Icons.save_alt),
                   title: const Text('Save Image'),
                   onTap: () {
-                    _downloadImage(imagePath);
+                    _downloadImage(page);
                     Navigator.of(context).pop();
                   },
                 ),
@@ -335,7 +394,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                   leading: Icon(Icons.share),
                   title: const Text('Share Image'),
                   onTap: () {
-                    _shareImage(imagePath);
+                    _shareImage(page);
                     Navigator.of(context).pop();
                   },
                 ),
@@ -520,7 +579,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                         controller: _pageController,
                         itemCount: _chapterImages.length,
                         itemBuilder: (context, index) {
-                          return Image.file(File(_chapterImages[index]));
+                          return _buildPageImage(_chapterImages[index]);
                         },
                       )
                     : ListView.builder(
@@ -530,10 +589,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                         itemBuilder: (context, index) {
                           return Container(
                             key: _imageItemKeys[index],
-                            child: Image.file(
-                              File(_chapterImages[index]),
-                              fit: BoxFit.contain,
-                            ),
+                            child: _buildPageImage(_chapterImages[index]),
                           );
                         },
                       ),
@@ -591,49 +647,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                               children: [
                                 IconButton(
                                   icon: const Icon(Icons.skip_previous_rounded),
-                                  onPressed: () async {
-                                    final previousChapterStream =
-                                        _activeScrapper.retrieveLastChapter(
-                                            widget.chapterId, widget.mangaID);
-                                    await for (var previousChapterData
-                                        in previousChapterStream) {
-                                      if (previousChapterData['type'] ==
-                                          'image') {
-                                        Navigator.pushReplacement(
-                                            context,
-                                            MaterialPageRoute(
-                                                builder: (context) =>
-                                                    ChapterBookScreen(
-                                                      bookTitle:
-                                                          widget.bookTitle,
-                                                      chapterId:
-                                                          previousChapterData[
-                                                              'chapterID'],
-                                                      mangaID: widget.mangaID,
-                                                      chapterTitle:
-                                                          previousChapterData[
-                                                              'title'],
-                                                      chapterNumber:
-                                                          previousChapterData[
-                                                              'chapter'],
-                                                      chapterWebViewUrl:
-                                                          previousChapterData[
-                                                              'chapterWebviewUrl'],
-                                                      scrapper: _activeScrapper,
-                                                    )));
-                                        break;
-                                      } else if (previousChapterData['type'] ==
-                                          'error') {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                              content: Text(previousChapterData[
-                                                  'message'])),
-                                        );
-                                        break;
-                                      }
-                                    }
-                                  },
+                                  onPressed: () => _openAdjacentChapter(false),
                                 ),
                                 Text(
                                   '${_chapterImages.isEmpty ? 0 : _currentPage + 1}/${_chapterImages.length} • ${_chapterImages.isEmpty ? 0 : (((_currentPage + 1) / _chapterImages.length) * 100).round()}%',
@@ -650,48 +664,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.skip_next_rounded),
-                                  onPressed: () async {
-                                    final nextChapterStream =
-                                        _activeScrapper.retrieveNextChapter(
-                                            widget.chapterId, widget.mangaID);
-                                    await for (var nextChapterData
-                                        in nextChapterStream) {
-                                      if (nextChapterData['type'] == 'image') {
-                                        Navigator.pushReplacement(
-                                            context,
-                                            MaterialPageRoute(
-                                                builder: (context) =>
-                                                    ChapterBookScreen(
-                                                      bookTitle:
-                                                          widget.bookTitle,
-                                                      chapterId:
-                                                          nextChapterData[
-                                                              'chapterID'],
-                                                      mangaID: widget.mangaID,
-                                                      chapterTitle:
-                                                          nextChapterData[
-                                                              'title'],
-                                                      chapterNumber:
-                                                          nextChapterData[
-                                                              'chapter'],
-                                                      chapterWebViewUrl:
-                                                          nextChapterData[
-                                                              'chapterWebviewUrl'],
-                                                      scrapper: _activeScrapper,
-                                                    )));
-                                        break;
-                                      } else if (nextChapterData['type'] ==
-                                          'error') {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                              content: Text(
-                                                  nextChapterData['message'])),
-                                        );
-                                        break;
-                                      }
-                                    }
-                                  },
+                                  onPressed: () => _openAdjacentChapter(true),
                                 ),
                               ],
                             ),

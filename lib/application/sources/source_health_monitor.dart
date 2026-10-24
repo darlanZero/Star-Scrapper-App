@@ -174,11 +174,8 @@ class SourceHealthMonitor {
   }
 
   Uri? _resolveHealthUri(Fonte source) {
-    final fromProfile = source.api.scrapperProfile?.baseUrl ?? '';
-    if (fromProfile.isNotEmpty) {
-      final uri = Uri.tryParse(fromProfile);
-      if (uri != null && uri.hasScheme && uri.host.isNotEmpty) return uri;
-    }
+    final fromBase = source.api.baseUri;
+    if (fromBase.hasScheme && fromBase.host.isNotEmpty) return fromBase;
 
     final fromImage = Uri.tryParse(source.image);
     if (fromImage != null && fromImage.host.isNotEmpty) {

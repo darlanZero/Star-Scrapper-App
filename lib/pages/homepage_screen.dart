@@ -550,7 +550,8 @@ class _HomePageScreenState extends State<HomePageScreen> {
                 final book = booksInTab[index];
                 final scrapper = fontProvider.findScrapperForBook(book) ??
                     fontProvider.selectedFontApi;
-                final coverUrl = scrapper.getCoverImageUrl(book);
+                final coverUrl =
+                    (book['coverImageUrl'] ?? book['imageurl'] ?? '').toString();
                 return InkWell(
                   onTap: () {
                     Navigator.push(
@@ -571,7 +572,7 @@ class _HomePageScreenState extends State<HomePageScreen> {
                         children: [
                           CachedNetworkImage(
                             imageUrl: coverUrl,
-                            httpHeaders: scrapper.imageHeaders,
+                            httpHeaders: scrapper.coverImageHeaders,
                             fit: BoxFit.cover,
                             errorWidget: (context, _, __) => Container(
                               color: Colors.grey.shade900,
