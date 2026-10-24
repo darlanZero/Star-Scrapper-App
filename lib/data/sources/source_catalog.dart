@@ -4,9 +4,14 @@ import 'package:star_scrapper_app/classes/Scrappers/sites/luratoons_scrapper.dar
 import 'package:star_scrapper_app/classes/Scrappers/sites/mediocrescan_scrapper.dart';
 import 'package:star_scrapper_app/domain/sources/source.dart';
 import 'package:star_scrapper_app/domain/sources/anime_source.dart';
+import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/anitube_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/aniwave_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/smart_animes_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/mangadex_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/seita_celestial_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/luratoons_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/mediocrescan_source.dart';
 
 /// Single registry for the sources bundled with the application.
 abstract final class SourceCatalog {
@@ -16,6 +21,15 @@ abstract final class SourceCatalog {
         AnitubeSource(),
         AniwaveSource(),
         SmartAnimesSource(),
+      ];
+
+  /// Manga/comic providers using the typed [MangaSource] contract (replaces the
+  /// legacy [Scrapper] registration below).
+  static List<MangaSource> createMangaSources() => [
+        MangadexSource(),
+        SeitaCelestialSource(),
+        LuraToonsSource(),
+        MediocrescanSource(),
       ];
 
   static List<Fonte> createAll() => [

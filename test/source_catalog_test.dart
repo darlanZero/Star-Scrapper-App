@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:star_scrapper_app/data/sources/source_catalog.dart';
 import 'package:star_scrapper_app/domain/sources/source.dart';
+import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 
 void main() {
   test('bundled sources have unique stable identifiers', () {
@@ -35,5 +36,19 @@ void main() {
     expect(ids, contains('anitube'));
     expect(ids, contains('aniwave'));
     expect(ids, contains('smart_animes'));
+  });
+
+  test('bundled manga sources use their typed contract with stable ids', () {
+    final sources = SourceCatalog.createMangaSources();
+    final ids = sources.map((source) => source.id).toList();
+
+    expect(sources, isNotEmpty);
+    expect(sources, everyElement(isA<MangaSource>()));
+    expect(ids.toSet(), hasLength(ids.length));
+    expect(ids, everyElement(matches(RegExp(r'^[a-z0-9_]+$'))));
+    expect(ids, contains('mangadex'));
+    expect(ids, contains('seita_celestial'));
+    expect(ids, contains('luratoons'));
+    expect(ids, contains('mediocrescan'));
   });
 }
