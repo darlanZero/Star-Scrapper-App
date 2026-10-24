@@ -1,18 +1,14 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 
 /// MangaDex implementation of the typed [MangaSource] contract.
 ///
-/// Uses the official MangaDex JSON API. Chapter pages are downloaded to the
-/// application documents directory and streamed as [MangaReaderPage.file], which
-/// preserves the previous reader behavior.
-class MangadexSource
-    implements MangaSource, ChapterNavigationMangaSource {
+/// Uses the official MangaDex JSON API. Chapter manifests are emitted as remote
+/// page references immediately so the shared reader can preload ahead of the
+/// user's position instead of waiting for sequential file downloads.
+class MangadexSource implements MangaSource, ChapterNavigationMangaSource {
   static final Uri _defaultBaseUri = Uri.parse('https://api.mangadex.org');
   static final Uri _siteUri = Uri.parse('https://mangadex.org');
 
@@ -179,22 +175,10 @@ class MangadexSource
         : const <String>[];
     if (baseUrl.isEmpty || hash.isEmpty || imageNames.isEmpty) return;
 
-    final tempDir = await _chapterTempDir(chapterId, hash);
     for (final fileName in imageNames) {
       final imageUri = Uri.parse('$baseUrl/data/$hash/$fileName');
-      final response = await _client.get(imageUri);
-      if (response.statusCode != 200) continue;
-      final file = File(path.join(tempDir.path, fileName));
-      await file.writeAsBytes(response.bodyBytes);
-      yield MangaReaderPage.file(file.path);
+      yield MangaReaderPage.network(imageUri, headers: coverImageHeaders);
     }
-  }
-
-  Future<Directory> _chapterTempDir(String chapterId, String hash) async {
-    final appDocDir = await getApplicationDocumentsDirectory();
-    final dir = Directory(path.join(appDocDir.path, 'temp', chapterId, hash));
-    await dir.create(recursive: true);
-    return dir;
   }
 
   // ─── Chapter navigation ────────────────────────────────────────────────────
@@ -213,8 +197,8 @@ class MangadexSource
     bool isNext,
   ) async {
     final chapters = await _fetchChapters(mangaId);
-    chapters.sort((a, b) =>
-        (double.tryParse(a.number) ?? 0).compareTo(double.tryParse(b.number) ?? 0));
+    chapters.sort((a, b) => (double.tryParse(a.number) ?? 0)
+        .compareTo(double.tryParse(b.number) ?? 0));
     final currentIndex =
         chapters.indexWhere((chapter) => chapter.id == currentChapterId);
     if (currentIndex == -1) return null;
@@ -233,8 +217,8 @@ class MangadexSource
   Future<Map<String, dynamic>> _getJson(Uri uri) async {
     final response = await _client.get(uri, headers: requestHeaders);
     if (response.statusCode != 200) {
-      throw http.ClientException('$name returned HTTP ${response.statusCode}.',
-          uri);
+      throw http.ClientException(
+          '$name returned HTTP ${response.statusCode}.', uri);
     }
     final decoded = jsonDecode(utf8.decode(response.bodyBytes));
     if (decoded is! Map) {
@@ -266,8 +250,24 @@ class MangadexSource
       id: mangaId,
       title: _localizedTitle(attributes['title']),
       coverUri: _coverUri(mangaId, coverArt),
+      subtitle: mangaCatalogSubtitle(
+        format: _formatForLanguage(attributes['originalLanguage']),
+        status: mangaStatusFromString(attributes['status']),
+        year: _int(attributes['year']),
+      ),
     );
   }
+
+  static String? _formatForLanguage(dynamic value) =>
+      switch (value?.toString().toLowerCase()) {
+        'ja' => 'Manga',
+        'ko' => 'Manhwa',
+        'zh' || 'zh-hk' => 'Manhua',
+        _ => null,
+      };
+
+  static int? _int(dynamic value) =>
+      value is num ? value.toInt() : int.tryParse(value?.toString() ?? '');
 
   Uri? _coverUri(String mangaId, Map<String, dynamic>? coverArt) {
     final fileName = _map(coverArt?['attributes'])['fileName']?.toString();
@@ -307,10 +307,9 @@ class MangadexSource
   static List<String> _tags(Object? value) {
     if (value is! List) return const [];
     return value
-        .map((tag) =>
-            _map(_map(tag)['attributes'])['name'] is Map
-                ? _map(_map(_map(tag)['attributes'])['name'])['en']?.toString()
-                : null)
+        .map((tag) => _map(_map(tag)['attributes'])['name'] is Map
+            ? _map(_map(_map(tag)['attributes'])['name'])['en']?.toString()
+            : null)
         .whereType<String>()
         .where((name) => name.isNotEmpty)
         .toList();

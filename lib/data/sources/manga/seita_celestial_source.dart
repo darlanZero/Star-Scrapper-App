@@ -16,8 +16,7 @@ import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 /// reactivation. It is ported 1:1 to the typed contract for consistency — HTML
 /// scraping, random per-link local ids, no embedded reading (WebView only). No
 /// behavior fix or reactivation is attempted here.
-class SeitaCelestialSource
-    implements MangaSource, WebViewChapterMangaSource {
+class SeitaCelestialSource implements MangaSource, WebViewChapterMangaSource {
   static const String _base = 'https://seitacelestial.com';
 
   final http.Client _client;
@@ -85,20 +84,24 @@ class SeitaCelestialSource
     final document = html_parser.parse(response.body);
     final items = document.querySelectorAll('.listupd .bsx a').map((element) {
       final link = element.attributes['href'] ?? '';
+      final chapter = element.querySelector('.adds .epxs')?.text.trim();
       return MangaCatalogItem(
         id: _idForLink(link),
         title: element.querySelector('.bigor .tt')?.text.trim() ?? 'No title',
         coverUri: Uri.tryParse(
           element.querySelector('img')?.attributes['src'] ?? '',
         ),
-        subtitle: element.querySelector('.adds .epxs')?.text.trim(),
+        subtitle: chapter == null
+            ? null
+            : mangaCatalogSubtitle(latestChapter: chapter),
       );
     }).toList();
     await _saveLocalIds();
     return MangaCatalogPage(items: items);
   }
 
-  Future<List<MangaCatalogItem>> _fetchResults(MangaCatalogFilter filter) async {
+  Future<List<MangaCatalogItem>> _fetchResults(
+      MangaCatalogFilter filter) async {
     final order = switch (filter) {
       MangaCatalogFilter.recent => 'update',
       MangaCatalogFilter.trending => 'trending',
@@ -106,8 +109,7 @@ class SeitaCelestialSource
       MangaCatalogFilter.alphabetical => 'title',
       _ => 'popular',
     };
-    final url =
-        '$_base/comics/?page=${_currentPage + 1}&type=&order=$order';
+    final url = '$_base/comics/?page=${_currentPage + 1}&type=&order=$order';
     final response = await _client.get(Uri.parse(url), headers: requestHeaders);
     if (response.statusCode != 200) {
       throw Exception('Seita Celestial page failed: ${response.statusCode}');
@@ -116,7 +118,9 @@ class SeitaCelestialSource
     final items = <MangaCatalogItem>[];
     for (final element in document.querySelectorAll('.listupd .bsx a')) {
       var link = element.attributes['href'] ?? '';
-      if (link.isNotEmpty && !link.startsWith('/') && !link.startsWith('http')) {
+      if (link.isNotEmpty &&
+          !link.startsWith('/') &&
+          !link.startsWith('http')) {
         link = '$_base$link';
       }
       final id = _idForLink(link);
@@ -126,13 +130,16 @@ class SeitaCelestialSource
         'title': element.querySelector('.bigor .tt')?.text.trim() ?? 'No title',
         'imageurl': element.querySelector('img')?.attributes['src'] ?? '',
       });
+      final chapter = element.querySelector('.adds .epxs')?.text.trim();
       items.add(MangaCatalogItem(
         id: id,
         title: element.querySelector('.bigor .tt')?.text.trim() ?? 'No title',
         coverUri: Uri.tryParse(
           element.querySelector('img')?.attributes['src'] ?? '',
         ),
-        subtitle: element.querySelector('.adds .epxs')?.text.trim(),
+        subtitle: chapter == null
+            ? null
+            : mangaCatalogSubtitle(latestChapter: chapter),
       ));
     }
     await _saveLocalIds();
@@ -166,8 +173,7 @@ class SeitaCelestialSource
         title: cached['title']?.toString() ?? '',
         coverUri: Uri.tryParse(cached['imageurl']?.toString() ?? ''),
       ),
-      description:
-          document.querySelector('.wd-full .desc')?.text.trim() ?? '',
+      description: document.querySelector('.wd-full .desc')?.text.trim() ?? '',
       genres: document
           .querySelectorAll('.wd-full .mgen a')
           .map((e) => e.text.trim())
@@ -251,7 +257,8 @@ class SeitaCelestialSource
 
   String _extractSlug(String link) {
     if (link.isEmpty) return '';
-    final trimmed = link.endsWith('/') ? link.substring(0, link.length - 1) : link;
+    final trimmed =
+        link.endsWith('/') ? link.substring(0, link.length - 1) : link;
     final segments = Uri.tryParse(trimmed)?.pathSegments ?? const [];
     final index = segments.indexOf('comics');
     if (index != -1 && index + 1 < segments.length) return segments[index + 1];

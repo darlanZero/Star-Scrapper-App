@@ -69,8 +69,7 @@ class MediocrescanSource
   String _currentFilter = '';
   final Set<String> _seenIds = <String>{};
 
-  MediocrescanSource({http.Client? client})
-      : _client = client ?? http.Client();
+  MediocrescanSource({http.Client? client}) : _client = client ?? http.Client();
 
   @override
   ScrapperProfile get authProfile => _profile;
@@ -144,7 +143,8 @@ class MediocrescanSource
     MangaCatalogFilter filter = MangaCatalogFilter.popular,
     String? cursor,
   }) async {
-    final filterKey = filter == MangaCatalogFilter.recent ? 'recent' : 'popular';
+    final filterKey =
+        filter == MangaCatalogFilter.recent ? 'recent' : 'popular';
     if (_currentFilter != filterKey) {
       _currentFilter = filterKey;
       _currentPage = 1;
@@ -216,8 +216,8 @@ class MediocrescanSource
     var page = 1;
     final chapters = <MangaChapter>[];
     while (true) {
-      final res =
-          await _apiGetPath('/capitulos?obr_id=$mangaId&page=$page&limite=$limit');
+      final res = await _apiGetPath(
+          '/capitulos?obr_id=$mangaId&page=$page&limite=$limit');
       _assertAuth(res);
       final decoded = jsonDecode(res.body);
       final items = _extractItems(decoded);
@@ -234,8 +234,8 @@ class MediocrescanSource
           language: 'pt-br',
           pages: (ch['paginas'] ?? (ch['tem_paginas'] == true ? '?' : null))
               ?.toString(),
-          uploader:
-              (ch['equipe']?['nome'] ?? ch['usuario']?['nome'] ?? '').toString(),
+          uploader: (ch['equipe']?['nome'] ?? ch['usuario']?['nome'] ?? '')
+              .toString(),
           publishedAt: ch['lancado_em']?.toString(),
         ));
       }
@@ -310,8 +310,8 @@ class MediocrescanSource
     bool isNext,
   ) async {
     final chapters = await _fetchAllChapters(mangaId);
-    chapters.sort((a, b) =>
-        _numToDouble(a.number).compareTo(_numToDouble(b.number)));
+    chapters.sort(
+        (a, b) => _numToDouble(a.number).compareTo(_numToDouble(b.number)));
     final index = chapters.indexWhere((c) => c.id == currentChapterId);
     if (index == -1) return null;
     final target = isNext ? index + 1 : index - 1;
@@ -377,8 +377,8 @@ class MediocrescanSource
       final objEnd = line.lastIndexOf('}');
       if (objEnd <= objStart) continue;
       try {
-        final parsed =
-            jsonDecode(line.substring(objStart, objEnd + 1)) as Map<String, dynamic>;
+        final parsed = jsonDecode(line.substring(objStart, objEnd + 1))
+            as Map<String, dynamic>;
         final obras = parsed['obras'] as List?;
         if (obras == null || obras.isEmpty) return const [];
         return obras.map(_rscItem).toList();
@@ -407,7 +407,8 @@ class MediocrescanSource
       coverUri: imagem.isEmpty
           ? null
           : Uri.tryParse('$_coverCdnBase/obras/$id/$imagem'),
-      subtitle: latest.isEmpty ? null : 'Cap. $latest',
+      subtitle:
+          latest.isEmpty ? null : mangaCatalogSubtitle(latestChapter: latest),
     );
   }
 
@@ -423,7 +424,8 @@ class MediocrescanSource
       id: id.toString(),
       title: (m['nome'] ?? '').toString(),
       coverUri: _coverUri(id, m['imagem']),
-      subtitle: latest.isEmpty ? null : 'Cap. $latest',
+      subtitle:
+          latest.isEmpty ? null : mangaCatalogSubtitle(latestChapter: latest),
     );
   }
 

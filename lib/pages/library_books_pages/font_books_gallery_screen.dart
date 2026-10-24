@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
@@ -29,13 +30,18 @@ class FontBooksGalleryScreen extends StatefulWidget {
 }
 
 class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
-  late String currentView;
+  late MangaCatalogFilter _currentFilter;
   late Future<List<dynamic>> _bookFuture;
   late ScrollController _scrollController;
   bool _isLoadingMore = false;
   bool _hasMore = true;
   bool _authRequired = false;
   String? _nextCursor;
+  String? _selectedGenreId;
+  String? _selectedGenreName;
+  MangaTaxonomyKind? _selectedTaxonomyKind;
+  String? _selectedTaxonomyId;
+  String? _selectedTaxonomyName;
   List<dynamic> allBooksData = [];
 
   /// Referência ao WebviewController após login WebView no Windows.
@@ -46,7 +52,15 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    currentView = widget.initialView;
+    final filters = widget.selectedFont.api.catalogFilters;
+    final requestedFilter = _filterFor(widget.initialView);
+    final initialFilter = filters.contains(requestedFilter)
+        ? requestedFilter
+        : requestedFilter == MangaCatalogFilter.recent &&
+                filters.contains(MangaCatalogFilter.updated)
+            ? MangaCatalogFilter.updated
+            : filters.firstOrNull ?? MangaCatalogFilter.popular;
+    _currentFilter = initialFilter;
     _loadBooks();
   }
 
@@ -65,10 +79,29 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     super.dispose();
   }
 
-  MangaCatalogFilter _filterFor(String view) =>
-      view.toLowerCase() == 'recent'
-          ? MangaCatalogFilter.recent
-          : MangaCatalogFilter.popular;
+  MangaCatalogFilter _filterFor(String view) {
+    final normalized = view.toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
+    return switch (normalized) {
+      'recent' => MangaCatalogFilter.recent,
+      'latest' || 'updated' => MangaCatalogFilter.updated,
+      'recentlyadded' || 'added' => MangaCatalogFilter.added,
+      'trending' => MangaCatalogFilter.trending,
+      'alphabetical' => MangaCatalogFilter.alphabetical,
+      _ => MangaCatalogFilter.popular,
+    };
+  }
+
+  String _labelFor(MangaCatalogFilter filter) =>
+      widget.selectedFont.api.catalogFilterLabel(filter);
+
+  IconData _iconFor(MangaCatalogFilter filter) => switch (filter) {
+        MangaCatalogFilter.updated => Icons.update_rounded,
+        MangaCatalogFilter.added => Icons.new_releases_outlined,
+        MangaCatalogFilter.recent => Icons.schedule_rounded,
+        MangaCatalogFilter.trending => Icons.trending_up_outlined,
+        MangaCatalogFilter.alphabetical => Icons.sort_by_alpha_rounded,
+        MangaCatalogFilter.popular => Icons.local_fire_department_outlined,
+      };
 
   Future<List<dynamic>> _fetchBooks() async {
     final api = widget.selectedFont.api;
@@ -77,7 +110,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     if (api is BrowserSessionMangaSource) {
       await (api as BrowserSessionMangaSource).restoreSession();
     }
-    final page = await api.browse(filter: _filterFor(currentView));
+    final page = await _browsePage(api);
     _nextCursor = page.nextCursor;
     final booksData = page.items.map((item) => item.toJson()).toList();
     setState(() => allBooksData = booksData);
@@ -93,8 +126,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     setState(() => _isLoadingMore = true);
     try {
       final api = widget.selectedFont.api;
-      final page =
-          await api.browse(filter: _filterFor(currentView), cursor: _nextCursor);
+      final page = await _browsePage(api, cursor: _nextCursor);
       _nextCursor = page.nextCursor;
       final moreBooksData = page.items.map((item) => item.toJson()).toList();
       if (!mounted) return;
@@ -115,6 +147,32 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
         _loadBooks();
       }
     }
+  }
+
+  Future<MangaCatalogPage> _browsePage(
+    MangaSource api, {
+    String? cursor,
+  }) {
+    final taxonomyKind = _selectedTaxonomyKind;
+    final taxonomyId = _selectedTaxonomyId;
+    if (taxonomyKind != null &&
+        taxonomyId != null &&
+        api is TaxonomyBrowsableMangaSource) {
+      return (api as TaxonomyBrowsableMangaSource).browseTaxonomy(
+        taxonomyKind,
+        taxonomyId,
+        cursor: cursor,
+      );
+    }
+    final genreId = _selectedGenreId;
+    if (genreId != null && api is GenreBrowsableMangaSource) {
+      return (api as GenreBrowsableMangaSource).browseGenre(
+        genreId,
+        filter: _currentFilter,
+        cursor: cursor,
+      );
+    }
+    return api.browse(filter: _currentFilter, cursor: cursor);
   }
 
   // ─── Auth helpers ──────────────────────────────────────────────────────────
@@ -195,7 +253,8 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   }
 
   /// Abre [AuthWebViewScreen] para login visual (form SPA, OAuth, etc.).
-  Future<void> _openWebViewLogin(MangaSource api, ScrapperProfile profile) async {
+  Future<void> _openWebViewLogin(
+      MangaSource api, ScrapperProfile profile) async {
     final cookies = await showAuthWebView(
       context: context,
       profile: profile,
@@ -414,12 +473,17 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(50),
-          child: Center(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildButton('Popular', Icons.trending_up_outlined, theme),
-                _buildButton('Recent', Icons.new_releases_outlined, theme),
+                for (final filter
+                    in widget.selectedFont.api.catalogFilters) ...[
+                  _buildButton(filter, _iconFor(filter), theme),
+                  const SizedBox(width: 8),
+                ],
                 OutlinedButton(
                   onPressed: _showFilterPopup,
                   style: OutlinedButton.styleFrom(
@@ -435,7 +499,10 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
                       Icon(Icons.filter_list,
                           color: theme
                               .selectedTheme.textTheme.displayMedium?.color),
-                      Text('Filter',
+                      Text(
+                          _selectedTaxonomyName ??
+                              _selectedGenreName ??
+                              'Filter',
                           style: TextStyle(
                               color: theme.selectedTheme.textTheme.displayMedium
                                   ?.color)),
@@ -451,12 +518,17 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     );
   }
 
-  Widget _buildButton(String text, IconData icon, ThemeProvider theme) {
-    bool isSelected = currentView.toLowerCase() == text.toLowerCase();
+  Widget _buildButton(
+    MangaCatalogFilter filter,
+    IconData icon,
+    ThemeProvider theme,
+  ) {
+    final text = _labelFor(filter);
+    final isSelected = _currentFilter == filter;
     return OutlinedButton(
       onPressed: () {
         setState(() {
-          currentView = text;
+          _currentFilter = filter;
           _loadBooks();
         });
       },
@@ -548,6 +620,8 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
                         MediaQuery.of(context).size.width >= 600 ? 4 : 2,
                     mainAxisSpacing: 8.0,
                     crossAxisSpacing: 8.0,
+                    childAspectRatio:
+                        MediaQuery.of(context).size.width >= 600 ? 0.72 : 0.68,
                   ),
                   itemCount: books.length,
                   itemBuilder: (context, index) {
@@ -643,6 +717,8 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     final api = widget.selectedFont.api;
     final book = bookDetails as Map<String, dynamic>;
     final String title = (book['title'] ?? '').toString();
+    final String metadata =
+        (book['latestChapter'] ?? book['subtitle'] ?? '').toString().trim();
     final String imageUrl =
         (book['coverImageUrl'] ?? book['imageurl'] ?? '').toString();
     final imageHeaders = api.coverImageHeaders;
@@ -652,79 +728,94 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
 
     if (kDebugMode) print('image URL: $imageUrl');
 
-    return InkWell(
-      onTap: () => _navigateToBookDetails(mangaId),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10.0),
-          border: isBookFavorited
-              ? Border.all(
-                  color: theme.selectedTheme.primaryColor.withAlpha(150),
-                  width: 2.0,
-                )
-              : null,
-        ),
-        child: GridTile(
-          footer: ClipRRect(
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(8.0),
-              bottomRight: Radius.circular(8.0),
-            ),
-            child: Container(
-              color: Colors.black.withValues(alpha: 0.5),
-              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-              child: Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Stack(
-              children: [
-                CachedNetworkImage(
-                  imageUrl: imageUrl,
-                  httpHeaders: imageHeaders,
-                  fit: BoxFit.cover,
-                  width: MediaQuery.of(context).size.width,
-                  height: MediaQuery.of(context).size.width,
-                  color: isBookFavorited
-                      ? Colors.black.withValues(alpha: 0.5)
-                      : null,
-                  colorBlendMode:
-                      isBookFavorited ? BlendMode.srcOver : BlendMode.dstATop,
-                  placeholder: (context, _) => Container(
-                    color: Colors.grey.shade900,
-                    child: const Center(
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+    final colors = Theme.of(context).colorScheme;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: isBookFavorited
+            ? BorderSide(
+                color: theme.selectedTheme.primaryColor.withAlpha(190),
+                width: 2,
+              )
+            : BorderSide(color: colors.outlineVariant),
+      ),
+      child: InkWell(
+        onTap: () => _navigateToBookDetails(mangaId),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    httpHeaders: imageHeaders,
+                    fit: BoxFit.cover,
+                    color: isBookFavorited
+                        ? Colors.black.withValues(alpha: 0.32)
+                        : null,
+                    colorBlendMode:
+                        isBookFavorited ? BlendMode.srcOver : BlendMode.dstATop,
+                    placeholder: (context, _) => ColoredBox(
+                      color: colors.surfaceContainerHighest,
+                      child: const Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    ),
+                    errorWidget: (context, _, __) => ColoredBox(
+                      color: colors.surfaceContainerHighest,
+                      child: const Icon(
+                        Icons.broken_image_outlined,
+                        color: Colors.grey,
                       ),
                     ),
                   ),
-                  errorWidget: (context, _, __) => Container(
-                    color: Colors.grey.shade900,
-                    child: const Icon(Icons.broken_image_outlined,
-                        color: Colors.grey),
-                  ),
-                ),
-                if (isBookFavorited)
-                  const Positioned(
-                    top: 10,
-                    right: 10,
-                    child: Icon(Icons.favorite, color: Colors.red, size: 24),
-                  ),
-              ],
+                  if (isBookFavorited)
+                    const Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Icon(Icons.favorite, color: Colors.red, size: 24),
+                    ),
+                ],
+              ),
             ),
-          ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (metadata.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      metadata,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -780,7 +871,43 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     }
   }
 
-  void _showFilterPopup() {
+  Future<void> _showFilterPopup() async {
+    final api = widget.selectedFont.api;
+    if (api is TaxonomyBrowsableMangaSource) {
+      final selection = await showDialog<_MangaTaxonomySelection>(
+        context: context,
+        builder: (_) => _MangaTaxonomyDialog(
+          source: api as TaxonomyBrowsableMangaSource,
+          initialKind: _selectedTaxonomyKind,
+          initialId: _selectedTaxonomyId,
+          initialName: _selectedTaxonomyName,
+        ),
+      );
+      if (!mounted || selection == null) return;
+      setState(() {
+        _selectedTaxonomyKind = selection.id.isEmpty ? null : selection.kind;
+        _selectedTaxonomyId = selection.id.isEmpty ? null : selection.id;
+        _selectedTaxonomyName = selection.id.isEmpty ? null : selection.name;
+        _selectedGenreId = null;
+        _selectedGenreName = null;
+      });
+      _loadBooks();
+      return;
+    }
+    if (api is GenreBrowsableMangaSource) {
+      try {
+        final genres = await (api as GenreBrowsableMangaSource).getGenres();
+        if (!mounted) return;
+        await _showGenreFilterPopup(genres);
+        return;
+      } catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not load genres: $error')),
+        );
+        return;
+      }
+    }
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -822,6 +949,279 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
               child: const Text('Close'),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showGenreFilterPopup(List<MangaGenre> genres) async {
+    var selectedId = _selectedGenreId;
+    var selectedName = _selectedGenreName;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Filter by genre'),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('All'),
+                    selected: selectedId == null,
+                    onSelected: (_) => setDialogState(() {
+                      selectedId = null;
+                      selectedName = null;
+                    }),
+                  ),
+                  for (final genre in genres)
+                    ChoiceChip(
+                      label: Text(genre.name),
+                      selected: selectedId == genre.id,
+                      onSelected: (_) => setDialogState(() {
+                        selectedId = genre.id;
+                        selectedName = genre.name;
+                      }),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                setState(() {
+                  _selectedGenreId = selectedId;
+                  _selectedGenreName = selectedName;
+                });
+                _loadBooks();
+              },
+              child: const Text('Apply'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MangaTaxonomySelection {
+  final MangaTaxonomyKind kind;
+  final String id;
+  final String name;
+
+  const _MangaTaxonomySelection(this.kind, this.id, this.name);
+}
+
+class _MangaTaxonomyDialog extends StatefulWidget {
+  final TaxonomyBrowsableMangaSource source;
+  final MangaTaxonomyKind? initialKind;
+  final String? initialId;
+  final String? initialName;
+
+  const _MangaTaxonomyDialog({
+    required this.source,
+    this.initialKind,
+    this.initialId,
+    this.initialName,
+  });
+
+  @override
+  State<_MangaTaxonomyDialog> createState() => _MangaTaxonomyDialogState();
+}
+
+class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
+  late MangaTaxonomyKind _kind;
+  late final TextEditingController _queryController;
+  List<MangaTaxonomyOption> _options = const [];
+  String? _selectedId;
+  String? _selectedName;
+  bool _loading = false;
+  Object? _error;
+  Timer? _debounce;
+  int _generation = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _kind = widget.initialKind ?? widget.source.taxonomyKinds.first;
+    _selectedId = widget.initialId;
+    _selectedName = widget.initialName;
+    _queryController = TextEditingController();
+    if (_kind == MangaTaxonomyKind.tag) _loadOptions();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _queryController.dispose();
+    super.dispose();
+  }
+
+  String _kindLabel(MangaTaxonomyKind kind) => switch (kind) {
+        MangaTaxonomyKind.tag => 'Tags',
+        MangaTaxonomyKind.artist => 'Artists',
+        MangaTaxonomyKind.circle => 'Circles',
+      };
+
+  void _onKindChanged(MangaTaxonomyKind? value) {
+    if (value == null || value == _kind) return;
+    _debounce?.cancel();
+    setState(() {
+      _kind = value;
+      _selectedId = null;
+      _selectedName = null;
+      _options = const [];
+      _error = null;
+      _queryController.clear();
+    });
+    if (value == MangaTaxonomyKind.tag) _loadOptions();
+  }
+
+  void _onQueryChanged(String query) {
+    _debounce?.cancel();
+    setState(() {
+      _selectedId = null;
+      _selectedName = null;
+    });
+    _debounce = Timer(const Duration(milliseconds: 300), _loadOptions);
+  }
+
+  Future<void> _loadOptions() async {
+    final query = _queryController.text.trim();
+    if (_kind != MangaTaxonomyKind.tag && query.length < 2) {
+      setState(() {
+        _options = const [];
+        _loading = false;
+        _error = null;
+      });
+      return;
+    }
+    final generation = ++_generation;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final options = await widget.source.getTaxonomy(_kind, query: query);
+      if (!mounted || generation != _generation) return;
+      setState(() => _options = options);
+    } catch (error) {
+      if (!mounted || generation != _generation) return;
+      setState(() => _error = error);
+    } finally {
+      if (mounted && generation == _generation) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final needsQuery = _kind != MangaTaxonomyKind.tag;
+    return AlertDialog(
+      title: const Text('Filter HDoujin'),
+      content: SizedBox(
+        width: 460,
+        height: 520,
+        child: Column(
+          children: [
+            DropdownButtonFormField<MangaTaxonomyKind>(
+              initialValue: _kind,
+              decoration: const InputDecoration(labelText: 'Filter type'),
+              items: [
+                for (final kind in widget.source.taxonomyKinds)
+                  DropdownMenuItem(
+                    value: kind,
+                    child: Text(_kindLabel(kind)),
+                  ),
+              ],
+              onChanged: _onKindChanged,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _queryController,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search_rounded),
+                labelText:
+                    needsQuery ? 'Type at least 2 characters' : 'Find a tag',
+                helperText: needsQuery
+                    ? 'Suggestions appear as you type.'
+                    : 'Tags are listed alphabetically.',
+              ),
+              onChanged: _onQueryChanged,
+            ),
+            const SizedBox(height: 8),
+            Expanded(child: _buildResults(needsQuery)),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(
+            _MangaTaxonomySelection(_kind, '', ''),
+          ),
+          child: const Text('Clear'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _selectedId == null
+              ? null
+              : () => Navigator.of(context).pop(
+                    _MangaTaxonomySelection(
+                      _kind,
+                      _selectedId!,
+                      _selectedName!,
+                    ),
+                  ),
+          child: const Text('Apply'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildResults(bool needsQuery) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(child: Text('Could not load filters: $_error'));
+    }
+    if (needsQuery && _queryController.text.trim().length < 2) {
+      return const Center(
+        child: Text('Start typing to search this large index.'),
+      );
+    }
+    if (_options.isEmpty) {
+      return const Center(child: Text('No matching filters.'));
+    }
+    return ListView.builder(
+      itemCount: _options.length,
+      itemBuilder: (context, index) {
+        final option = _options[index];
+        final selected = option.id == _selectedId;
+        return ListTile(
+          selected: selected,
+          title: Text(option.name),
+          subtitle: option.titleCount == null
+              ? null
+              : Text('${option.titleCount} titles'),
+          trailing: Icon(
+            selected ? Icons.radio_button_checked : Icons.radio_button_off,
+          ),
+          onTap: () => setState(() {
+            _selectedId = option.id;
+            _selectedName = option.name;
+          }),
         );
       },
     );

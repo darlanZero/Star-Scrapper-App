@@ -39,8 +39,9 @@ class LuraToonsSource extends BaseHtmlMangaSource
     ),
     buildDetailUrl: (id, base) => '$base/api/obra/$id/',
     buildChapterUrl: (id, base) => '$base/$id/',
-    buildListUrl: (filter, page, base) =>
-        filter.toLowerCase() == 'recent' ? '$base/api/main/' : '$base/api/obras/',
+    buildListUrl: (filter, page, base) => filter.toLowerCase() == 'recent'
+        ? '$base/api/main/'
+        : '$base/api/obras/',
     extractId: (url) {
       try {
         final uri = Uri.parse(url);
@@ -105,7 +106,8 @@ class LuraToonsSource extends BaseHtmlMangaSource
     if (_cachedCatalog != null) return _cachedCatalog!;
     final data = await _jsonGet('$_base/api/obras/');
     final obras = (data['obras'] ?? []) as List<dynamic>;
-    final items = obras.map(_catalogItem).whereType<MangaCatalogItem>().toList();
+    final items =
+        obras.map(_catalogItem).whereType<MangaCatalogItem>().toList();
     _cachedCatalog = items;
     return items;
   }
@@ -131,7 +133,9 @@ class LuraToonsSource extends BaseHtmlMangaSource
       id: slug,
       title: item['title']?.toString() ?? '',
       coverUri: _coverUri(item['capa']?.toString() ?? ''),
-      subtitle: latest != null ? 'Cap. ${latest['num']}' : null,
+      subtitle: latest != null
+          ? mangaCatalogSubtitle(latestChapter: latest['num']?.toString())
+          : null,
     );
   }
 

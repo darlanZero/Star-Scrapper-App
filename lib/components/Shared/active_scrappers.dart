@@ -318,9 +318,7 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
                         ),
                       ),
                       Text(
-                        source.id == 'smart_animes'
-                            ? 'Português (Brasil) · Legendado/Dublado'
-                            : 'All languages · Sub/Dub',
+                        '${source.languageLabel} · ${source.audioLabel}',
                         style: TextStyle(color: colors.onSurfaceVariant),
                       ),
                     ],

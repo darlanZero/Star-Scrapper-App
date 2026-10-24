@@ -37,14 +37,23 @@ class ChapterBookScreen extends StatefulWidget {
 }
 
 class _ChapterBookScreenState extends State<ChapterBookScreen> {
+  static const int _preloadWindowSize = 4;
+
   bool _showControls = false;
   int _currentPage = 0;
   bool _isPaginatedView = false;
   bool _reverseReading = false;
   final List<MangaReaderPage> _chapterImages = [];
   final List<GlobalKey> _imageItemKeys = [];
+  final Set<int> _preloadedPageIndexes = <int>{};
+  final Set<int> _preloadingPageIndexes = <int>{};
   StreamSubscription<MangaReaderPage>? _chapterImagesSubscription;
   bool _showWebView = false;
+  flutter_webview.WebViewController? _androidWebViewController;
+  int _webViewProgress = 0;
+  String? _webViewError;
+  Timer? _webViewReadinessTimer;
+  int _webViewReadinessAttempts = 0;
   int? _pendingRestorePage;
   bool _recalcScheduled = false;
   Timer? _controlsAutoHideTimer;
@@ -88,39 +97,165 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
         .readChapter(mangaId: widget.mangaID, chapterId: widget.chapterId)
         .listen(
       (page) {
+        final pageIndex = _chapterImages.length;
         setState(() {
           _chapterImages.add(page);
           _imageItemKeys.add(GlobalKey());
         });
+        if (pageIndex < _preloadWindowSize) {
+          _preloadPagesAround(0);
+        }
         _tryRestoreScrollPosition();
       },
       onError: (_) {
         // Falha ao resolver páginas → cai para a WebView se houver URL.
-        if (_chapterImages.isEmpty && _chapterWebViewUrl.isNotEmpty && mounted) {
-          setState(() => _showWebView = true);
+        if (_chapterImages.isEmpty &&
+            _chapterWebViewUrl.isNotEmpty &&
+            mounted) {
+          _activateWebView();
         }
       },
       onDone: () {
         // Se a fonte não forneceu imagens (ex.: conteúdo protegido por DRM),
         // abre automaticamente a WebView com a URL do capítulo.
-        if (_chapterImages.isEmpty && _chapterWebViewUrl.isNotEmpty && mounted) {
-          setState(() {
-            _showWebView = true;
-          });
+        if (_chapterImages.isEmpty &&
+            _chapterWebViewUrl.isNotEmpty &&
+            mounted) {
+          _activateWebView();
         }
       },
     );
   }
 
-  Widget _buildPageImage(MangaReaderPage page, {BoxFit fit = BoxFit.contain}) {
-    if (page.isLocal) {
-      return Image.file(File(page.filePath!), fit: fit);
+  void _activateWebView() {
+    _ensureAndroidWebViewController();
+    setState(() => _showWebView = true);
+  }
+
+  void _ensureAndroidWebViewController() {
+    if (defaultTargetPlatform != TargetPlatform.android ||
+        _androidWebViewController != null ||
+        _chapterWebViewUrl.isEmpty) {
+      return;
     }
-    return Image.network(
+    final controller = flutter_webview.WebViewController();
+    controller
+      ..setJavaScriptMode(flutter_webview.JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0x00000000));
+    controller.setNavigationDelegate(flutter_webview.NavigationDelegate(
+      onProgress: (progress) {
+        if (!mounted) return;
+        setState(() => _webViewProgress = progress);
+      },
+      onPageStarted: (_) {
+        if (!mounted) return;
+        _webViewReadinessTimer?.cancel();
+        setState(() {
+          _webViewProgress = 0;
+          _webViewError = null;
+        });
+      },
+      onPageFinished: (_) {
+        if (!mounted) return;
+        setState(() => _webViewProgress = 100);
+        _startWebViewReadinessChecks(controller);
+      },
+      onWebResourceError: (error) {
+        if (!mounted || error.isForMainFrame != true) return;
+        setState(() => _webViewError = error.description);
+      },
+      onNavigationRequest: (_) => flutter_webview.NavigationDecision.navigate,
+    ));
+    _androidWebViewController = controller;
+    unawaited(controller.loadRequest(Uri.parse(_chapterWebViewUrl)));
+  }
+
+  void _retryWebView() {
+    _webViewReadinessTimer?.cancel();
+    setState(() {
+      _webViewError = null;
+      _webViewProgress = 0;
+    });
+    final controller = _androidWebViewController;
+    if (controller != null) unawaited(controller.reload());
+  }
+
+  void _startWebViewReadinessChecks(
+    flutter_webview.WebViewController controller,
+  ) {
+    _webViewReadinessTimer?.cancel();
+    _webViewReadinessAttempts = 0;
+    _webViewReadinessTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      unawaited(_checkWebViewReadiness(controller));
+    });
+  }
+
+  Future<void> _checkWebViewReadiness(
+    flutter_webview.WebViewController controller,
+  ) async {
+    if (!mounted || !_showWebView) return;
+    _webViewReadinessAttempts++;
+    try {
+      final result = await controller.runJavaScriptReturningResult('''
+        (() => document.querySelectorAll(
+          'img[src^="blob:"], img[src^="http"], canvas, video'
+        ).length)()
+      ''');
+      final mediaCount = int.tryParse(
+            result.toString().replaceAll(RegExp(r'[^0-9]'), ''),
+          ) ??
+          0;
+      if (mediaCount > 0) {
+        _webViewReadinessTimer?.cancel();
+        return;
+      }
+    } catch (_) {
+      // Cross-origin pages can reject inspection. The main-frame timeout below
+      // still provides a recoverable state instead of an endless spinner.
+    }
+    if (_webViewReadinessAttempts < 15 || !mounted) return;
+    _webViewReadinessTimer?.cancel();
+    setState(() {
+      _webViewError =
+          'The site finished loading but did not expose any reader pages. '
+          'It may require browser verification.';
+    });
+  }
+
+  Widget _buildPageImage(MangaReaderPage page, {BoxFit fit = BoxFit.contain}) {
+    return Image(image: _imageProvider(page), fit: fit);
+  }
+
+  ImageProvider<Object> _imageProvider(MangaReaderPage page) {
+    if (page.isLocal) return FileImage(File(page.filePath!));
+    return NetworkImage(
       page.uri.toString(),
       headers: page.headers.isEmpty ? null : page.headers,
-      fit: fit,
     );
+  }
+
+  void _preloadPagesAround(int anchor) {
+    if (!mounted || _chapterImages.isEmpty) return;
+    final indexes = mangaReaderPreloadIndexes(
+      currentPage: anchor,
+      pageCount: _chapterImages.length,
+      windowSize: _preloadWindowSize,
+      reverse: _reverseReading,
+    );
+    for (final index in indexes) {
+      if (_preloadedPageIndexes.contains(index) ||
+          !_preloadingPageIndexes.add(index)) {
+        continue;
+      }
+      unawaited(
+        precacheImage(_imageProvider(_chapterImages[index]), context).then((_) {
+          _preloadingPageIndexes.remove(index);
+          _preloadedPageIndexes.add(index);
+        }).catchError((_) {
+          _preloadingPageIndexes.remove(index);
+        }),
+      );
+    }
   }
 
   Future<void> _openAdjacentChapter(bool next) async {
@@ -129,7 +264,8 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Navegação entre capítulos não é suportada nesta fonte.'),
+          content:
+              Text('Navegação entre capítulos não é suportada nesta fonte.'),
         ),
       );
       return;
@@ -171,6 +307,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   @override
   void dispose() {
     _controlsAutoHideTimer?.cancel();
+    _webViewReadinessTimer?.cancel();
     _saveReadingProgress();
     _scrollController.dispose();
     _pageController?.dispose();
@@ -233,6 +370,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
       setState(() {
         _currentPage = bestIndex;
       });
+      _preloadPagesAround(bestIndex);
     }
   }
 
@@ -251,6 +389,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
         duration: Duration.zero,
         alignment: 0,
       );
+      _preloadPagesAround(target);
       _pendingRestorePage = null;
     });
   }
@@ -287,6 +426,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
     if (_chapterImages.isEmpty) return;
     final index = target.clamp(0, _chapterImages.length - 1);
     setState(() => _currentPage = index);
+    _preloadPagesAround(index);
 
     if (_isPaginatedView) {
       _pageController?.jumpToPage(index);
@@ -350,6 +490,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                       onChanged: (v) {
                         setModalState(() => _reverseReading = v);
                         setState(() => _reverseReading = v);
+                        _preloadPagesAround(_currentPage);
                       },
                       title: const Text('Reverse reading direction',
                           style: TextStyle(color: Colors.white)),
@@ -416,26 +557,51 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
         child: Text('Web view not supported on this platform.'),
       );
     } else if (defaultTargetPlatform == TargetPlatform.android) {
-      final controller = flutter_webview.WebViewController();
-      controller.setJavaScriptMode(flutter_webview.JavaScriptMode.unrestricted);
-      controller.setBackgroundColor(const Color(0x00000000));
-      controller.setNavigationDelegate(flutter_webview.NavigationDelegate(
-        onProgress: (int progress) {
-          // Update loading bar
-        },
-        onPageStarted: (String url) {},
-        onPageFinished: (String url) {},
-        onWebResourceError: (flutter_webview.WebResourceError error) {},
-        onNavigationRequest: (flutter_webview.NavigationRequest request) {
-          return flutter_webview.NavigationDecision.navigate;
-        },
-      ));
-
-      controller.loadRequest(Uri.parse(url));
-
-      webViewContent = flutter_webview.WebViewWidget(
-        controller: controller,
-      );
+      _ensureAndroidWebViewController();
+      final controller = _androidWebViewController;
+      if (controller == null) {
+        webViewContent = const Center(child: CircularProgressIndicator());
+      } else {
+        webViewContent = Stack(
+          children: [
+            flutter_webview.WebViewWidget(controller: controller),
+            if (_webViewProgress < 100)
+              LinearProgressIndicator(value: _webViewProgress / 100),
+            if (_webViewError != null)
+              ColoredBox(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.cloud_off_rounded, size: 52),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Could not load the browser reader.\n$_webViewError',
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton.icon(
+                          onPressed: _retryWebView,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Try again'),
+                        ),
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          onPressed: () => launchUrl(Uri.parse(url)),
+                          icon: const Icon(Icons.open_in_new_rounded),
+                          label: const Text('Open externally'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      }
     } else if (defaultTargetPlatform == TargetPlatform.windows) {
       webViewContent = FutureBuilder<webview_windows.WebviewController>(
           future: _initializeWebviewController(),
@@ -454,37 +620,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
       webViewContent = const Text('Unsupported platform');
     }
 
-    final displayTitle =
-        widget.chapterTitle ?? widget.chapterNumber ?? 'Chapter';
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(displayTitle),
-        backgroundColor: Color.fromARGB(178, 60, 16, 180),
-        elevation: 0,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            setState(() {
-              _showWebView = false;
-            });
-          },
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.open_in_new_rounded, color: Colors.white),
-            onPressed: () {
-              launchUrl(Uri.parse(url));
-            },
-          ),
-        ],
-      ),
-      body: webViewContent,
-    );
+    return webViewContent;
   }
 
   Future<webview_windows.WebviewController>
@@ -520,10 +656,13 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                 ),
                 IconButton(
                   icon: Icon(Icons.open_in_new_rounded),
-                  onPressed: () => {
-                    setState(() {
-                      _showWebView = !_showWebView;
-                    })
+                  tooltip: _showWebView ? 'Open externally' : 'Browser reader',
+                  onPressed: () {
+                    if (_showWebView) {
+                      launchUrl(Uri.parse(_chapterWebViewUrl));
+                    } else {
+                      _activateWebView();
+                    }
                   },
                   style: IconButton.styleFrom(
                     backgroundColor: Colors.deepPurple.withValues(alpha: 0.5),
@@ -567,6 +706,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                           setState(() {
                             _currentPage = index;
                           });
+                          _preloadPagesAround(index);
                           _scheduleControlsAutoHide();
                         },
                         reverse: _reverseReading,

@@ -89,6 +89,15 @@ void main() {
             ],
           });
         }
+        if (path == '/at-home/server/ch-1') {
+          return _json({
+            'baseUrl': 'https://uploads.mangadex.test',
+            'chapter': {
+              'hash': 'chapter-hash',
+              'data': ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg'],
+            },
+          });
+        }
         return http.Response('Not found', 404);
       }),
     );
@@ -122,6 +131,27 @@ void main() {
     expect(restored.item.id, 'manga-1');
     expect(restored.chapters.single.number, '1');
     expect(restored.author, 'Jane Doe');
+  });
+
+  test('emits the complete remote page manifest without serial downloads',
+      () async {
+    final pages = await source
+        .readChapter(mangaId: 'manga-1', chapterId: 'ch-1')
+        .toList();
+
+    expect(pages, hasLength(5));
+    expect(pages.every((page) => !page.isLocal), isTrue);
+    expect(
+      pages.map((page) => page.uri.toString()),
+      [
+        'https://uploads.mangadex.test/data/chapter-hash/1.jpg',
+        'https://uploads.mangadex.test/data/chapter-hash/2.jpg',
+        'https://uploads.mangadex.test/data/chapter-hash/3.jpg',
+        'https://uploads.mangadex.test/data/chapter-hash/4.jpg',
+        'https://uploads.mangadex.test/data/chapter-hash/5.jpg',
+      ],
+    );
+    expect(pages.first.headers['Referer'], 'https://mangadex.org/');
   });
 }
 

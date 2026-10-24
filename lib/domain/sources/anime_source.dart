@@ -1,6 +1,10 @@
+import 'dart:typed_data';
+
 /// Sort options that an anime catalog source can expose.
 enum AnimeCatalogFilter {
   popular,
+  popularWeek,
+  popularMonth,
   recent,
   updated,
   added,
@@ -354,6 +358,28 @@ abstract interface class AnimeSource {
   });
 }
 
+/// Presentation metadata shared by the source-management screens.
+///
+/// Keeping this mapping next to the typed source contract prevents individual
+/// screens from disagreeing about a source's language.
+extension AnimeSourcePresentation on AnimeSource {
+  String get languageLabel => switch (id) {
+        'goyabu' || 'smart_animes' => 'Português (Brasil)',
+        _ => 'All languages',
+      };
+
+  String get audioLabel => switch (id) {
+        'goyabu' || 'smart_animes' => 'Legendado/Dublado',
+        _ => 'Sub/Dub',
+      };
+
+  String get capabilityLabel => switch (id) {
+        'smart_animes' => '$languageLabel · $audioLabel · Google Drive',
+        'goyabu' => '$languageLabel · $audioLabel · Blogger',
+        _ => '$languageLabel · $audioLabel · HLS · Subtitles',
+      };
+}
+
 /// Optional capability for sources that expose structured catalog filters.
 abstract interface class FilterableAnimeSource {
   Future<AnimeSearchOptions> getSearchOptions();
@@ -383,6 +409,12 @@ abstract interface class BrowserSessionAnimeSource {
     required Map<String, String> cookies,
     required String userAgent,
   });
+}
+
+/// Optional capability for image hosts that only serve assets to a real
+/// browser client (for example, behind TLS-fingerprint protection).
+abstract interface class BrowserImageAnimeSource {
+  Future<Uint8List> loadBrowserImage(Uri uri);
 }
 
 class AnimePlaybackChoice {

@@ -1,6 +1,6 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:star_scrapper_app/components/Shared/anime_source_image.dart';
 import 'package:star_scrapper_app/application/library/anime_library_controller.dart';
 import 'package:star_scrapper_app/domain/sources/anime_source.dart';
 import 'package:star_scrapper_app/pages/anime_player_screen.dart';
@@ -359,8 +359,9 @@ class _AnimeSourceDetailsScreenState extends State<AnimeSourceDetailsScreen> {
                           ? const Icon(Icons.movie_outlined)
                           : ClipRRect(
                               borderRadius: BorderRadius.circular(6),
-                              child: CachedNetworkImage(
-                                imageUrl: match.item.coverUri.toString(),
+                              child: AnimeSourceImage(
+                                source: match.source,
+                                uri: match.item.coverUri!,
                                 width: 42,
                                 height: 60,
                                 fit: BoxFit.cover,
@@ -580,6 +581,7 @@ class _AnimeSourceDetailsScreenState extends State<AnimeSourceDetailsScreen> {
                 details: details,
                 title: displayTitle,
                 background: image,
+                source: widget.source,
               ),
             ),
           ),
@@ -732,11 +734,13 @@ class _AnimeHero extends StatelessWidget {
   final AnimeDetails details;
   final String title;
   final Uri? background;
+  final AnimeSource source;
 
   const _AnimeHero({
     required this.details,
     required this.title,
     required this.background,
+    required this.source,
   });
 
   @override
@@ -751,7 +755,11 @@ class _AnimeHero extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         if (background != null)
-          CachedNetworkImage(imageUrl: '$background', fit: BoxFit.cover)
+          AnimeSourceImage(
+            source: source,
+            uri: background!,
+            fit: BoxFit.cover,
+          )
         else
           ColoredBox(color: Theme.of(context).colorScheme.surfaceContainer),
         DecoratedBox(
@@ -780,8 +788,9 @@ class _AnimeHero extends StatelessWidget {
               height: 168,
               child: cover == null
                   ? const Icon(Icons.movie_outlined, size: 48)
-                  : CachedNetworkImage(
-                      imageUrl: '$cover',
+                  : AnimeSourceImage(
+                      source: source,
+                      uri: cover,
                       fit: BoxFit.cover,
                     ),
             ),

@@ -1,5 +1,5 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:star_scrapper_app/components/Shared/anime_source_image.dart';
 import 'package:star_scrapper_app/domain/sources/anime_source.dart';
 import 'package:star_scrapper_app/pages/anime_source_details_screen.dart';
 import 'package:star_scrapper_app/pages/anime_source_webview_screen.dart';
@@ -210,7 +210,9 @@ class _AnimeSourceCatalogScreenState extends State<AnimeSourceCatalogScreen> {
                                 child: ChoiceChip(
                                   selected: _advancedRequest == null &&
                                       _filter == filter,
-                                  label: Text(_catalogFilterLabel(filter)),
+                                  label: Text(
+                                    _catalogFilterLabel(filter, widget.source),
+                                  ),
                                   avatar: Icon(
                                     _catalogFilterIcon(filter),
                                     size: 18,
@@ -264,6 +266,7 @@ class _AnimeSourceCatalogScreenState extends State<AnimeSourceCatalogScreen> {
                   ),
                   itemBuilder: (context, index) => _AnimeCatalogCard(
                     item: _items[index],
+                    source: widget.source,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => AnimeSourceDetailsScreen(
@@ -299,9 +302,14 @@ class _AnimeSourceCatalogScreenState extends State<AnimeSourceCatalogScreen> {
 
 class _AnimeCatalogCard extends StatelessWidget {
   final AnimeCatalogItem item;
+  final AnimeSource source;
   final VoidCallback onTap;
 
-  const _AnimeCatalogCard({required this.item, required this.onTap});
+  const _AnimeCatalogCard({
+    required this.item,
+    required this.source,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -320,14 +328,15 @@ class _AnimeCatalogCard extends StatelessWidget {
                       color: colors.surfaceContainerHighest,
                       child: const Icon(Icons.movie_outlined, size: 52),
                     )
-                  : CachedNetworkImage(
-                      imageUrl: item.coverUri.toString(),
+                  : AnimeSourceImage(
+                      source: source,
+                      uri: item.coverUri!,
                       fit: BoxFit.cover,
-                      placeholder: (_, __) => ColoredBox(
+                      placeholderBuilder: (_) => ColoredBox(
                         color: colors.surfaceContainerHighest,
                         child: const Center(child: CircularProgressIndicator()),
                       ),
-                      errorWidget: (_, __, ___) => const Center(
+                      errorBuilder: (_) => const Center(
                         child: Icon(Icons.broken_image_outlined, size: 44),
                       ),
                     ),
@@ -610,8 +619,26 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
       );
 }
 
-String _catalogFilterLabel(AnimeCatalogFilter filter) => switch (filter) {
+String _catalogFilterLabel(
+  AnimeCatalogFilter filter,
+  AnimeSource source,
+) {
+  if (source.id == 'goyabu') {
+    return switch (filter) {
+      AnimeCatalogFilter.popular => 'Today',
+      AnimeCatalogFilter.popularWeek => 'This week',
+      AnimeCatalogFilter.popularMonth => 'This month',
+      _ => _defaultCatalogFilterLabel(filter),
+    };
+  }
+  return _defaultCatalogFilterLabel(filter);
+}
+
+String _defaultCatalogFilterLabel(AnimeCatalogFilter filter) =>
+    switch (filter) {
       AnimeCatalogFilter.popular => 'Most viewed',
+      AnimeCatalogFilter.popularWeek => 'This week',
+      AnimeCatalogFilter.popularMonth => 'This month',
       AnimeCatalogFilter.recent => 'Latest',
       AnimeCatalogFilter.updated => 'Updated',
       AnimeCatalogFilter.added => 'Recently added',
@@ -621,6 +648,8 @@ String _catalogFilterLabel(AnimeCatalogFilter filter) => switch (filter) {
 
 IconData _catalogFilterIcon(AnimeCatalogFilter filter) => switch (filter) {
       AnimeCatalogFilter.popular => Icons.trending_up_rounded,
+      AnimeCatalogFilter.popularWeek => Icons.date_range_rounded,
+      AnimeCatalogFilter.popularMonth => Icons.calendar_month_rounded,
       AnimeCatalogFilter.recent => Icons.schedule_rounded,
       AnimeCatalogFilter.updated => Icons.update_rounded,
       AnimeCatalogFilter.added => Icons.fiber_new_rounded,

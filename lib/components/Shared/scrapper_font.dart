@@ -131,9 +131,7 @@ class _ScrapperDownloaderFontsState extends State<ScrapperDownloaderFonts> {
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
         subtitle: Text(
-          source.id == 'smart_animes'
-              ? 'Português (Brasil) · Google Drive'
-              : 'All languages · Sub/Dub · HLS · Subtitles',
+          source.capabilityLabel,
           style: TextStyle(color: colors.onSurfaceVariant),
         ),
       ),

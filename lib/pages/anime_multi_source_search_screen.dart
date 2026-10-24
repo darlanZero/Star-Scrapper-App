@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:star_scrapper_app/components/Shared/anime_source_image.dart';
 import 'package:star_scrapper_app/application/library/anime_library_controller.dart';
 import 'package:star_scrapper_app/application/sources/anime_multi_source_search.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
@@ -224,6 +225,7 @@ class _AnimeMultiSourceSearchScreenState
               title: item.title,
               subtitle: item.subtitle ?? group.source.name,
               coverUrl: item.coverUri?.toString(),
+              source: group.source,
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => AnimeSourceDetailsScreen(
@@ -293,12 +295,14 @@ class _AnimeSearchTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final String? coverUrl;
+  final AnimeSource? source;
   final VoidCallback onTap;
 
   const _AnimeSearchTile({
     required this.title,
     required this.subtitle,
     required this.coverUrl,
+    this.source,
     required this.onTap,
   });
 
@@ -313,14 +317,24 @@ class _AnimeSearchTile extends StatelessWidget {
             )
           : ClipRRect(
               borderRadius: BorderRadius.circular(6),
-              child: CachedNetworkImage(
-                imageUrl: coverUrl!,
-                width: 42,
-                height: 58,
-                fit: BoxFit.cover,
-                errorWidget: (_, __, ___) =>
-                    const Icon(Icons.broken_image_outlined),
-              ),
+              child: source == null
+                  ? CachedNetworkImage(
+                      imageUrl: coverUrl!,
+                      width: 42,
+                      height: 58,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) =>
+                          const Icon(Icons.broken_image_outlined),
+                    )
+                  : AnimeSourceImage(
+                      source: source!,
+                      uri: Uri.parse(coverUrl!),
+                      width: 42,
+                      height: 58,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_) =>
+                          const Icon(Icons.broken_image_outlined),
+                    ),
             ),
       title: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
       subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),

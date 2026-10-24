@@ -62,7 +62,10 @@ class AniwaveSource implements AnimeSource, FilterableAnimeSource {
     String? cursor,
   }) {
     final path = switch (filter) {
-      AnimeCatalogFilter.popular => 'most-viewed',
+      AnimeCatalogFilter.popular ||
+      AnimeCatalogFilter.popularWeek ||
+      AnimeCatalogFilter.popularMonth =>
+        'most-viewed',
       AnimeCatalogFilter.added => 'new-release',
       AnimeCatalogFilter.airing => 'status/currently-airing',
       AnimeCatalogFilter.completed => 'status/finished-airing',

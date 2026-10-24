@@ -44,7 +44,8 @@ class _AnimeSourceSessionScreenState extends State<AnimeSourceSessionScreen> {
   Future<void> _tryFinish() async {
     if (_saving) return;
     final ready = await _controller.runJavaScriptReturningResult(
-      "Boolean(document.querySelector('article.bs, .bsx, .postbody'))",
+      "Boolean(document.querySelector('article.bs, .bsx, .boxAN, .boxEP, "
+      ".list-item, .streamer-content, .postbody'))",
     );
     if (ready != true && ready.toString() != 'true') return;
     _saving = true;
@@ -69,7 +70,11 @@ class _AnimeSourceSessionScreenState extends State<AnimeSourceSessionScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Verify Smart Animes')),
+        appBar: AppBar(
+          title: Text(
+            'Verify ${widget.source is AnimeSource ? (widget.source as AnimeSource).name : 'source'}',
+          ),
+        ),
         body: Stack(
           children: [
             WebViewWidget(controller: _controller),
@@ -168,7 +173,17 @@ class _AnimePlaybackResolverScreenState
             .filter(link => link.hasAttribute('download') ||
                             /download/i.test(`${link.id} ${link.className}`) ||
                             /\.(m3u8|mpd|mp4|mkv|webm)(\?|$)/i.test(link.href))
-            .map(link => link.href)
+            .map(link => link.href),
+          blogger: [...document.querySelectorAll('[data-p]')]
+            .flatMap(element => {
+              const data = (element.getAttribute('data-p') || '')
+                .replace(/\\u003d/g, '=')
+                .replace(/\\u0026/g, '&')
+                .replace(/\\\//g, '/');
+              return data.match(
+                /https:\/\/[^\s"'\\]*googlevideo\.com\/videoplayback\?[^\s"'\\]+/g
+              ) || [];
+            })
         })
       ''');
       final decoded = jsonDecode(_decodeJavaScriptString(raw));
@@ -177,6 +192,7 @@ class _AnimePlaybackResolverScreenState
         decoded['video']?.toString() ?? '',
         ...((decoded['resources'] as List?) ?? const []).map((e) => '$e'),
         ...((decoded['links'] as List?) ?? const []).map((e) => '$e'),
+        ...((decoded['blogger'] as List?) ?? const []).map((e) => '$e'),
       ];
       final pageText = (decoded['text']?.toString() ?? '').toLowerCase();
       if (widget.request.provider == 'SEND' &&

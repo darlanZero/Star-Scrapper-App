@@ -4,10 +4,13 @@ import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/anitube_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/aniwave_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/smart_animes_source.dart';
+import 'package:star_scrapper_app/data/sources/anime/goyabu_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/mangadex_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/seita_celestial_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/luratoons_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/mediocrescan_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/leitura_manga_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/hdoujin_source.dart';
 import 'package:star_scrapper_app/infrastructure/webview/browser_html_loader.dart';
 
 /// Single registry for the sources bundled with the application.
@@ -18,6 +21,10 @@ abstract final class SourceCatalog {
         AnitubeSource(),
         AniwaveSource(),
         SmartAnimesSource(browserHtmlLoader: BrowserHtmlLoader.load),
+        GoyabuSource(
+          browserHtmlLoader: BrowserHtmlLoader.load,
+          browserImageLoader: BrowserHtmlLoader.loadImage,
+        ),
       ];
 
   /// Manga/comic providers using the typed [MangaSource] contract (replaces the
@@ -27,6 +34,8 @@ abstract final class SourceCatalog {
         SeitaCelestialSource(),
         LuraToonsSource(),
         MediocrescanSource(),
+        LeituraMangaSource(),
+        HDoujinSource(),
       ];
 
   static List<Fonte> createAll() => [
@@ -75,6 +84,29 @@ abstract final class SourceCatalog {
           ],
           api: MediocrescanSource(),
           contentType: SourceContentType.manga,
+        ),
+        Fonte(
+          id: 'leitura_manga',
+          image: 'https://leituramanga.net/icon.png',
+          name: 'Leitura Manga',
+          languagePrefix: 'Pt-BR',
+          flags: [
+            'https://cdn.countryflags.com/thumbs/brazil/flag-3d-250.png',
+          ],
+          api: LeituraMangaSource(),
+          contentType: SourceContentType.manga,
+          // Catálogo misto: há obras adultas, mas esse não é o foco da source.
+          isRRated: false,
+        ),
+        Fonte(
+          id: 'hdoujin',
+          image: 'https://hdoujin.org/favicon.png',
+          name: 'HDoujin',
+          languagePrefix: 'All',
+          flags: ['https://cdn-icons-png.flaticon.com/512/44/44386.png'],
+          api: HDoujinSource(),
+          contentType: SourceContentType.manga,
+          isRRated: true,
         ),
       ];
 }

@@ -29,6 +29,75 @@ enum MangaStatus {
   cancelled,
 }
 
+/// Returns the current page plus the next pages the reader should warm in its
+/// image cache. The window is clamped at chapter boundaries.
+List<int> mangaReaderPreloadIndexes({
+  required int currentPage,
+  required int pageCount,
+  int windowSize = 4,
+  bool reverse = false,
+}) {
+  if (pageCount <= 0 || windowSize <= 0) return const [];
+  final anchor = currentPage.clamp(0, pageCount - 1);
+  final direction = reverse ? -1 : 1;
+  return List<int>.generate(windowSize, (offset) => anchor + offset * direction)
+      .where((index) => index >= 0 && index < pageCount)
+      .toList(growable: false);
+}
+
+/// Produces the compact metadata line shared by manga catalog cards.
+/// Missing values are omitted instead of being rendered as placeholders.
+String mangaCatalogSubtitle({
+  String? latestChapter,
+  int? totalChapters,
+  String? format,
+  MangaStatus? status,
+  double? rating,
+  int? year,
+}) {
+  final parts = <String>[];
+  final chapter = normalizeMangaChapterNumber(latestChapter);
+  if (totalChapters != null && totalChapters > 0) {
+    parts.add(
+      chapter != null && chapter != '$totalChapters'
+          ? '$chapter/$totalChapters Ch'
+          : '$totalChapters Ch',
+    );
+  } else if (chapter != null) {
+    parts.add('$chapter Ch');
+  }
+  if (format != null && format.trim().isNotEmpty) parts.add(format.trim());
+  final statusLabel = mangaStatusLabel(status ?? MangaStatus.unknown);
+  if (statusLabel != null) parts.add(statusLabel);
+  if (rating != null && rating > 0) {
+    final normalized = rating > 10 ? rating / 10 : rating;
+    parts.add(normalized
+        .toStringAsFixed(2)
+        .replaceFirst(RegExp(r'0+$'), '')
+        .replaceFirst(RegExp(r'\.$'), ''));
+  }
+  if (parts.length < 3 && year != null && year > 0) parts.add('$year');
+  return parts.join(' • ');
+}
+
+String? normalizeMangaChapterNumber(Object? value) {
+  var text = value?.toString().trim() ?? '';
+  if (text.isEmpty) return null;
+  text = text.replaceFirst(
+    RegExp(r'^(?:cap[ií]tulo|cap\.?|chapter|ch\.?)\s*', caseSensitive: false),
+    '',
+  );
+  return text.trim().isEmpty ? null : text.trim();
+}
+
+String? mangaStatusLabel(MangaStatus status) => switch (status) {
+      MangaStatus.ongoing => 'Ongoing',
+      MangaStatus.completed => 'Completed',
+      MangaStatus.hiatus => 'Hiatus',
+      MangaStatus.cancelled => 'Cancelled',
+      MangaStatus.unknown => null,
+    };
+
 /// A lightweight manga entry returned by browse and search operations.
 class MangaCatalogItem {
   final String id;
@@ -77,6 +146,35 @@ class MangaCatalogPage {
   }) : items = List.unmodifiable(items);
 
   bool get hasMore => nextCursor != null && nextCursor!.isNotEmpty;
+}
+
+/// A genre/category exposed by a manga source.
+class MangaGenre {
+  final String id;
+  final String name;
+  final bool isAdult;
+
+  const MangaGenre({
+    required this.id,
+    required this.name,
+    this.isAdult = false,
+  });
+}
+
+/// Taxonomy groups exposed by sources with richer adult-gallery metadata.
+enum MangaTaxonomyKind { tag, artist, circle }
+
+/// A selectable tag, artist, or circle and its canonical source identifier.
+class MangaTaxonomyOption {
+  final String id;
+  final String name;
+  final int? titleCount;
+
+  const MangaTaxonomyOption({
+    required this.id,
+    required this.name,
+    this.titleCount,
+  });
 }
 
 /// A single chapter reference belonging to a manga.
@@ -284,6 +382,61 @@ abstract interface class ChapterNavigationMangaSource {
   Future<String?> nextChapterId(String mangaId, String currentChapterId);
 
   Future<String?> previousChapterId(String mangaId, String currentChapterId);
+}
+
+/// Optional capability for sources that expose a genre catalog.
+abstract interface class GenreBrowsableMangaSource {
+  Future<List<MangaGenre>> getGenres();
+
+  Future<MangaCatalogPage> browseGenre(
+    String genreId, {
+    MangaCatalogFilter filter = MangaCatalogFilter.popular,
+    String? cursor,
+  });
+}
+
+/// Optional capability for sources that expose tags and creator taxonomies.
+///
+/// Large artist/circle indexes may require [query] before returning results;
+/// implementations should cache their parsed index so typing does not trigger
+/// repeated multi-megabyte downloads.
+abstract interface class TaxonomyBrowsableMangaSource {
+  List<MangaTaxonomyKind> get taxonomyKinds;
+
+  Future<List<MangaTaxonomyOption>> getTaxonomy(
+    MangaTaxonomyKind kind, {
+    String query = '',
+  });
+
+  Future<MangaCatalogPage> browseTaxonomy(
+    MangaTaxonomyKind kind,
+    String taxonomyId, {
+    String? cursor,
+  });
+}
+
+/// Source-aware catalog labels while keeping the shared filter enum stable.
+extension MangaSourcePresentation on MangaSource {
+  String catalogFilterLabel(MangaCatalogFilter filter) {
+    if (id == 'hdoujin') {
+      return switch (filter) {
+        MangaCatalogFilter.popular => 'Popular',
+        MangaCatalogFilter.updated => 'Recent doujin',
+        MangaCatalogFilter.added => 'Recent removals',
+        MangaCatalogFilter.recent => 'Recent manga',
+        MangaCatalogFilter.trending => 'Trending',
+        MangaCatalogFilter.alphabetical => 'Alphabetical',
+      };
+    }
+    return switch (filter) {
+      MangaCatalogFilter.updated => 'Latest',
+      MangaCatalogFilter.added => 'Recently added',
+      MangaCatalogFilter.recent => 'Recent',
+      MangaCatalogFilter.trending => 'Trending',
+      MangaCatalogFilter.alphabetical => 'Alphabetical',
+      MangaCatalogFilter.popular => 'Popular',
+    };
+  }
 }
 
 /// Optional capability for sources that authenticate with a username/password

@@ -2,6 +2,29 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 
 void main() {
+  test('reader preloading keeps a four-page moving window', () {
+    expect(
+      mangaReaderPreloadIndexes(currentPage: 0, pageCount: 10),
+      [0, 1, 2, 3],
+    );
+    expect(
+      mangaReaderPreloadIndexes(currentPage: 4, pageCount: 10),
+      [4, 5, 6, 7],
+    );
+    expect(
+      mangaReaderPreloadIndexes(currentPage: 9, pageCount: 10),
+      [9],
+    );
+    expect(
+      mangaReaderPreloadIndexes(
+        currentPage: 4,
+        pageCount: 10,
+        reverse: true,
+      ),
+      [4, 3, 2, 1],
+    );
+  });
+
   test('manga source contract covers catalog, details and chapter reading',
       () async {
     final source = _FakeMangaSource();
@@ -41,6 +64,22 @@ void main() {
 
   test('reader page rejects empty sources', () {
     expect(() => MangaReaderPage.file(''), throwsArgumentError);
+  });
+
+  test('catalog metadata omits missing values and normalizes chapters', () {
+    expect(
+      mangaCatalogSubtitle(
+        latestChapter: 'Capítulo 12.5',
+        format: 'Manhwa',
+        status: MangaStatus.ongoing,
+        rating: 8.4,
+      ),
+      '12.5 Ch • Manhwa • Ongoing • 8.4',
+    );
+    expect(
+      mangaCatalogSubtitle(totalChapters: 86, status: MangaStatus.completed),
+      '86 Ch • Completed',
+    );
   });
 
   test('details round-trip through the legacy book map preserves keys', () {
