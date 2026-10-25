@@ -162,7 +162,7 @@ class AboutApplicationScreen extends StatelessWidget {
           child: Column(
             children: [
               Text(
-                'About StarsScrapper',
+                'About StarsLibrary',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: theme.selectedTheme.textTheme.titleSmall?.color,
