@@ -66,10 +66,25 @@ abstract final class BrowserHtmlLoader {
       loadBytes(
     Uri uri,
     Map<String, String> headers,
-  ) async {
+  ) {
+    return requestBytes(uri, headers);
+  }
+
+  /// Performs a same-origin browser request using the authenticated WebView
+  /// cookie jar. Non-GET requests also receive the page's CSRF cookie on
+  /// Android, matching requests issued by the site's own frontend.
+  static Future<({int statusCode, Uint8List body, Map<String, String> headers})>
+      requestBytes(
+    Uri uri,
+    Map<String, String> headers, {
+    String method = 'GET',
+    String? body,
+  }) async {
     final raw = await _channel.invokeMapMethod<String, dynamic>('loadBytes', {
       'url': uri.toString(),
       'headers': headers,
+      'method': method,
+      if (body != null) 'body': body,
     });
     if (raw == null) {
       throw StateError('The native client returned no response.');

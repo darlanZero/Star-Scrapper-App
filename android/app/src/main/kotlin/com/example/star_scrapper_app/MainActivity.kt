@@ -3,7 +3,9 @@ package com.example.star_scrapper_app
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.ImageDecoder
+import android.graphics.Rect
 import android.webkit.JavascriptInterface
 import android.webkit.CookieManager
 import android.webkit.WebView
@@ -81,6 +83,8 @@ class MainActivity: FlutterActivity() {
                 "loadBytes" -> loadBytesInWebView(
                     url = call.argument<String>("url"),
                     headers = call.argument<Map<String, String>>("headers"),
+                    method = call.argument<String>("method"),
+                    body = call.argument<String>("body"),
                     result = result,
                 )
                 else -> result.notImplemented()
@@ -121,6 +125,8 @@ class MainActivity: FlutterActivity() {
     private fun loadBytesInWebView(
         url: String?,
         headers: Map<String, String>?,
+        method: String?,
+        body: String?,
         result: MethodChannel.Result,
     ) {
         if (url.isNullOrBlank()) {
@@ -229,14 +235,27 @@ class MainActivity: FlutterActivity() {
                 !name.equals("Accept-Encoding", ignoreCase = true)
         }
         val requestHeaders = JSONObject(allowedHeaders).toString()
+        val requestMethod = method.orEmpty().uppercase().ifBlank { "GET" }
+        if (requestMethod !in setOf("GET", "POST")) {
+            result.error("invalid_method", "Only GET and POST are supported.", null)
+            dispose()
+            return
+        }
         val script = """
             (async function() {
               try {
+                const method = ${JSONObject.quote(requestMethod)};
+                const headers = $requestHeaders;
+                if (method !== 'GET' && !headers['X-CSRFToken']) {
+                  const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+                  if (match) headers['X-CSRFToken'] = decodeURIComponent(match[1]);
+                }
                 const response = await fetch(${JSONObject.quote(url)}, {
-                  method: 'GET',
+                  method,
                   credentials: 'include',
                   cache: 'no-store',
-                  headers: $requestHeaders
+                  headers,
+                  ${if (requestMethod == "GET") "" else "body: ${JSONObject.quote(body ?: "")},"}
                 });
                 const responseHeaders = {};
                 response.headers.forEach((value, name) => {
@@ -297,21 +316,60 @@ class MainActivity: FlutterActivity() {
                 val width = bitmaps.maxOf { it.width }
                 val height = bitmaps.sumOf { it.height }
                 require(width > 0 && height > 0) { "The composed page has invalid dimensions." }
-                joined = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                val canvas = Canvas(joined!!)
-                var y = 0f
-                bitmaps.forEach { bitmap ->
-                    canvas.drawBitmap(bitmap, 0f, y, null)
-                    y += bitmap.height
-                }
                 val output = File(outputPath)
                 output.parentFile?.mkdirs()
-                FileOutputStream(output).use { stream ->
-                    check(joined!!.compress(Bitmap.CompressFormat.JPEG, 90, stream)) {
-                        "Android could not encode the composed reader page."
+
+                // Flutter's ordinary Image widget cannot reliably upload very
+                // tall bitmaps as one GPU texture. A 30k-pixel webtoon page is
+                // silently squeezed vertically on affected devices. Compose
+                // it into texture-safe consecutive tiles instead; the webtoon
+                // ListView renders them without spacing, preserving scale.
+                val outputPaths = mutableListOf<String>()
+                var sourceBitmapIndex = 0
+                var sourceY = 0
+                var remainingHeight = height
+                var tileIndex = 0
+                while (remainingHeight > 0) {
+                    val tileHeight = minOf(MAX_READER_TILE_HEIGHT, remainingHeight)
+                    joined = Bitmap.createBitmap(width, tileHeight, Bitmap.Config.ARGB_8888)
+                    val canvas = Canvas(joined!!)
+                    canvas.drawColor(Color.BLACK)
+                    var tileY = 0
+                    while (tileY < tileHeight && sourceBitmapIndex < bitmaps.size) {
+                        val bitmap = bitmaps[sourceBitmapIndex]
+                        val available = bitmap.height - sourceY
+                        val copyHeight = minOf(available, tileHeight - tileY)
+                        val source = Rect(0, sourceY, bitmap.width, sourceY + copyHeight)
+                        val destination = Rect(0, tileY, bitmap.width, tileY + copyHeight)
+                        canvas.drawBitmap(bitmap, source, destination, null)
+                        tileY += copyHeight
+                        sourceY += copyHeight
+                        if (sourceY == bitmap.height) {
+                            sourceBitmapIndex++
+                            sourceY = 0
+                        }
                     }
+
+                    val tileOutput = if (height <= MAX_READER_TILE_HEIGHT) {
+                        output
+                    } else {
+                        File(
+                            output.parentFile,
+                            "${output.nameWithoutExtension}-${tileIndex.toString().padStart(3, '0')}.jpg",
+                        )
+                    }
+                    FileOutputStream(tileOutput).use { stream ->
+                        check(joined!!.compress(Bitmap.CompressFormat.JPEG, 90, stream)) {
+                            "Android could not encode reader tile ${tileIndex + 1}."
+                        }
+                    }
+                    outputPaths.add(tileOutput.absolutePath)
+                    joined!!.recycle()
+                    joined = null
+                    remainingHeight -= tileHeight
+                    tileIndex++
                 }
-                runOnUiThread { result.success(null) }
+                runOnUiThread { result.success(outputPaths) }
             } catch (error: Throwable) {
                 runOnUiThread {
                     result.error("image_compose_failed", error.message, null)
@@ -353,6 +411,10 @@ class MainActivity: FlutterActivity() {
             }
         }
         return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+    }
+
+    companion object {
+        private const val MAX_READER_TILE_HEIGHT = 8192
     }
 
     private fun loadHtmlInWebView(

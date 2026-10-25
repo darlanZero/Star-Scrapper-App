@@ -80,6 +80,11 @@ abstract final class SourceCatalog {
           api: LuraToonsSource(
             browserHtmlLoader: BrowserHtmlLoader.load,
             binaryLoader: BrowserHtmlLoader.loadBytes,
+            browserPostLoader: (uri, headers) => BrowserHtmlLoader.requestBytes(
+              uri,
+              headers,
+              method: 'POST',
+            ),
           ),
           contentType: SourceContentType.manga,
         ),

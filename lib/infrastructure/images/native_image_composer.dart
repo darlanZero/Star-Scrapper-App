@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 abstract final class NativeImageComposer {
   static const _channel = MethodChannel('starslibrary/webview_cookies');
 
-  static Future<void> composeVertical(
+  static Future<List<String>> composeVertical(
     List<Uint8List> slices,
     String outputPath,
   ) async {
@@ -15,9 +15,14 @@ abstract final class NativeImageComposer {
       throw const FormatException(
           'The page archive contained no image slices.');
     }
-    await _channel.invokeMethod<void>('composeReaderImage', {
-      'slices': slices,
-      'outputPath': outputPath,
-    });
+    final paths = await _channel.invokeMethod<List<Object?>>(
+      'composeReaderImage',
+      {
+        'slices': slices,
+        'outputPath': outputPath,
+      },
+    );
+    return paths?.whereType<String>().toList(growable: false) ??
+        <String>[outputPath];
   }
 }

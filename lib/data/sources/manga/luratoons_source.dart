@@ -22,7 +22,7 @@ typedef LuraToonsBrowserHtmlLoad = Future<String> Function(
   Uri uri,
   String userAgent,
 );
-typedef LuraToonsPageComposer = Future<void> Function(
+typedef LuraToonsPageComposer = Future<List<String>> Function(
   List<Uint8List> slices,
   String outputPath,
 );
@@ -47,6 +47,7 @@ class LuraToonsSource extends BaseHtmlMangaSource
 
   List<MangaCatalogItem>? _cachedCatalog;
   final LuraToonsBrowserHtmlLoad? _browserHtmlLoader;
+  final LuraToonsBinaryLoad? _browserPostLoader;
   final LuraToonsPageComposer _pageComposer;
   final LuraToonsTemporaryDirectory _temporaryDirectory;
   final LuraToonsBinaryLoad? _binaryLoader;
@@ -54,10 +55,12 @@ class LuraToonsSource extends BaseHtmlMangaSource
   LuraToonsSource({
     http.Client? client,
     LuraToonsBrowserHtmlLoad? browserHtmlLoader,
+    LuraToonsBinaryLoad? browserPostLoader,
     LuraToonsPageComposer? pageComposer,
     LuraToonsTemporaryDirectory? temporaryDirectory,
     LuraToonsBinaryLoad? binaryLoader,
   })  : _browserHtmlLoader = browserHtmlLoader,
+        _browserPostLoader = browserPostLoader,
         _pageComposer = pageComposer ?? NativeImageComposer.composeVertical,
         _temporaryDirectory = temporaryDirectory ?? getTemporaryDirectory,
         _binaryLoader = binaryLoader,
@@ -125,10 +128,17 @@ class LuraToonsSource extends BaseHtmlMangaSource
     String? cursor,
   }) async {
     if (filter == MangaCatalogFilter.recent) {
-      final data = await _jsonGet('$_base/api/main/');
+      final part = int.tryParse(cursor ?? '');
+      final data = part == null
+          ? await _jsonGet('$_base/api/main/')
+          : await _jsonPost('$_base/api/main/?part=$part');
       final lancamentos = (data['lancamentos'] ?? []) as List<dynamic>;
       return MangaCatalogPage(
         items: lancamentos.map(_recentItem).whereType<MangaCatalogItem>(),
+        // LuraToons exposes exactly two update batches: the initial payload
+        // (part 0) and part 1. Its official Mihon extension also marks page 2
+        // as terminal, so requesting part 2 only produces HTTP 400.
+        nextCursor: lancamentos.isEmpty || part != null ? null : '1',
       );
     }
     final catalog = await _fetchCatalog();
@@ -298,8 +308,10 @@ class LuraToonsSource extends BaseHtmlMangaSource
       final slices = _extractImageSlices(zipBytes);
       final outputPath = '${outputDir.path}${Platform.pathSeparator}'
           '${index.toString().padLeft(4, '0')}.jpg';
-      await _pageComposer(slices, outputPath);
-      yield MangaReaderPage.file(outputPath);
+      final outputPaths = await _pageComposer(slices, outputPath);
+      for (final path in outputPaths) {
+        yield MangaReaderPage.file(path);
+      }
     }
   }
 
@@ -343,6 +355,26 @@ class LuraToonsSource extends BaseHtmlMangaSource
     }
     assertAuthResponse(res);
     return _decodeJson(res.body);
+  }
+
+  Future<Map<String, dynamic>> _jsonPost(String url) async {
+    if (_browserPostLoader == null) {
+      throw StateError(
+        'LuraToons pagination requires an authenticated browser request.',
+      );
+    }
+    final response = await _browserPostLoader(
+      Uri.parse(url),
+      requestHeaders,
+    );
+    final httpResponse = http.Response.bytes(
+      response.body,
+      response.statusCode,
+      headers: response.headers,
+      request: http.Request('POST', Uri.parse(url)),
+    );
+    assertAuthResponse(httpResponse);
+    return _decodeJson(utf8.decode(response.body));
   }
 
   Map<String, dynamic> _decodeJson(String raw) {

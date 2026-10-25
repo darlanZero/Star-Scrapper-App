@@ -48,10 +48,53 @@ void main() {
     expect(browserUri.path, '/api/main/');
     expect(page.items.single.id, 'imperador-magico');
     expect(page.items.single.subtitle, '927 Ch');
+    expect(page.nextCursor, '1');
     expect(
       page.items.single.coverUri.toString(),
       'https://luratoons.net/media/imperador.webp',
     );
+  });
+
+  test('paginates recent works through the same POST used by the website',
+      () async {
+    late Uri requestUri;
+    late Map<String, String> requestHeaders;
+    final source = LuraToonsSource(
+      browserPostLoader: (uri, headers) async {
+        requestUri = uri;
+        requestHeaders = headers;
+        return (
+          statusCode: 200,
+          body: Uint8List.fromList(
+            utf8.encode(jsonEncode({
+              'lancamentos': [
+                {
+                  'slug': 'obra-antiga-atualizada',
+                  'title': 'Obra antiga atualizada',
+                  'capa': '/media/antiga.webp',
+                  'caps': [
+                    {'num': '48'}
+                  ],
+                },
+              ],
+            })),
+          ),
+          headers: <String, String>{'content-type': 'application/json'},
+        );
+      },
+    );
+
+    final page = await source.browse(
+      filter: MangaCatalogFilter.recent,
+      cursor: '1',
+    );
+
+    expect(requestUri.path, '/api/main/');
+    expect(requestUri.queryParameters['part'], '1');
+    expect(requestHeaders['Accept'], contains('application/json'));
+    expect(page.items.single.id, 'obra-antiga-atualizada');
+    expect(page.items.single.subtitle, '48 Ch');
+    expect(page.nextCursor, isNull);
   });
 
   test('parses authenticated details returned by the browser JSON viewer',
@@ -170,6 +213,7 @@ void main() {
         expect(slices, hasLength(1));
         expect(slices.single, [1, 2, 3]);
         await File(outputPath).writeAsBytes([9, 8, 7]);
+        return [outputPath];
       },
     );
 
