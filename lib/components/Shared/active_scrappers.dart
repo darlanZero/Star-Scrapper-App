@@ -375,6 +375,8 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
     return Consumer<FontProvider>(
       builder: (context, fontProvider, child) {
         final activeAnimeSources = fontProvider.activeAnimeSources;
+        final animeLanguageGroups =
+            activeAnimeSources.groupedByLanguage.entries.toList();
         final activeFonts = fontProvider.activeFonts
             .where((source) => source.contentType == _contentType)
             .toList();
@@ -419,7 +421,26 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
             const SizedBox(height: 12),
             if (_contentType == SourceContentType.anime &&
                 activeAnimeSources.isNotEmpty)
-              ...activeAnimeSources.map(_buildAnimeSourceTile),
+              ...animeLanguageGroups.indexed.map((entry) {
+                final index = entry.$1;
+                final group = entry.$2;
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: ExpansionTile(
+                    initiallyExpanded: index == 0,
+                    leading:
+                        Icon(Icons.language_rounded, color: colors.primary),
+                    title: Text(
+                      group.key,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: Text(
+                      '${group.value.length} ${group.value.length == 1 ? 'source' : 'sources'}',
+                    ),
+                    children: group.value.map(_buildAnimeSourceTile).toList(),
+                  ),
+                );
+              }),
             if ((_contentType == SourceContentType.anime
                 ? activeAnimeSources.isEmpty
                 : activeFonts.isEmpty))

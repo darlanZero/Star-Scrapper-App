@@ -147,6 +147,8 @@ class _ScrapperDownloaderFontsState extends State<ScrapperDownloaderFonts> {
               .toList()
           : <Fonte>[];
       languageGroups = _groupFonts(visibleSources);
+      final animeLanguageGroups =
+          fontProvider.animeSources.groupedByLanguage.entries.toList();
       return Card(
         color: Color(0xFF262335),
         margin: EdgeInsets.all(8.0),
@@ -198,9 +200,33 @@ class _ScrapperDownloaderFontsState extends State<ScrapperDownloaderFonts> {
                   ),
                 ),
               ),
-              ...fontProvider.animeSources.map(
-                (source) => _buildAnimeSourceTile(source, fontProvider),
-              ),
+              ...animeLanguageGroups.indexed.map((entry) {
+                final index = entry.$1;
+                final group = entry.$2;
+                return Card(
+                  margin: const EdgeInsets.only(top: 12),
+                  child: ExpansionTile(
+                    initiallyExpanded: index == 0,
+                    leading: Icon(
+                      Icons.language_rounded,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    title: Text(
+                      group.key,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: Text(
+                      '${group.value.length} ${group.value.length == 1 ? 'source' : 'sources'}',
+                    ),
+                    children: group.value
+                        .map(
+                          (source) =>
+                              _buildAnimeSourceTile(source, fontProvider),
+                        )
+                        .toList(),
+                  ),
+                );
+              }),
             ] else if (visibleSources.isEmpty) ...[
               const SizedBox(height: 28),
               const Icon(Icons.ondemand_video_outlined, size: 48),

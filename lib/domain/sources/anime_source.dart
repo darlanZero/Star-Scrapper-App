@@ -369,6 +369,12 @@ abstract interface class AnimeSource {
 extension AnimeSourcePresentation on AnimeSource {
   bool get isRRated => id == 'hentai_haven';
 
+  /// Compact label used to group providers in source-management screens.
+  String get languageGroupLabel => switch (id) {
+        'goyabu' || 'smart_animes' => 'PT-BR',
+        _ => 'All Languages',
+      };
+
   String get languageLabel => switch (id) {
         'goyabu' || 'smart_animes' => 'Português (Brasil)',
         _ => 'All languages',
@@ -385,6 +391,34 @@ extension AnimeSourcePresentation on AnimeSource {
         'hentai_haven' => 'R-rated · $audioLabel · Native/WebView',
         _ => '$languageLabel · $audioLabel · HLS · Subtitles',
       };
+}
+
+extension AnimeSourceGrouping on Iterable<AnimeSource> {
+  /// Groups sources for presentation while keeping the registry order inside
+  /// each language group and a predictable order between groups.
+  Map<String, List<AnimeSource>> get groupedByLanguage {
+    final grouped = <String, List<AnimeSource>>{};
+    for (final source in this) {
+      grouped.putIfAbsent(source.languageGroupLabel, () => []).add(source);
+    }
+
+    const preferredOrder = {
+      'All Languages': 0,
+      'English': 1,
+      'PT-BR': 2,
+    };
+    final entries = grouped.entries.toList()
+      ..sort((left, right) {
+        final leftOrder = preferredOrder[left.key] ?? 100;
+        final rightOrder = preferredOrder[right.key] ?? 100;
+        final byOrder = leftOrder.compareTo(rightOrder);
+        return byOrder != 0 ? byOrder : left.key.compareTo(right.key);
+      });
+    return Map.unmodifiable({
+      for (final entry in entries)
+        entry.key: List<AnimeSource>.unmodifiable(entry.value),
+    });
+  }
 }
 
 /// Optional capability for sources that expose structured catalog filters.

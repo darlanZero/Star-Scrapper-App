@@ -59,6 +59,24 @@ void main() {
     expect(hentaiHaven.capabilityLabel, startsWith('R-rated'));
   });
 
+  test('anime sources are grouped by language in display order', () {
+    final groups = SourceCatalog.createAnimeSources().groupedByLanguage;
+
+    expect(groups.keys, ['All Languages', 'PT-BR']);
+    expect(
+      groups['All Languages']!.map((source) => source.id),
+      ['anitube', 'aniwave', 'hentai_haven'],
+    );
+    expect(
+      groups['PT-BR']!.map((source) => source.id),
+      ['smart_animes', 'goyabu'],
+    );
+    expect(
+      () => groups['PT-BR']!.add(SourceCatalog.createAnimeSources().first),
+      throwsUnsupportedError,
+    );
+  });
+
   test('bundled manga sources use their typed contract with stable ids', () {
     final sources = SourceCatalog.createMangaSources();
     final ids = sources.map((source) => source.id).toList();
