@@ -22,6 +22,17 @@ if (flutterVersionName == null) {
     flutterVersionName = "1.0"
 }
 
+def releaseSigningProperties = new Properties()
+def releaseSigningPropertiesFile = new File(
+    System.getProperty("user.home"),
+    ".android/starslibrary-release/key.properties"
+)
+if (releaseSigningPropertiesFile.exists()) {
+    releaseSigningPropertiesFile.withReader("UTF-8") { reader ->
+        releaseSigningProperties.load(reader)
+    }
+}
+
 android {
     namespace = "com.example.star_scrapper_app"
     compileSdk = flutter.compileSdkVersion
@@ -50,11 +61,30 @@ android {
         jvmTarget = "17"
     }
 
+    signingConfigs {
+        release {
+            if (releaseSigningPropertiesFile.exists()) {
+                keyAlias = releaseSigningProperties.getProperty("keyAlias")
+                keyPassword = releaseSigningProperties.getProperty("keyPassword")
+                storeFile = file(releaseSigningProperties.getProperty("storeFile"))
+                storePassword = releaseSigningProperties.getProperty("storePassword")
+                enableV1Signing = false
+                enableV2Signing = true
+                enableV3Signing = false
+                enableV4Signing = false
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug
+            if (!releaseSigningPropertiesFile.exists()) {
+                throw new GradleException(
+                    "Missing StarsLibrary release signing configuration at " +
+                    releaseSigningPropertiesFile
+                )
+            }
+            signingConfig = signingConfigs.release
         }
     }
 }
