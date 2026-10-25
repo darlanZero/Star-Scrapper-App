@@ -38,6 +38,7 @@ void main() {
     expect(ids, contains('aniwave'));
     expect(ids, contains('smart_animes'));
     expect(ids, contains('goyabu'));
+    expect(ids, contains('hentai_haven'));
   });
 
   test('anime source presentation localizes audio labels by language', () {
@@ -52,6 +53,10 @@ void main() {
     expect(goyabu.languageLabel, 'Português (Brasil)');
     expect(goyabu.audioLabel, 'Legendado/Dublado');
     expect(goyabu.capabilityLabel, contains('Blogger'));
+    final hentaiHaven =
+        sources.singleWhere((source) => source.id == 'hentai_haven');
+    expect(hentaiHaven.isRRated, isTrue);
+    expect(hentaiHaven.capabilityLabel, startsWith('R-rated'));
   });
 
   test('bundled manga sources use their typed contract with stable ids', () {

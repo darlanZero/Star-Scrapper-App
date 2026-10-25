@@ -214,9 +214,13 @@ class _AnimeSourceDetailsScreenState extends State<AnimeSourceDetailsScreen> {
                 ),
                 title: Text(choice.label),
                 subtitle: Text(
-                  choice.provider == 'SEND'
-                      ? 'May require a one-time security verification'
-                      : 'Uses your Google Drive WebView session',
+                  switch (choice.provider) {
+                    'SEND' => 'May require a one-time security verification',
+                    'Google Drive' => 'Uses your Google Drive WebView session',
+                    'NHPlayer' =>
+                      'Complete the player verification to continue natively',
+                    _ => 'Opens the video host to resolve the native stream',
+                  },
                 ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.pop(sheetContext, choice),

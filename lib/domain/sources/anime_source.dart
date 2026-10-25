@@ -6,6 +6,10 @@ enum AnimeCatalogFilter {
   popularWeek,
   popularMonth,
   recent,
+  episodeMostViewed,
+  seriesNewest,
+  seriesPopular,
+  seriesMostViewed,
   updated,
   added,
   airing,
@@ -363,6 +367,8 @@ abstract interface class AnimeSource {
 /// Keeping this mapping next to the typed source contract prevents individual
 /// screens from disagreeing about a source's language.
 extension AnimeSourcePresentation on AnimeSource {
+  bool get isRRated => id == 'hentai_haven';
+
   String get languageLabel => switch (id) {
         'goyabu' || 'smart_animes' => 'Português (Brasil)',
         _ => 'All languages',
@@ -376,6 +382,7 @@ extension AnimeSourcePresentation on AnimeSource {
   String get capabilityLabel => switch (id) {
         'smart_animes' => '$languageLabel · $audioLabel · Google Drive',
         'goyabu' => '$languageLabel · $audioLabel · Blogger',
+        'hentai_haven' => 'R-rated · $audioLabel · Native/WebView',
         _ => '$languageLabel · $audioLabel · HLS · Subtitles',
       };
 }

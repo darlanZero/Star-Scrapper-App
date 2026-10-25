@@ -144,8 +144,21 @@ class _AnimePlaybackResolverScreenState
             }
           },
         ),
-      )
-      ..loadRequest(widget.request.entryUri);
+      );
+    unawaited(_loadEntryUri());
+  }
+
+  Future<void> _loadEntryUri() async {
+    if (widget.source case final AnimeSource animeSource) {
+      final userAgent = animeSource.requestHeaders.entries
+          .where((entry) => entry.key.toLowerCase() == 'user-agent')
+          .map((entry) => entry.value)
+          .firstOrNull;
+      if (userAgent != null && userAgent.isNotEmpty) {
+        await _controller.setUserAgent(userAgent);
+      }
+    }
+    await _controller.loadRequest(widget.request.entryUri);
   }
 
   void _startProbing() {
@@ -160,22 +173,43 @@ class _AnimePlaybackResolverScreenState
     if (_finished) return;
     try {
       final raw = await _controller.runJavaScriptReturningResult(r'''
-        JSON.stringify({
-          video: document.querySelector('video')?.currentSrc ||
-                 document.querySelector('video')?.src ||
-                 document.querySelector('video source')?.src || '',
-          text: (document.body?.innerText || '').slice(0, 1500),
-          resources: performance.getEntriesByType('resource')
-            .map(e => e.name)
-            .filter(value => value.includes('videoplayback') ||
-                             /\.(m3u8|mpd|mp4|mkv|webm)(\?|$)/i.test(value)),
-          links: [...document.querySelectorAll('a[href]')]
-            .filter(link => link.hasAttribute('download') ||
-                            /download/i.test(`${link.id} ${link.className}`) ||
-                            /\.(m3u8|mpd|mp4|mkv|webm)(\?|$)/i.test(link.href))
-            .map(link => link.href),
-          blogger: [...document.querySelectorAll('[data-p]')]
-            .flatMap(element => {
+        (() => {
+          const documents = [];
+          const collectDocuments = doc => {
+            if (!doc || documents.includes(doc)) return;
+            documents.push(doc);
+            for (const frame of doc.querySelectorAll('iframe')) {
+              try {
+                collectDocuments(frame.contentDocument);
+              } catch (_) {}
+            }
+          };
+          collectDocuments(document);
+
+          const videos = documents.map(doc =>
+            doc.querySelector('video')?.currentSrc ||
+            doc.querySelector('video')?.src ||
+            doc.querySelector('video source')?.src || ''
+          ).filter(Boolean);
+          const resources = documents.flatMap(doc => {
+            try {
+              return [...doc.defaultView.performance.getEntriesByType('resource')]
+                .map(entry => entry.name)
+                .filter(value => value.includes('videoplayback') ||
+                  /\.(m3u8|mpd|mp4|mkv|webm)(\?|$)/i.test(value));
+            } catch (_) {
+              return [];
+            }
+          });
+          const links = documents.flatMap(doc =>
+            [...doc.querySelectorAll('a[href]')]
+              .filter(link => link.hasAttribute('download') ||
+                /download/i.test(`${link.id} ${link.className}`) ||
+                /\.(m3u8|mpd|mp4|mkv|webm)(\?|$)/i.test(link.href))
+              .map(link => link.href)
+          );
+          const blogger = documents.flatMap(doc =>
+            [...doc.querySelectorAll('[data-p]')].flatMap(element => {
               const data = (element.getAttribute('data-p') || '')
                 .replace(/\\u003d/g, '=')
                 .replace(/\\u0026/g, '&')
@@ -184,15 +218,33 @@ class _AnimePlaybackResolverScreenState
                 /https:\/\/[^\s"'\\]*googlevideo\.com\/videoplayback\?[^\s"'\\]+/g
               ) || [];
             })
-        })
+          );
+          const authorized = documents.map(doc => {
+            try {
+              return doc.defaultView?._pC?.result?.url || '';
+            } catch (_) {
+              return '';
+            }
+          }).filter(Boolean);
+          return JSON.stringify({
+            videos,
+            text: documents.map(doc => doc.body?.innerText || '')
+              .join('\n').slice(0, 4000),
+            resources,
+            links,
+            blogger,
+            authorized
+          });
+        })()
       ''');
       final decoded = jsonDecode(_decodeJavaScriptString(raw));
       if (decoded is! Map) return;
       final candidates = <String>[
-        decoded['video']?.toString() ?? '',
+        ...((decoded['videos'] as List?) ?? const []).map((e) => '$e'),
         ...((decoded['resources'] as List?) ?? const []).map((e) => '$e'),
         ...((decoded['links'] as List?) ?? const []).map((e) => '$e'),
         ...((decoded['blogger'] as List?) ?? const []).map((e) => '$e'),
+        ...((decoded['authorized'] as List?) ?? const []).map((e) => '$e'),
       ];
       final pageText = (decoded['text']?.toString() ?? '').toLowerCase();
       if (widget.request.provider == 'SEND' &&
@@ -205,6 +257,20 @@ class _AnimePlaybackResolverScreenState
                 'Complete the SEND security verification below to continue.',
           );
         }
+      } else if (widget.request.provider == 'NHPlayer' &&
+          (pageText.contains('verifying that you are not a robot') ||
+              pageText.contains('verify you are human'))) {
+        if (mounted) {
+          setState(
+            () => _status =
+                'Complete the NHPlayer verification below to continue.',
+          );
+        }
+      } else if (widget.request.provider == 'NHPlayer' && mounted) {
+        setState(
+          () => _status =
+              'Tap the NHPlayer play button below. The video will open natively once authorized.',
+        );
       } else if (widget.request.provider == 'Google Drive' &&
           (pageText.contains('quota') ||
               pageText.contains('não foi possível carregar o vídeo') ||

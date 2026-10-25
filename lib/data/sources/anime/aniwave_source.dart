@@ -70,7 +70,11 @@ class AniwaveSource implements AnimeSource, FilterableAnimeSource {
       AnimeCatalogFilter.airing => 'status/currently-airing',
       AnimeCatalogFilter.completed => 'status/finished-airing',
       AnimeCatalogFilter.recent ||
-      AnimeCatalogFilter.updated =>
+      AnimeCatalogFilter.updated ||
+      AnimeCatalogFilter.episodeMostViewed ||
+      AnimeCatalogFilter.seriesNewest ||
+      AnimeCatalogFilter.seriesPopular ||
+      AnimeCatalogFilter.seriesMostViewed =>
         'latest-updated',
     };
     return _catalog(_pageUri(path, cursor));

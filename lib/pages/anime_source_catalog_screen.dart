@@ -631,6 +631,17 @@ String _catalogFilterLabel(
       _ => _defaultCatalogFilterLabel(filter),
     };
   }
+  if (source.id == 'hentai_haven') {
+    return switch (filter) {
+      AnimeCatalogFilter.recent => 'Episodes · Newest',
+      AnimeCatalogFilter.popular => 'Episodes · Popular',
+      AnimeCatalogFilter.episodeMostViewed => 'Episodes · Most viewed',
+      AnimeCatalogFilter.seriesNewest => 'Series · Newest',
+      AnimeCatalogFilter.seriesPopular => 'Series · Popular',
+      AnimeCatalogFilter.seriesMostViewed => 'Series · Most viewed',
+      _ => _defaultCatalogFilterLabel(filter),
+    };
+  }
   return _defaultCatalogFilterLabel(filter);
 }
 
@@ -640,6 +651,10 @@ String _defaultCatalogFilterLabel(AnimeCatalogFilter filter) =>
       AnimeCatalogFilter.popularWeek => 'This week',
       AnimeCatalogFilter.popularMonth => 'This month',
       AnimeCatalogFilter.recent => 'Latest',
+      AnimeCatalogFilter.episodeMostViewed => 'Most viewed episodes',
+      AnimeCatalogFilter.seriesNewest => 'Newest series',
+      AnimeCatalogFilter.seriesPopular => 'Popular series',
+      AnimeCatalogFilter.seriesMostViewed => 'Most viewed series',
       AnimeCatalogFilter.updated => 'Updated',
       AnimeCatalogFilter.added => 'Recently added',
       AnimeCatalogFilter.airing => 'Airing',
@@ -651,6 +666,11 @@ IconData _catalogFilterIcon(AnimeCatalogFilter filter) => switch (filter) {
       AnimeCatalogFilter.popularWeek => Icons.date_range_rounded,
       AnimeCatalogFilter.popularMonth => Icons.calendar_month_rounded,
       AnimeCatalogFilter.recent => Icons.schedule_rounded,
+      AnimeCatalogFilter.episodeMostViewed => Icons.visibility_rounded,
+      AnimeCatalogFilter.seriesNewest => Icons.video_library_rounded,
+      AnimeCatalogFilter.seriesPopular => Icons.favorite_rounded,
+      AnimeCatalogFilter.seriesMostViewed =>
+        Icons.local_fire_department_rounded,
       AnimeCatalogFilter.updated => Icons.update_rounded,
       AnimeCatalogFilter.added => Icons.fiber_new_rounded,
       AnimeCatalogFilter.airing => Icons.live_tv_rounded,
