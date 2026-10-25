@@ -202,10 +202,10 @@ class LeituraMangaSource
     }
 
     final seen = <String>{};
-    for (final relativePath in _pagePaths(response.body)) {
-      if (!seen.add(relativePath)) continue;
+    for (final pagePath in _pagePaths(response.body)) {
+      if (!seen.add(pagePath)) continue;
       yield MangaReaderPage.network(
-        _cdnUri.resolve('/$relativePath'),
+        _pageUri(pagePath),
         headers: coverImageHeaders,
       );
     }
@@ -324,15 +324,31 @@ class LeituraMangaSource
   }
 
   Iterable<String> _pagePaths(String html) sync* {
-    final escaped =
-        RegExp(r'\\"url\\":\\"([^"\\]+\.(?:avif|jpe?g|png|webp))\\"');
-    final plain = RegExp(r'"url"\s*:\s*"([^"\\]+\.(?:avif|jpe?g|png|webp))"');
+    // Older chapters commonly expose extensionless CDN routes such as
+    // `blue-lock/capitulo-01/page-1`, while newer uploads may include `.webp`.
+    // Identify reader pages by their page filename instead of assuming an
+    // image extension.
+    final escaped = RegExp(r'\\"url\\":\\"([^"\\]+)\\"');
+    final plain = RegExp(r'"url"\s*:\s*"([^"\\]+)"');
     for (final pattern in [escaped, plain]) {
       for (final match in pattern.allMatches(html)) {
         final path = match.group(1)?.replaceAll(r'\/', '/') ?? '';
-        if (path.isNotEmpty && !path.contains('/cover-')) yield path;
+        if (_isReaderPagePath(path)) yield path;
       }
     }
+  }
+
+  Uri _pageUri(String path) {
+    final parsed = Uri.tryParse(path);
+    if (parsed != null && parsed.hasScheme) return parsed;
+    return _cdnUri.resolve(path.startsWith('/') ? path : '/$path');
+  }
+
+  static bool _isReaderPagePath(String value) {
+    if (value.isEmpty) return false;
+    final path = Uri.tryParse(value)?.path ?? value;
+    final filename = path.split('/').lastOrNull ?? '';
+    return filename.startsWith('page-');
   }
 
   Uri _coverUri(String slug) => _cdnUri.resolve('/$slug/cover-md.webp');

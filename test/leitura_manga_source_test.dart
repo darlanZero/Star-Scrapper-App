@@ -202,4 +202,24 @@ void main() {
       'https://leituramanga.net/manga/obra/chapter/2',
     );
   });
+
+  test('reader accepts extensionless and absolute page URLs', () async {
+    final source = LeituraMangaSource(
+      client: MockClient((request) async => http.Response(
+            r'''<script>self.__next_f.push([1,"{\"images\":[{\"url\":\"blue-lock/capitulo-01/page-1\"},{\"url\":\"blue-lock/capitulo-01/page-2\"},{\"url\":\"blue-lock/capitulo-01/page-3.webp\"},{\"url\":\"https://images.example/page-4?quality=90\"}],\"cover\":{\"url\":\"blue-lock/cover-md.webp\"}}" ])</script>''',
+            200,
+          )),
+      cdnUri: Uri.parse('https://cdn.example'),
+    );
+
+    final pages =
+        await source.readChapter(mangaId: 'blue-lock', chapterId: '1').toList();
+
+    expect(pages.map((page) => page.uri.toString()), [
+      'https://cdn.example/blue-lock/capitulo-01/page-1',
+      'https://cdn.example/blue-lock/capitulo-01/page-2',
+      'https://cdn.example/blue-lock/capitulo-01/page-3.webp',
+      'https://images.example/page-4?quality=90',
+    ]);
+  });
 }
