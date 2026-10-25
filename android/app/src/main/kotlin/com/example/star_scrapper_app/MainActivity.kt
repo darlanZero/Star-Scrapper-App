@@ -1,5 +1,10 @@
 package com.example.star_scrapper_app
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.ImageDecoder
+import android.webkit.JavascriptInterface
 import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -13,7 +18,13 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import org.json.JSONObject
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileOutputStream
+import java.net.URL
+import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity: FlutterActivity() {
     private var readerWebView: WebView? = null
@@ -35,6 +46,22 @@ class MainActivity: FlutterActivity() {
                     }
                     result.success(CookieManager.getInstance().getCookie(url) ?: "")
                 }
+                "clearCookiesForUrl" -> {
+                    val url = call.argument<String>("url")
+                    if (url.isNullOrBlank()) {
+                        result.error("invalid_url", "A URL is required.", null)
+                        return@setMethodCallHandler
+                    }
+                    val manager = CookieManager.getInstance()
+                    manager.getCookie(url).orEmpty().split(';').forEach { pair ->
+                        val name = pair.substringBefore('=').trim()
+                        if (name.isNotEmpty()) {
+                            manager.setCookie(url, "$name=; Max-Age=0; Path=/")
+                        }
+                    }
+                    manager.flush()
+                    result.success(null)
+                }
                 "loadHtml" -> loadHtmlInWebView(
                     url = call.argument<String>("url"),
                     userAgent = call.argument<String>("userAgent"),
@@ -44,6 +71,16 @@ class MainActivity: FlutterActivity() {
                 "loadImage" -> loadImageInWebView(
                     url = call.argument<String>("url"),
                     userAgent = call.argument<String>("userAgent"),
+                    result = result,
+                )
+                "composeReaderImage" -> composeReaderImage(
+                    slices = call.argument<List<ByteArray>>("slices"),
+                    outputPath = call.argument<String>("outputPath"),
+                    result = result,
+                )
+                "loadBytes" -> loadBytesInWebView(
+                    url = call.argument<String>("url"),
+                    headers = call.argument<Map<String, String>>("headers"),
                     result = result,
                 )
                 else -> result.notImplemented()
@@ -71,6 +108,251 @@ class MainActivity: FlutterActivity() {
                 stopReaderStream()
             }
         })
+    }
+
+    /**
+     * Loads protected API/binary responses through Chromium itself. LuraToons
+     * rejects the TLS/network fingerprint of a plain HttpURLConnection even
+     * when its session cookie is valid; executing fetch from a same-origin
+     * WebView keeps the exact cookie jar and browser fingerprint established by
+     * the OAuth flow. Bytes are transferred in bounded chunks to avoid the
+     * evaluateJavascript return-size limit.
+     */
+    private fun loadBytesInWebView(
+        url: String?,
+        headers: Map<String, String>?,
+        result: MethodChannel.Result,
+    ) {
+        if (url.isNullOrBlank()) {
+            result.error("invalid_url", "A URL is required.", null)
+            return
+        }
+        val target = try {
+            URL(url)
+        } catch (error: Exception) {
+            result.error("invalid_url", error.message, null)
+            return
+        }
+        val handler = Handler(Looper.getMainLooper())
+        val webView = WebView(this)
+        val layoutParams = FrameLayout.LayoutParams(1, 1)
+        webView.alpha = 0.01f
+        webView.translationX = -10f
+        webView.translationY = -10f
+        addContentView(webView, layoutParams)
+        webView.settings.javaScriptEnabled = true
+        webView.settings.domStorageEnabled = true
+        headers.orEmpty().entries
+            .firstOrNull { it.key.equals("User-Agent", ignoreCase = true) }
+            ?.value
+            ?.takeIf { it.isNotBlank() }
+            ?.let { webView.settings.userAgentString = it }
+        CookieManager.getInstance().setAcceptCookie(true)
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
+        CookieManager.getInstance().flush()
+
+        val finished = AtomicBoolean(false)
+        val fetchStarted = AtomicBoolean(false)
+        val output = ByteArrayOutputStream()
+        val responseHeaders = linkedMapOf<String, String>()
+        var statusCode = 0
+
+        fun dispose() {
+            handler.removeCallbacksAndMessages(null)
+            (webView.parent as? ViewGroup)?.removeView(webView)
+            webView.removeJavascriptInterface("StarsBinary")
+            webView.stopLoading()
+            webView.destroy()
+        }
+        fun fail(code: String, message: String) {
+            if (!finished.compareAndSet(false, true)) return
+            handler.post {
+                result.error(code, message, null)
+                dispose()
+            }
+        }
+        fun succeed() {
+            if (!finished.compareAndSet(false, true)) return
+            val body = synchronized(output) { output.toByteArray() }
+            val headersSnapshot = synchronized(responseHeaders) {
+                responseHeaders.toMap()
+            }
+            handler.post {
+                result.success(
+                    mapOf(
+                        "statusCode" to statusCode,
+                        "body" to body,
+                        "headers" to headersSnapshot,
+                    ),
+                )
+                dispose()
+            }
+        }
+
+        class BinaryBridge {
+            @JavascriptInterface
+            fun begin(status: Int, rawHeaders: String) {
+                statusCode = status
+                try {
+                    val parsed = JSONObject(rawHeaders)
+                    synchronized(responseHeaders) {
+                        parsed.keys().forEach { name ->
+                            responseHeaders[name.lowercase()] = parsed.optString(name)
+                        }
+                    }
+                } catch (_: Exception) {
+                }
+            }
+
+            @JavascriptInterface
+            fun chunk(encoded: String) {
+                try {
+                    val bytes = Base64.decode(encoded, Base64.DEFAULT)
+                    synchronized(output) { output.write(bytes) }
+                } catch (error: Exception) {
+                    fail("binary_decode_failed", error.message ?: "Could not decode response bytes.")
+                }
+            }
+
+            @JavascriptInterface
+            fun complete() = succeed()
+
+            @JavascriptInterface
+            fun failure(message: String) = fail("binary_load_failed", message)
+        }
+        webView.addJavascriptInterface(BinaryBridge(), "StarsBinary")
+
+        val allowedHeaders = headers.orEmpty().filterKeys { name ->
+            !name.equals("Cookie", ignoreCase = true) &&
+                !name.equals("User-Agent", ignoreCase = true) &&
+                !name.equals("Referer", ignoreCase = true) &&
+                !name.equals("Accept-Encoding", ignoreCase = true)
+        }
+        val requestHeaders = JSONObject(allowedHeaders).toString()
+        val script = """
+            (async function() {
+              try {
+                const response = await fetch(${JSONObject.quote(url)}, {
+                  method: 'GET',
+                  credentials: 'include',
+                  cache: 'no-store',
+                  headers: $requestHeaders
+                });
+                const responseHeaders = {};
+                response.headers.forEach((value, name) => {
+                  responseHeaders[name] = value;
+                });
+                StarsBinary.begin(response.status, JSON.stringify(responseHeaders));
+                const bytes = new Uint8Array(await response.arrayBuffer());
+                const chunkSize = 32768;
+                for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+                  const end = Math.min(offset + chunkSize, bytes.length);
+                  let binary = '';
+                  for (let index = offset; index < end; index++) {
+                    binary += String.fromCharCode(bytes[index]);
+                  }
+                  StarsBinary.chunk(btoa(binary));
+                }
+                StarsBinary.complete();
+              } catch (error) {
+                StarsBinary.failure(String((error && error.message) || error));
+              }
+            })();
+        """.trimIndent()
+
+        handler.postDelayed(
+            { fail("binary_timeout", "The authenticated browser request timed out.") },
+            120_000,
+        )
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, loadedUrl: String?) {
+                if (finished.get() || !fetchStarted.compareAndSet(false, true)) return
+                handler.postDelayed({
+                    if (!finished.get()) webView.evaluateJavascript(script, null)
+                }, 350)
+            }
+        }
+        val origin = "${target.protocol}://${target.authority}/"
+        webView.loadUrl(origin)
+    }
+
+    private fun composeReaderImage(
+        slices: List<ByteArray>?,
+        outputPath: String?,
+        result: MethodChannel.Result,
+    ) {
+        if (slices.isNullOrEmpty() || outputPath.isNullOrBlank()) {
+            result.error("invalid_page", "Image slices and output path are required.", null)
+            return
+        }
+        Thread {
+            val bitmaps = mutableListOf<Bitmap>()
+            var joined: Bitmap? = null
+            try {
+                slices.forEachIndexed { index, bytes ->
+                    val bitmap = decodeReaderSlice(bytes)
+                        ?: error("Android could not decode image slice ${index + 1}.")
+                    bitmaps.add(bitmap)
+                }
+                val width = bitmaps.maxOf { it.width }
+                val height = bitmaps.sumOf { it.height }
+                require(width > 0 && height > 0) { "The composed page has invalid dimensions." }
+                joined = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(joined!!)
+                var y = 0f
+                bitmaps.forEach { bitmap ->
+                    canvas.drawBitmap(bitmap, 0f, y, null)
+                    y += bitmap.height
+                }
+                val output = File(outputPath)
+                output.parentFile?.mkdirs()
+                FileOutputStream(output).use { stream ->
+                    check(joined!!.compress(Bitmap.CompressFormat.JPEG, 90, stream)) {
+                        "Android could not encode the composed reader page."
+                    }
+                }
+                runOnUiThread { result.success(null) }
+            } catch (error: Throwable) {
+                runOnUiThread {
+                    result.error("image_compose_failed", error.message, null)
+                }
+            } finally {
+                bitmaps.forEach { it.recycle() }
+                joined?.recycle()
+            }
+        }.start()
+    }
+
+    private fun decodeReaderSlice(bytes: ByteArray): Bitmap? {
+        try {
+            val decoder = tachiyomi.decoder.ImageDecoder.newInstance(
+                ByteArrayInputStream(bytes),
+            )
+            if (decoder != null) {
+                try {
+                    val bounds = android.graphics.Rect(0, 0, decoder.width, decoder.height)
+                    decoder.decode(bounds)?.let { return it }
+                } finally {
+                    decoder.recycle()
+                }
+            }
+        } catch (_: Throwable) {
+            // Continue with platform decoders for ordinary formats.
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            try {
+                val source = ImageDecoder.createSource(ByteBuffer.wrap(bytes))
+                return ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
+                    // The result is drawn onto a software Canvas below. A
+                    // hardware bitmap cannot be used as that Canvas' source.
+                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                }
+            } catch (_: Throwable) {
+                // Some legacy PNG/WebP slices are accepted by BitmapFactory
+                // even when ImageDecoder rejects their metadata.
+            }
+        }
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
     }
 
     private fun loadHtmlInWebView(
@@ -466,4 +748,5 @@ class MainActivity: FlutterActivity() {
         }
         webView.loadUrl(url)
     }
+
 }

@@ -94,6 +94,8 @@ dependencies {
     // Habilita core library desugaring (exigido por flutter_local_notifications)
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
     implementation "org.jetbrains.kotlin:kotlin-stdlib:2.2.20"
+    // Native reader codec used by Mihon for AVIF/JXL/HEIF slices.
+    implementation 'com.github.tachiyomiorg:image-decoder:e08e9be535'
 }
 
 flutter {

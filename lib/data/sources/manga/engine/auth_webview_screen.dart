@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart' as wv;
 import 'package:webview_windows/webview_windows.dart' as wvw;
 import 'package:star_scrapper_app/data/sources/manga/engine/scrapper_profile.dart';
@@ -74,6 +75,8 @@ class AuthWebViewScreen extends StatefulWidget {
 }
 
 class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
+  static const _cookieChannel = MethodChannel('starslibrary/webview_cookies');
+
   // ── Mobile / Web (webview_flutter) ──
   wv.WebViewController? _mobileController;
 
@@ -193,6 +196,11 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
       return;
     }
 
+    if (!await _validateCapturedSession(cookies)) {
+      _loginDetected = false;
+      return;
+    }
+
     // Filtra apenas os cookies de sessão esperados
     final sessionCookieNames = widget.profile.auth.sessionCookieNames;
     final sessionCookies = sessionCookieNames.isNotEmpty
@@ -242,6 +250,7 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
   /// a alternativa é usar [BaseHtmlScrapper.authenticateWithCredentials] que
   /// captura o cookie direto do header Set-Cookie da resposta HTTP.
   Future<Map<String, String>> _extractCookies() async {
+    final nativeCookies = await _extractNativeMobileCookies();
     try {
       const js = r'''
         (function() {
@@ -280,7 +289,9 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
             as String?;
       }
 
-      if (rawJson == null || rawJson == 'null' || rawJson.isEmpty) return {};
+      if (rawJson == null || rawJson == 'null' || rawJson.isEmpty) {
+        return nativeCookies;
+      }
 
       // runJavaScriptReturningResult retorna uma String com aspas externas
       // quando o resultado JS é uma string. Precisamos desembrulhar.
@@ -291,10 +302,66 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
       }
 
       final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
-      return decoded.map((k, v) => MapEntry(k, v.toString()));
+      return {
+        ...decoded.map((k, v) => MapEntry(k, v.toString())),
+        ...nativeCookies,
+      };
     } catch (e) {
       debugPrint('[AuthWebView] Error when extracting cookies: $e');
-      return {};
+      return nativeCookies;
+    }
+  }
+
+  Future<bool> _validateCapturedSession(Map<String, String> cookies) async {
+    final url = widget.profile.auth.sessionValidationUrl;
+    final field = widget.profile.auth.sessionValidationJsonField;
+    if (url == null || field == null) return true;
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return true;
+    try {
+      final raw = await _cookieChannel.invokeMapMethod<String, dynamic>(
+        'loadBytes',
+        {
+          'url': url,
+          'headers': {
+            'Accept': 'application/json, text/plain, */*',
+            'Cookie': SessionManager.buildCookieHeader(cookies),
+          },
+        },
+      );
+      if (raw?['statusCode'] != 200 || raw?['body'] is! Uint8List) {
+        return false;
+      }
+      final body = utf8.decode(raw!['body'] as Uint8List);
+      final decoded = jsonDecode(body);
+      return decoded is Map && decoded[field] == true;
+    } catch (error) {
+      debugPrint('[AuthWebView] Session validation failed: $error');
+      return false;
+    }
+  }
+
+  /// Android's CookieManager can read the complete cookie header, including
+  /// HttpOnly cookies such as Django's `sessionid`. JavaScript's
+  /// `document.cookie` intentionally cannot expose those cookies.
+  Future<Map<String, String>> _extractNativeMobileCookies() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return const {};
+    }
+    try {
+      final siteUrl = Uri.tryParse(_currentUrl)?.hasScheme == true
+          ? _currentUrl
+          : widget.profile.baseUrl;
+      final header = await _cookieChannel.invokeMethod<String>(
+            'getCookies',
+            {'url': siteUrl},
+          ) ??
+          '';
+      return SessionManager.parseCookieString(header);
+    } on MissingPluginException {
+      return const {};
+    } catch (error) {
+      debugPrint('[AuthWebView] Native cookie extraction failed: $error');
+      return const {};
     }
   }
 

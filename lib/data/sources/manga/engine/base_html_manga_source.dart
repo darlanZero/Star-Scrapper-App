@@ -90,7 +90,19 @@ abstract class BaseHtmlMangaSource
   // ─── Protected HTTP helpers ────────────────────────────────────────────────
 
   @protected
-  Future<http.Response> httpGet(String url) => _get(url);
+  Future<http.Response> httpGet(
+    String url, {
+    Map<String, String> headers = const {},
+  }) =>
+      _get(url, extraHeaders: headers);
+
+  @protected
+  Future<Map<String, String>> authenticatedRequestHeaders({
+    Map<String, String> headers = const {},
+  }) async {
+    await _ensureSession();
+    return {..._authHeaders, ...headers};
+  }
 
   @protected
   void assertAuthResponse(http.Response res) => _assertAuth(res);
@@ -111,11 +123,17 @@ abstract class BaseHtmlMangaSource
           'Cookie': SessionManager.buildCookieHeader(_cookies),
       };
 
-  Future<http.Response> _get(String url, {int maxRedirects = 5}) async {
-    if (_httpGetProxy != null) return _httpGetProxy!(url);
+  Future<http.Response> _get(
+    String url, {
+    int maxRedirects = 5,
+    Map<String, String> extraHeaders = const {},
+  }) async {
+    if (_httpGetProxy != null && extraHeaders.isEmpty) {
+      return _httpGetProxy!(url);
+    }
     await _ensureSession();
     final request = http.Request('GET', Uri.parse(url));
-    request.headers.addAll(_authHeaders);
+    request.headers.addAll({..._authHeaders, ...extraHeaders});
     request.followRedirects = false;
     final streamed = await _client.send(request);
     final response = await http.Response.fromStream(streamed);
@@ -128,7 +146,11 @@ abstract class BaseHtmlMangaSource
       if (location.contains('login') || location.contains('entrar')) {
         return response;
       }
-      return _get(_absoluteUrl(location), maxRedirects: maxRedirects - 1);
+      return _get(
+        _absoluteUrl(location),
+        maxRedirects: maxRedirects - 1,
+        extraHeaders: extraHeaders,
+      );
     }
     return response;
   }
@@ -160,7 +182,8 @@ abstract class BaseHtmlMangaSource
       return location.contains('login') || location.contains('entrar');
     }
     if (res.statusCode == 200) {
-      return res.body.contains(profile.auth.loginUrl) && res.body.length < 20000;
+      return res.body.contains(profile.auth.loginUrl) &&
+          res.body.length < 20000;
     }
     return false;
   }

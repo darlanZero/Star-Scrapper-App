@@ -67,6 +67,13 @@ class AuthConfig {
   /// Ex.: '/' significa que ao chegar na home, o login foi concluído.
   final String? successUrlFragment;
 
+  /// Optional JSON endpoint used to verify that a captured browser session is
+  /// genuinely authenticated instead of merely containing an old cookie.
+  final String? sessionValidationUrl;
+
+  /// Boolean JSON field that must be true in [sessionValidationUrl].
+  final String? sessionValidationJsonField;
+
   // ── Session ──
 
   /// Nomes dos cookies que compõem a sessão autenticada.
@@ -84,6 +91,8 @@ class AuthConfig {
     this.csrfFieldName,
     this.csrfCookieName,
     this.successUrlFragment,
+    this.sessionValidationUrl,
+    this.sessionValidationJsonField,
     required this.sessionCookieNames,
     this.logoutUrl,
   });

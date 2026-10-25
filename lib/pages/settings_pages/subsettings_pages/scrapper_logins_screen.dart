@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/data/sources/manga/engine/auth_webview_screen.dart';
 import 'package:star_scrapper_app/data/sources/manga/engine/scrapper_profile.dart';
@@ -26,6 +27,7 @@ class ScrapperLoginsScreen extends StatefulWidget {
 }
 
 class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
+  static const _cookieChannel = MethodChannel('starslibrary/webview_cookies');
   // siteKey → map de cookies/tokens armazenados
   final Map<String, Map<String, String>> _sessions = {};
   bool _loading = true;
@@ -57,8 +59,24 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
     }
   }
 
-  Future<void> _doLogin(Fonte font) async {
-    final profile = (font.api as ProfileAuthMangaSource).authProfile;
+  Future<void> _doLogin(Fonte font, {required bool renew}) async {
+    final profileSource = font.api as ProfileAuthMangaSource;
+    final profile = profileSource.authProfile;
+    if (renew) {
+      await SessionManager.clearSession(profileSource.sessionKey);
+      if (font.api is BrowserSessionMangaSource) {
+        await (font.api as BrowserSessionMangaSource).updateBrowserSession({});
+      }
+      try {
+        await _cookieChannel.invokeMethod<void>(
+          'clearCookiesForUrl',
+          {'url': profile.baseUrl},
+        );
+      } on MissingPluginException {
+        // Desktop WebViews manage their own cookie store.
+      }
+    }
+    if (!mounted) return;
     await showAuthWebView(
       context: context,
       profile: profile,
@@ -194,7 +212,7 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
                         textColor: textColor,
                         subtitleColor: subtitleColor,
                         theme: theme,
-                        onLogin: () => _doLogin(font),
+                        onLogin: () => _doLogin(font, renew: isLoggedIn),
                         onLogout: () => _doLogout(font),
                       );
                     }),

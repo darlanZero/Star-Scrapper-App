@@ -36,7 +36,10 @@ abstract final class SourceCatalog {
   static List<MangaSource> createMangaSources() => [
         MangadexSource(),
         SeitaCelestialSource(),
-        LuraToonsSource(),
+        LuraToonsSource(
+          browserHtmlLoader: BrowserHtmlLoader.load,
+          binaryLoader: BrowserHtmlLoader.loadBytes,
+        ),
         MediocrescanSource(),
         LeituraMangaSource(),
         HDoujinSource(),
@@ -74,7 +77,10 @@ abstract final class SourceCatalog {
           flags: [
             'https://cdn.countryflags.com/thumbs/brazil/flag-3d-250.png',
           ],
-          api: LuraToonsSource(),
+          api: LuraToonsSource(
+            browserHtmlLoader: BrowserHtmlLoader.load,
+            binaryLoader: BrowserHtmlLoader.loadBytes,
+          ),
           contentType: SourceContentType.manga,
         ),
         Fonte(

@@ -4,8 +4,7 @@ import 'package:flutter/services.dart';
 
 abstract final class BrowserHtmlLoader {
   static const _channel = MethodChannel('starslibrary/webview_cookies');
-  static const _readerPagesChannel =
-      EventChannel('starslibrary/reader_pages');
+  static const _readerPagesChannel = EventChannel('starslibrary/reader_pages');
   static Future<void> _pending = Future.value();
   static final Map<String, Future<Uint8List>> _imageCache = {};
   static const _defaultReadySelector =
@@ -60,6 +59,35 @@ abstract final class BrowserHtmlLoader {
           Error.throwWithStackTrace(error, stackTrace);
         });
       });
+
+  /// Loads protected binary data with Android's network stack and the cookies
+  /// already held by the authenticated WebView.
+  static Future<({int statusCode, Uint8List body, Map<String, String> headers})>
+      loadBytes(
+    Uri uri,
+    Map<String, String> headers,
+  ) async {
+    final raw = await _channel.invokeMapMethod<String, dynamic>('loadBytes', {
+      'url': uri.toString(),
+      'headers': headers,
+    });
+    if (raw == null) {
+      throw StateError('The native client returned no response.');
+    }
+    final responseHeaders = <String, String>{};
+    final rawHeaders = raw['headers'];
+    if (rawHeaders is Map) {
+      for (final entry in rawHeaders.entries) {
+        responseHeaders[entry.key.toString().toLowerCase()] =
+            entry.value.toString();
+      }
+    }
+    return (
+      statusCode: raw['statusCode'] as int? ?? 0,
+      body: raw['body'] as Uint8List? ?? Uint8List(0),
+      headers: responseHeaders,
+    );
+  }
 
   /// Streams the absolute file path of each extracted reader page, in reading
   /// order, as the native driver pulls them out of the blob-based SPA reader.

@@ -50,6 +50,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   StreamSubscription<MangaReaderPage>? _chapterImagesSubscription;
   bool _showWebView = false;
   bool _streamDone = false;
+  String? _readerError;
   flutter_webview.WebViewController? _androidWebViewController;
   int _webViewProgress = 0;
   String? _webViewError;
@@ -108,11 +109,17 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
         }
         _tryRestoreScrollPosition();
       },
-      onError: (_) {
-        if (mounted) setState(() => _streamDone = true);
+      onError: (Object error) {
+        if (mounted) {
+          setState(() {
+            _streamDone = true;
+            _readerError = error.toString();
+          });
+        }
         // Falha ao resolver páginas → cai para a WebView se houver URL.
         if (_chapterImages.isEmpty &&
             _chapterWebViewUrl.isNotEmpty &&
+            _activeScrapper.id != 'luratoons' &&
             mounted) {
           _activateWebView();
         }
@@ -123,11 +130,34 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
         // abre automaticamente a WebView com a URL do capítulo.
         if (_chapterImages.isEmpty &&
             _chapterWebViewUrl.isNotEmpty &&
+            _activeScrapper.id != 'luratoons' &&
             mounted) {
           _activateWebView();
+        } else if (_chapterImages.isEmpty &&
+            _activeScrapper.id == 'luratoons' &&
+            _readerError == null &&
+            mounted) {
+          setState(() {
+            _readerError =
+                'The protected reader finished without producing pages.';
+          });
         }
       },
     );
+  }
+
+  Future<void> _retryNativeReader() async {
+    await _chapterImagesSubscription?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _chapterImages.clear();
+      _imageItemKeys.clear();
+      _preloadedPageIndexes.clear();
+      _preloadingPageIndexes.clear();
+      _readerError = null;
+      _streamDone = false;
+    });
+    await _loadChapterImages();
   }
 
   void _activateWebView() {
@@ -272,6 +302,43 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
             Text(
               'Preparing the reader',
               style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReaderError() {
+    final colors = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.broken_image_outlined, size: 52, color: colors.error),
+            const SizedBox(height: 18),
+            Text(
+              'Could not prepare the native reader',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: colors.onSurface,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _readerError ?? 'No pages were returned.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.onSurfaceVariant),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: _retryNativeReader,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Try again'),
             ),
           ],
         ),
@@ -777,63 +844,66 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
           ? _buildWebView(context)
           : _isInitialBuffering
               ? _buildReaderLoader()
-              : GestureDetector(
-                  onTap: () {
-                    _setControlsVisible(!_showControls);
-                  },
-                  onLongPress: () {
-                    if (_chapterImages.isEmpty) return;
-                    final safeIndex = _currentPage
-                        .clamp(0, _chapterImages.length - 1)
-                        .toInt();
-                    _showImageOptions(_chapterImages[safeIndex]);
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Theme.of(context).scaffoldBackgroundColor,
-                          colors.surface,
-                        ],
+              : _chapterImages.isEmpty && _readerError != null
+                  ? _buildReaderError()
+                  : GestureDetector(
+                      onTap: () {
+                        _setControlsVisible(!_showControls);
+                      },
+                      onLongPress: () {
+                        if (_chapterImages.isEmpty) return;
+                        final safeIndex = _currentPage
+                            .clamp(0, _chapterImages.length - 1)
+                            .toInt();
+                        _showImageOptions(_chapterImages[safeIndex]);
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Theme.of(context).scaffoldBackgroundColor,
+                              colors.surface,
+                            ],
+                          ),
+                        ),
+                        child: _isPaginatedView
+                            ? PageView.builder(
+                                onPageChanged: (index) {
+                                  setState(() {
+                                    _currentPage = index;
+                                  });
+                                  _preloadPagesAround(index);
+                                  _scheduleControlsAutoHide();
+                                },
+                                reverse: _reverseReading,
+                                scrollBehavior: ScrollBehavior().copyWith(
+                                  dragDevices: {
+                                    PointerDeviceKind.touch,
+                                    PointerDeviceKind.mouse,
+                                  },
+                                ),
+                                controller: _pageController,
+                                itemCount: _chapterImages.length,
+                                itemBuilder: (context, index) {
+                                  return _buildPageImage(_chapterImages[index]);
+                                },
+                              )
+                            : ListView.builder(
+                                controller: _scrollController,
+                                reverse: _reverseReading,
+                                itemCount: _chapterImages.length,
+                                itemBuilder: (context, index) {
+                                  return Container(
+                                    key: _imageItemKeys[index],
+                                    child:
+                                        _buildPageImage(_chapterImages[index]),
+                                  );
+                                },
+                              ),
                       ),
                     ),
-                    child: _isPaginatedView
-                        ? PageView.builder(
-                            onPageChanged: (index) {
-                              setState(() {
-                                _currentPage = index;
-                              });
-                              _preloadPagesAround(index);
-                              _scheduleControlsAutoHide();
-                            },
-                            reverse: _reverseReading,
-                            scrollBehavior: ScrollBehavior().copyWith(
-                              dragDevices: {
-                                PointerDeviceKind.touch,
-                                PointerDeviceKind.mouse,
-                              },
-                            ),
-                            controller: _pageController,
-                            itemCount: _chapterImages.length,
-                            itemBuilder: (context, index) {
-                              return _buildPageImage(_chapterImages[index]);
-                            },
-                          )
-                        : ListView.builder(
-                            controller: _scrollController,
-                            reverse: _reverseReading,
-                            itemCount: _chapterImages.length,
-                            itemBuilder: (context, index) {
-                              return Container(
-                                key: _imageItemKeys[index],
-                                child: _buildPageImage(_chapterImages[index]),
-                              );
-                            },
-                          ),
-                  ),
-                ),
       floatingActionButton: _showControls
           ? FloatingActionButton(
               onPressed: () async {
