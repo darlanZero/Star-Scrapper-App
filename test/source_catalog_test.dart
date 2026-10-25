@@ -39,12 +39,14 @@ void main() {
     expect(ids, contains('smart_animes'));
     expect(ids, contains('goyabu'));
     expect(ids, contains('hentai_haven'));
+    expect(ids, contains('animeq'));
   });
 
   test('anime source presentation localizes audio labels by language', () {
     final sources = SourceCatalog.createAnimeSources();
     final aniwave = sources.singleWhere((source) => source.id == 'aniwave');
     final goyabu = sources.singleWhere((source) => source.id == 'goyabu');
+    final animeQ = sources.singleWhere((source) => source.id == 'animeq');
 
     expect(aniwave.languageLabel, 'All languages');
     expect(aniwave.audioLabel, 'Sub/Dub');
@@ -53,6 +55,9 @@ void main() {
     expect(goyabu.languageLabel, 'Português (Brasil)');
     expect(goyabu.audioLabel, 'Legendado/Dublado');
     expect(goyabu.capabilityLabel, contains('Blogger'));
+    expect(animeQ.languageLabel, 'Português (Brasil)');
+    expect(animeQ.isRRated, isFalse);
+    expect(animeQ.capabilityLabel, contains('MP4'));
     final hentaiHaven =
         sources.singleWhere((source) => source.id == 'hentai_haven');
     expect(hentaiHaven.isRRated, isTrue);
@@ -69,7 +74,7 @@ void main() {
     );
     expect(
       groups['PT-BR']!.map((source) => source.id),
-      ['smart_animes', 'goyabu'],
+      ['smart_animes', 'goyabu', 'animeq'],
     );
     expect(
       () => groups['PT-BR']!.add(SourceCatalog.createAnimeSources().first),

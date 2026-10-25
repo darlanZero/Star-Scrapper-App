@@ -71,6 +71,16 @@ class AniwaveSource implements AnimeSource, FilterableAnimeSource {
       AnimeCatalogFilter.completed => 'status/finished-airing',
       AnimeCatalogFilter.recent ||
       AnimeCatalogFilter.updated ||
+      AnimeCatalogFilter.featured ||
+      AnimeCatalogFilter.catalog ||
+      AnimeCatalogFilter.subtitled ||
+      AnimeCatalogFilter.dubbed ||
+      AnimeCatalogFilter.manhwa ||
+      AnimeCatalogFilter.donghua ||
+      AnimeCatalogFilter.movies ||
+      AnimeCatalogFilter.subtitledMovies ||
+      AnimeCatalogFilter.dubbedMovies ||
+      AnimeCatalogFilter.adult ||
       AnimeCatalogFilter.episodeMostViewed ||
       AnimeCatalogFilter.seriesNewest ||
       AnimeCatalogFilter.seriesPopular ||

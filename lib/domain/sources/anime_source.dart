@@ -2,6 +2,16 @@ import 'dart:typed_data';
 
 /// Sort options that an anime catalog source can expose.
 enum AnimeCatalogFilter {
+  featured,
+  catalog,
+  subtitled,
+  dubbed,
+  manhwa,
+  donghua,
+  movies,
+  subtitledMovies,
+  dubbedMovies,
+  adult,
   popular,
   popularWeek,
   popularMonth,
@@ -371,23 +381,24 @@ extension AnimeSourcePresentation on AnimeSource {
 
   /// Compact label used to group providers in source-management screens.
   String get languageGroupLabel => switch (id) {
-        'goyabu' || 'smart_animes' => 'PT-BR',
+        'goyabu' || 'smart_animes' || 'animeq' => 'PT-BR',
         _ => 'All Languages',
       };
 
   String get languageLabel => switch (id) {
-        'goyabu' || 'smart_animes' => 'Português (Brasil)',
+        'goyabu' || 'smart_animes' || 'animeq' => 'Português (Brasil)',
         _ => 'All languages',
       };
 
   String get audioLabel => switch (id) {
-        'goyabu' || 'smart_animes' => 'Legendado/Dublado',
+        'goyabu' || 'smart_animes' || 'animeq' => 'Legendado/Dublado',
         _ => 'Sub/Dub',
       };
 
   String get capabilityLabel => switch (id) {
         'smart_animes' => '$languageLabel · $audioLabel · Google Drive',
         'goyabu' => '$languageLabel · $audioLabel · Blogger',
+        'animeq' => '$languageLabel · $audioLabel · MP4',
         'hentai_haven' => 'R-rated · $audioLabel · Native/WebView',
         _ => '$languageLabel · $audioLabel · HLS · Subtitles',
       };

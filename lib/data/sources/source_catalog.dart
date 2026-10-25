@@ -6,6 +6,7 @@ import 'package:star_scrapper_app/data/sources/anime/aniwave_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/smart_animes_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/goyabu_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/hentai_haven_source.dart';
+import 'package:star_scrapper_app/data/sources/anime/animeq_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/mangadex_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/seita_celestial_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/luratoons_source.dart';
@@ -27,6 +28,7 @@ abstract final class SourceCatalog {
           browserImageLoader: BrowserHtmlLoader.loadImage,
         ),
         HentaiHavenSource(),
+        AnimeQSource(),
       ];
 
   /// Manga/comic providers using the typed [MangaSource] contract (replaces the

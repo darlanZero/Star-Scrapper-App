@@ -642,11 +642,37 @@ String _catalogFilterLabel(
       _ => _defaultCatalogFilterLabel(filter),
     };
   }
+  if (source.id == 'animeq') {
+    return switch (filter) {
+      AnimeCatalogFilter.recent => 'Últimos episódios',
+      AnimeCatalogFilter.featured => 'Destaques',
+      AnimeCatalogFilter.catalog => 'Todos os animes',
+      AnimeCatalogFilter.subtitled => 'Legendados',
+      AnimeCatalogFilter.dubbed => 'Dublados',
+      AnimeCatalogFilter.manhwa => 'Manhwa',
+      AnimeCatalogFilter.donghua => 'Donghua',
+      AnimeCatalogFilter.movies => 'Filmes',
+      AnimeCatalogFilter.subtitledMovies => 'Filmes legendados',
+      AnimeCatalogFilter.dubbedMovies => 'Filmes dublados',
+      AnimeCatalogFilter.adult => 'Hentai (+18)',
+      _ => _defaultCatalogFilterLabel(filter),
+    };
+  }
   return _defaultCatalogFilterLabel(filter);
 }
 
 String _defaultCatalogFilterLabel(AnimeCatalogFilter filter) =>
     switch (filter) {
+      AnimeCatalogFilter.featured => 'Featured',
+      AnimeCatalogFilter.catalog => 'Catalog',
+      AnimeCatalogFilter.subtitled => 'Subtitled',
+      AnimeCatalogFilter.dubbed => 'Dubbed',
+      AnimeCatalogFilter.manhwa => 'Manhwa',
+      AnimeCatalogFilter.donghua => 'Donghua',
+      AnimeCatalogFilter.movies => 'Movies',
+      AnimeCatalogFilter.subtitledMovies => 'Subtitled movies',
+      AnimeCatalogFilter.dubbedMovies => 'Dubbed movies',
+      AnimeCatalogFilter.adult => 'Adult',
       AnimeCatalogFilter.popular => 'Most viewed',
       AnimeCatalogFilter.popularWeek => 'This week',
       AnimeCatalogFilter.popularMonth => 'This month',
@@ -662,6 +688,16 @@ String _defaultCatalogFilterLabel(AnimeCatalogFilter filter) =>
     };
 
 IconData _catalogFilterIcon(AnimeCatalogFilter filter) => switch (filter) {
+      AnimeCatalogFilter.featured => Icons.star_rounded,
+      AnimeCatalogFilter.catalog => Icons.video_library_rounded,
+      AnimeCatalogFilter.subtitled => Icons.subtitles_rounded,
+      AnimeCatalogFilter.dubbed => Icons.record_voice_over_rounded,
+      AnimeCatalogFilter.manhwa => Icons.auto_stories_rounded,
+      AnimeCatalogFilter.donghua => Icons.animation_rounded,
+      AnimeCatalogFilter.movies => Icons.movie_rounded,
+      AnimeCatalogFilter.subtitledMovies => Icons.closed_caption_rounded,
+      AnimeCatalogFilter.dubbedMovies => Icons.spatial_audio_rounded,
+      AnimeCatalogFilter.adult => Icons.eighteen_up_rating_rounded,
       AnimeCatalogFilter.popular => Icons.trending_up_rounded,
       AnimeCatalogFilter.popularWeek => Icons.date_range_rounded,
       AnimeCatalogFilter.popularMonth => Icons.calendar_month_rounded,
