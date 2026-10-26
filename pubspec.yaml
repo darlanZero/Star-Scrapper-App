@@ -36,6 +36,7 @@ dependencies:
   cached_network_image: ^3.3.1
   font_awesome_flutter: ^11.0.0
   webview_flutter: ^4.8.0
+  flutter_inappwebview: ^6.1.5
   cupertino_icons: ^1.0.6
   flutter_animate: ^4.5.0
   flutter_floating_bottom_bar: ^1.2.0

@@ -17,52 +17,48 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   Widget build(BuildContext context) {
     final theme = Provider.of<ThemeProvider>(context);
     return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              'Account Settings',
-              style: theme.selectedTheme.textTheme.headlineMedium,
-            ),
-            SizedBox(height: 20),
-            Text(
-              'Manage your account information, security settings, and preferences.',
-              style: theme.selectedTheme.textTheme.bodyMedium,
-            ),
-            SizedBox(height: 30),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SettingsNavItem(
-                    icon: Icons.manage_accounts_outlined,
-                    label: 'Source logins',
-                    theme: theme,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const ScrapperLoginsScreen()),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  SettingsNavItem(
-                    icon: Icons.sync_alt_rounded,
-                    label: 'Trackers',
-                    theme: theme,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const TrackerSettingsScreen(),
-                      ),
-                    ),
-                  ),
-                ],
+      padding: const EdgeInsets.fromLTRB(16, 26, 16, 110),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Account Settings',
+                textAlign: TextAlign.center,
+                style: theme.selectedTheme.textTheme.headlineMedium,
               ),
-            )
-          ],
+              const SizedBox(height: 28),
+              SettingsNavItem(
+                icon: Icons.manage_accounts_outlined,
+                label: 'Source logins',
+                description:
+                    'Sign in to sources that require an account, renew browser sessions, or disconnect stored source access.',
+                theme: theme,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ScrapperLoginsScreen(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SettingsNavItem(
+                icon: Icons.sync_alt_rounded,
+                label: 'Trackers',
+                description:
+                    'Connect and configure services such as AniList and MyAnimeList for Discover, progress, and library tracking.',
+                theme: theme,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const TrackerSettingsScreen(),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

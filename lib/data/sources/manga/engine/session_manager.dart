@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Gerencia o armazenamento e recuperação de sessões (cookies/tokens) por site.
@@ -6,10 +7,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Cada site é identificado por uma [siteKey] — string única em snake_case
 /// (ex.: 'luratoons', 'mediocrescan').
 ///
-/// Os cookies são persistidos em [SharedPreferences] e usados nos headers
-/// HTTP de cada request autenticado.
+/// Cookies e tokens são persistidos no armazenamento seguro da plataforma e
+/// usados nos headers HTTP de cada request autenticado. Sessões gravadas por
+/// versões antigas em [SharedPreferences] são migradas na primeira leitura.
 class SessionManager {
   static const String _prefix = 'scrapper_session_';
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
   // ─── Persistência ─────────────────────────────────────────────────────────
 
@@ -18,19 +21,41 @@ class SessionManager {
     String siteKey,
     Map<String, String> cookies,
   ) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('$_prefix$siteKey', jsonEncode(cookies));
+    final key = '$_prefix$siteKey';
+    final encoded = jsonEncode(cookies);
+    try {
+      await _secureStorage.write(key: key, value: encoded);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(key);
+    } catch (_) {
+      // Keeps desktop/test environments without a secure-storage backend
+      // functional. Supported mobile builds always use the secure store.
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(key, encoded);
+    }
   }
 
   /// Carrega os cookies persistidos para [siteKey].
   /// Retorna mapa vazio se não houver sessão.
   static Future<Map<String, String>> loadCookies(String siteKey) async {
+    final key = '$_prefix$siteKey';
+    String? raw;
+    try {
+      raw = await _secureStorage.read(key: key);
+    } catch (_) {
+      // Fall through to the legacy store below.
+    }
+
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString('$_prefix$siteKey');
+    raw ??= prefs.getString(key);
     if (raw == null || raw.isEmpty) return {};
     try {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      return decoded.map((k, v) => MapEntry(k, v.toString()));
+      final session = decoded.map((k, v) => MapEntry(k, v.toString()));
+      if (prefs.containsKey(key)) {
+        await saveCookies(siteKey, session);
+      }
+      return session;
     } catch (_) {
       return {};
     }
@@ -38,8 +63,14 @@ class SessionManager {
 
   /// Remove a sessão de [siteKey] (equivale a logout).
   static Future<void> clearSession(String siteKey) async {
+    final key = '$_prefix$siteKey';
+    try {
+      await _secureStorage.delete(key: key);
+    } catch (_) {
+      // The legacy entry is still removed below.
+    }
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('$_prefix$siteKey');
+    await prefs.remove(key);
   }
 
   /// Retorna true se houver sessão salva para [siteKey].

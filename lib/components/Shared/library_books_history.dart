@@ -49,6 +49,13 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                       ? fontProvider.lastReadedChapterId[bookId]
                       : null;
                   final chapterTitle = lastChapter?['title'] ?? 'N/A';
+                  final selectedChapters = bookId != null
+                      ? (fontProvider.selectedChapterIds[bookId] ?? [])
+                      : <Map<String, String>>[];
+                  final readChapterCount = int.tryParse(
+                        book['readChapterCount']?.toString() ?? '',
+                      ) ??
+                      selectedChapters.length;
                   final coverUrl =
                       (book['coverImageUrl'] ?? book['imageurl'] ?? '')
                           .toString();
@@ -109,7 +116,7 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                                     ),
                                   ),
                                   child: Text(
-                                    'Cap. $chapterTitle',
+                                    'Cap. $chapterTitle • $readChapterCount read',
                                     style: const TextStyle(
                                         color: Colors.white, fontSize: 12),
                                   ),
@@ -139,6 +146,10 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                   final selectedChapters = bookId != null
                       ? (fontProvider.selectedChapterIds[bookId] ?? [])
                       : <Map<String, String>>[];
+                  final readChapterCount = int.tryParse(
+                        book['readChapterCount']?.toString() ?? '',
+                      ) ??
+                      selectedChapters.length;
                   final coverUrl =
                       (book['coverImageUrl'] ?? book['imageurl'] ?? '')
                           .toString();
@@ -243,7 +254,7 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                                       ),
                                     ),
                                     child: Text(
-                                      'Last: Cap. $chapterTitle',
+                                      'Last: Cap. $chapterTitle • $readChapterCount read',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 12,

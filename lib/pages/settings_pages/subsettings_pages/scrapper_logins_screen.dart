@@ -62,6 +62,46 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
   Future<void> _doLogin(Fonte font, {required bool renew}) async {
     final profileSource = font.api as ProfileAuthMangaSource;
     final profile = profileSource.authProfile;
+    var method = 'browser';
+    if (font.api is CredentialAuthMangaSource) {
+      final selected = await showModalBottomSheet<String>(
+        context: context,
+        showDragHandle: true,
+        builder: (ctx) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Login — ${font.name}',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(ctx, 'credentials'),
+                  icon: const Icon(Icons.email_outlined),
+                  label: const Text('Email and password'),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.pop(ctx, 'browser'),
+                  icon: const Icon(Icons.open_in_browser_outlined),
+                  label: const Text('Google or Discord'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      if (selected == null || !mounted) return;
+      method = selected;
+    }
+
     if (renew) {
       await SessionManager.clearSession(profileSource.sessionKey);
       if (font.api is BrowserSessionMangaSource) {
@@ -77,6 +117,10 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
       }
     }
     if (!mounted) return;
+    if (method == 'credentials') {
+      await _doCredentialLogin(font);
+      return;
+    }
     await showAuthWebView(
       context: context,
       profile: profile,
@@ -85,6 +129,92 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
               .updateBrowserSession(cookies)
           : Future.value(),
     );
+    if (mounted) {
+      await Provider.of<FontProvider>(context, listen: false)
+          .syncReadingHistory(source: font.api);
+    }
+    await _loadAllSessions();
+  }
+
+  Future<void> _doCredentialLogin(Fonte font) async {
+    final api = font.api as CredentialAuthMangaSource;
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    var loading = false;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          Future<void> submit() async {
+            final email = emailController.text.trim();
+            final password = passwordController.text;
+            if (email.isEmpty || password.isEmpty) return;
+            setDialogState(() => loading = true);
+            try {
+              await api.authenticateWithCredentials(email, password);
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+            } catch (error) {
+              if (dialogContext.mounted) {
+                setDialogState(() => loading = false);
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      error.toString().replaceFirst('Exception: ', ''),
+                    ),
+                  ),
+                );
+              }
+            }
+          }
+
+          return AlertDialog(
+            title: Text('Login — ${font.name}'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  autofillHints: const [AutofillHints.email],
+                  decoration: const InputDecoration(labelText: 'Email'),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: passwordController,
+                  obscureText: true,
+                  autofillHints: const [AutofillHints.password],
+                  onSubmitted: loading ? null : (_) => submit(),
+                  decoration: const InputDecoration(labelText: 'Password'),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: loading ? null : () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: loading ? null : submit,
+                child: loading
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Login'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    emailController.dispose();
+    passwordController.dispose();
+    if (mounted) {
+      await Provider.of<FontProvider>(context, listen: false)
+          .syncReadingHistory(source: font.api);
+    }
     await _loadAllSessions();
   }
 

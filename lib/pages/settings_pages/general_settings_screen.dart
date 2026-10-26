@@ -31,81 +31,90 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
     ];
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 22, 16, 110),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('General', style: selectedTheme.textTheme.headlineMedium),
-          const SizedBox(height: 6),
-          Text(
-            'Customize your library and content sources.',
-            style: selectedTheme.textTheme.bodyMedium?.copyWith(
-              color: selectedTheme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 22),
-          SettingsNavItem(
-            icon: Icons.local_library_outlined,
-            label: 'Library',
-            theme: theme,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const LibrarySettingsScreen()),
-            ),
-          ),
-          const SizedBox(height: 10),
-          SettingsNavItem(
-            icon: Icons.cloud_sync_outlined,
-            label: 'Sources',
-            theme: theme,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const FontsHostsSettingsScreen(),
+      padding: const EdgeInsets.fromLTRB(16, 26, 16, 110),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 920),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'General',
+                textAlign: TextAlign.center,
+                style: selectedTheme.textTheme.headlineMedium,
               ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          SettingsNavItem(
-            icon: Icons.ondemand_video_rounded,
-            label: 'Video playback',
-            theme: theme,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const PlaybackSettingsScreen(),
+              const SizedBox(height: 24),
+              SettingsNavItem(
+                icon: Icons.local_library_outlined,
+                label: 'Library',
+                description:
+                    'Manage library tabs, saved items, backups, reading history, and update behavior.',
+                theme: theme,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const LibrarySettingsScreen()),
+                ),
               ),
-            ),
+              const SizedBox(height: 10),
+              SettingsNavItem(
+                icon: Icons.cloud_sync_outlined,
+                label: 'Sources',
+                description:
+                    'Choose which manga and anime sources are enabled and available throughout the app.',
+                theme: theme,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const FontsHostsSettingsScreen(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SettingsNavItem(
+                icon: Icons.ondemand_video_rounded,
+                label: 'Video playback',
+                description:
+                    'Adjust native player behavior, hardware decoding, gestures, subtitles, and compatibility options.',
+                theme: theme,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const PlaybackSettingsScreen(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 30),
+              Text(
+                'Appearance',
+                textAlign: TextAlign.center,
+                style: selectedTheme.textTheme.titleLarge,
+              ),
+              const SizedBox(height: 16),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: themes.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount:
+                      MediaQuery.sizeOf(context).width >= 720 ? 3 : 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 1.28,
+                ),
+                itemBuilder: (context, index) {
+                  final option = themes[index];
+                  return ThemePreviewWidgets(
+                    themeData: option.data,
+                    themeName: option.name,
+                    isSelected: identical(selectedTheme, option.data),
+                    onTap: () => theme.setSelectedTheme(option.data),
+                  );
+                },
+              ),
+            ],
           ),
-          const SizedBox(height: 30),
-          Text('Appearance', style: selectedTheme.textTheme.titleLarge),
-          const SizedBox(height: 6),
-          Text(
-            'Choose a palette. Layout and contrast stay consistent.',
-            style: selectedTheme.textTheme.bodySmall,
-          ),
-          const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: themes.length,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: MediaQuery.sizeOf(context).width >= 720 ? 3 : 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.28,
-            ),
-            itemBuilder: (context, index) {
-              final option = themes[index];
-              return ThemePreviewWidgets(
-                themeData: option.data,
-                themeName: option.name,
-                isSelected: identical(selectedTheme, option.data),
-                onTap: () => theme.setSelectedTheme(option.data),
-              );
-            },
-          ),
-        ],
+        ),
       ),
     );
   }

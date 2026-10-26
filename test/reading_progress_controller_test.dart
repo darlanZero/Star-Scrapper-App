@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/application/library/reading_progress_controller.dart';
 import 'package:star_scrapper_app/data/library/library_storage.dart';
+import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 
 void main() {
   test('loads reading history and chapter progress together', () async {
@@ -147,5 +148,81 @@ void main() {
 
     expect(controller.readBooks.single['title'], 'Original');
     expect(controller.readBooks.single['chapters'], hasLength(1));
+  });
+
+  test('merges remote history without replacing newer local progress',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final controller = ReadingProgressController(
+      storage: LibraryStorage(),
+      onChanged: () {},
+    );
+    await controller.initialize();
+    await controller.addBookToHistory({
+      'id': '7',
+      'title': 'Local title',
+      'description': 'Keep me',
+    });
+    await controller.addReadChapter('7', 'chapter-9', '9');
+
+    final imported = await controller.mergeRemoteHistory('mediocrescan', [
+      MangaReadingHistoryEntry(
+        details: MangaDetails(
+          item: const MangaCatalogItem(id: '7', title: 'Remote title'),
+        ),
+        lastReadChapter: const MangaChapter(
+          id: 'chapter-5',
+          number: '5',
+        ),
+        readChapterCount: 5,
+      ),
+    ]);
+
+    expect(imported, 1);
+    expect(controller.readBooks.single['title'], 'Local title');
+    expect(controller.readBooks.single['description'], 'Keep me');
+    expect(controller.readBooks.single['sourceId'], 'mediocrescan');
+    expect(controller.readBooks.single['readChapterCount'], 5);
+    expect(controller.selectedChapterIds['7'], hasLength(2));
+    expect(controller.lastReadChapterIds['7']?['id'], 'chapter-9');
+  });
+
+  test('expands imported sequential progress after full details arrive',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final controller = ReadingProgressController(
+      storage: LibraryStorage(),
+      onChanged: () {},
+    );
+    await controller.initialize();
+    await controller.mergeRemoteHistory('mediocrescan', [
+      MangaReadingHistoryEntry(
+        details: MangaDetails(
+          item: const MangaCatalogItem(id: '7', title: 'Remote title'),
+        ),
+        lastReadChapter: const MangaChapter(
+          id: 'chapter-3',
+          number: '3',
+        ),
+        readChapterCount: 3,
+      ),
+    ]);
+
+    await controller.replaceBookDetails({
+      'id': '7',
+      'title': 'Remote title',
+      'chapters': [
+        {'id': 'chapter-3', 'title': 'Capítulo 3', 'chapter': '3'},
+        {'id': 'chapter-2', 'title': 'Capítulo 2', 'chapter': '2'},
+        {'id': 'chapter-1', 'title': 'Capítulo 1', 'chapter': '1'},
+        {'id': 'chapter-4', 'title': 'Capítulo 4', 'chapter': '4'},
+      ],
+    });
+
+    expect(
+      controller.selectedChapterIds['7']!.map((chapter) => chapter['id']),
+      ['chapter-1', 'chapter-2', 'chapter-3'],
+    );
+    expect(controller.readBooks.single['readChapterCount'], 3);
   });
 }

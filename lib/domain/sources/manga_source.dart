@@ -20,6 +20,84 @@ enum MangaCatalogFilter {
   alphabetical,
 }
 
+/// A source-defined child listing exposed below one of the shared catalog
+/// chips. This keeps site-specific sections (for example, Recent by format)
+/// out of the global [MangaCatalogFilter] enum.
+class MangaCatalogVariant {
+  final String id;
+  final String label;
+
+  const MangaCatalogVariant({required this.id, required this.label});
+}
+
+enum MangaSearchSort {
+  recentlyAdded,
+  popular,
+  rating,
+  titleAscending,
+  titleDescending,
+  chapterCount,
+}
+
+class MangaFilterOption {
+  final String value;
+  final String label;
+
+  const MangaFilterOption({required this.value, required this.label});
+}
+
+class MangaSearchOptions {
+  final List<MangaFilterOption> formats;
+  final List<MangaFilterOption> statuses;
+  final List<MangaFilterOption> tags;
+  final List<MangaSearchSort> sorts;
+
+  MangaSearchOptions({
+    Iterable<MangaFilterOption> formats = const [],
+    Iterable<MangaFilterOption> statuses = const [],
+    Iterable<MangaFilterOption> tags = const [],
+    Iterable<MangaSearchSort> sorts = MangaSearchSort.values,
+  })  : formats = List.unmodifiable(formats),
+        statuses = List.unmodifiable(statuses),
+        tags = List.unmodifiable(tags),
+        sorts = List.unmodifiable(sorts);
+}
+
+class MangaSearchRequest {
+  final Set<String> formats;
+  final Set<String> statuses;
+  final Set<String> tags;
+  final int? minimumChapters;
+  final int? maximumChapters;
+  final MangaSearchSort sort;
+
+  MangaSearchRequest({
+    Set<String> formats = const {},
+    Set<String> statuses = const {},
+    Set<String> tags = const {},
+    this.minimumChapters,
+    this.maximumChapters,
+    this.sort = MangaSearchSort.recentlyAdded,
+  })  : formats = Set.unmodifiable(formats),
+        statuses = Set.unmodifiable(statuses),
+        tags = Set.unmodifiable(tags);
+
+  bool get hasFilters =>
+      formats.isNotEmpty ||
+      statuses.isNotEmpty ||
+      tags.isNotEmpty ||
+      minimumChapters != null ||
+      maximumChapters != null ||
+      sort != MangaSearchSort.recentlyAdded;
+
+  int get activeFilterCount =>
+      (formats.isEmpty ? 0 : 1) +
+      statuses.length +
+      tags.length +
+      (minimumChapters == null && maximumChapters == null ? 0 : 1) +
+      (sort == MangaSearchSort.recentlyAdded ? 0 : 1);
+}
+
 /// Publication state reported by a manga source.
 enum MangaStatus {
   unknown,
@@ -290,6 +368,23 @@ class MangaDetails {
       };
 }
 
+/// Reading progress imported from an authenticated source account.
+///
+/// [details] may intentionally contain no chapters: sources can return the
+/// lightweight Continue Reading payload first and let the regular details
+/// request enrich it when the user opens the title.
+class MangaReadingHistoryEntry {
+  final MangaDetails details;
+  final MangaChapter lastReadChapter;
+  final int readChapterCount;
+
+  const MangaReadingHistoryEntry({
+    required this.details,
+    required this.lastReadChapter,
+    required this.readChapterCount,
+  });
+}
+
 /// A single resolved page of a chapter.
 ///
 /// A page is either a locally downloaded image ([filePath]) or a remote image
@@ -384,6 +479,20 @@ abstract interface class ChapterNavigationMangaSource {
   Future<String?> previousChapterId(String mangaId, String currentChapterId);
 }
 
+/// Optional capability for authenticated sources that keep reading progress.
+///
+/// Implementations must treat [markChapterRead] as idempotent. The app always
+/// saves progress locally first, so a temporary remote failure never blocks
+/// the reader.
+abstract interface class ReadingHistoryMangaSource {
+  Future<List<MangaReadingHistoryEntry>> fetchReadingHistory();
+
+  Future<void> markChapterRead({
+    required String mangaId,
+    required String chapterId,
+  });
+}
+
 /// Optional capability for sources that expose a genre catalog.
 abstract interface class GenreBrowsableMangaSource {
   Future<List<MangaGenre>> getGenres();
@@ -411,6 +520,28 @@ abstract interface class TaxonomyBrowsableMangaSource {
   Future<MangaCatalogPage> browseTaxonomy(
     MangaTaxonomyKind kind,
     String taxonomyId, {
+    String? cursor,
+  });
+}
+
+/// Optional capability for a shared catalog chip with source-defined child
+/// listings, such as MediocreScan's Recent section split by work format.
+abstract interface class VariantCatalogMangaSource {
+  List<MangaCatalogVariant> catalogVariants(MangaCatalogFilter filter);
+
+  Future<MangaCatalogPage> browseVariant(
+    MangaCatalogFilter filter,
+    String variantId, {
+    String? cursor,
+  });
+}
+
+/// Optional capability for sources that expose a structured catalog search.
+abstract interface class FilterableMangaSource {
+  Future<MangaSearchOptions> getSearchOptions();
+
+  Future<MangaCatalogPage> filterCatalog(
+    MangaSearchRequest request, {
     String? cursor,
   });
 }
@@ -483,6 +614,7 @@ MangaStatus mangaStatusFromString(Object? value) {
       status.contains('ongoing') ||
       status.contains('andamento') ||
       status.contains('em lançamento') ||
+      status.contains('em lancamento') ||
       status.contains('airing') ||
       status.contains('publishing')) {
     return MangaStatus.ongoing;

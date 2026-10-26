@@ -95,9 +95,9 @@ class _SettingsScreenState extends State<SettingsScreen>
   @override
   Widget build(BuildContext context) {
     return TabBarView(controller: _tabController, children: const [
-      Center(child: GeneralSettingsScreen()),
-      Center(child: AccountSettingsScreen()),
-      Center(child: AboutApplicationScreen()),
+      GeneralSettingsScreen(),
+      AccountSettingsScreen(),
+      AboutApplicationScreen(),
     ]);
   }
 }

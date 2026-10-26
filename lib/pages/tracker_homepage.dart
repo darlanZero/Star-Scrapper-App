@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/application/trackers/tracker_controller.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/domain/trackers/tracker.dart';
@@ -17,6 +18,7 @@ class TrackerHomepage extends StatefulWidget {
 }
 
 class _TrackerHomepageState extends State<TrackerHomepage> {
+  static const _tutorialSeenKey = 'discover_tracker_tutorial_seen_v1';
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   TrackedMediaType _type = TrackedMediaType.anime;
@@ -39,6 +41,7 @@ class _TrackerHomepageState extends State<TrackerHomepage> {
   TrackedMediaType _activeSearchType = TrackedMediaType.anime;
   bool _showFilters = false;
   String _trackerSignature = '';
+  bool _tutorialCheckStarted = false;
 
   @override
   void initState() {
@@ -46,9 +49,29 @@ class _TrackerHomepageState extends State<TrackerHomepage> {
     _scrollController.addListener(_handleScroll);
   }
 
+  Future<void> _showTutorialOnFirstUse() async {
+    if (_tutorialCheckStarted) return;
+    _tutorialCheckStarted = true;
+    final preferences = await SharedPreferences.getInstance();
+    if (!mounted || preferences.getBool(_tutorialSeenKey) == true) return;
+    await _showDiscoverTutorial();
+    await preferences.setBool(_tutorialSeenKey, true);
+  }
+
+  Future<void> _showDiscoverTutorial() => showDialog<void>(
+        context: context,
+        builder: (dialogContext) => const _DiscoverTutorialDialog(),
+      );
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final isDiscoverVisible = context.watch<AppState>().currentIndex == 1;
+    if (isDiscoverVisible && !_tutorialCheckStarted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showTutorialOnFirstUse();
+      });
+    }
     final tracker = context.watch<TrackerController>();
     final signature = [
       tracker.initialized,
@@ -161,7 +184,6 @@ class _TrackerHomepageState extends State<TrackerHomepage> {
   @override
   Widget build(BuildContext context) {
     final tracker = context.watch<TrackerController>();
-    final colors = Theme.of(context).colorScheme;
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -197,19 +219,13 @@ class _TrackerHomepageState extends State<TrackerHomepage> {
                           if (mounted) _reloadHome();
                         },
                       ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        tooltip: 'How Discover works',
+                        onPressed: _showDiscoverTutorial,
+                        icon: const Icon(Icons.help_outline_rounded),
+                      ),
                     ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Powered by your enabled trackers and matched with your sources.',
-                    style: TextStyle(color: colors.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Tap a title for details. Touch and hold to search your sources.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colors.onSurfaceVariant,
-                        ),
                   ),
                   const SizedBox(height: 16),
                   SegmentedButton<TrackedMediaType>(
@@ -347,6 +363,125 @@ class _TrackerHomepageState extends State<TrackerHomepage> {
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+}
+
+class _DiscoverTutorialDialog extends StatelessWidget {
+  const _DiscoverTutorialDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return AlertDialog(
+      scrollable: true,
+      icon: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.primaryContainer,
+          shape: BoxShape.circle,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Icon(
+            Icons.auto_awesome_rounded,
+            color: colors.onPrimaryContainer,
+            size: 30,
+          ),
+        ),
+      ),
+      title: const Text('Discover at a glance', textAlign: TextAlign.center),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460),
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _TutorialStep(
+              icon: Icons.swap_horizontal_circle_outlined,
+              title: 'Choose what to explore',
+              description:
+                  'Switch between Anime and Manga. Discover combines the trackers enabled in Account Settings.',
+            ),
+            SizedBox(height: 10),
+            _TutorialStep(
+              icon: Icons.manage_search_rounded,
+              title: 'Search the tracker catalog',
+              description:
+                  'Type a title or use filters to browse by popularity, rating, genres, and tags.',
+            ),
+            SizedBox(height: 10),
+            _TutorialStep(
+              icon: Icons.touch_app_outlined,
+              title: 'Open or find a source',
+              description:
+                  'Tap a title for tracker details. Touch and hold it to search your enabled sources for that same title.',
+            ),
+          ],
+        ),
+      ),
+      actionsAlignment: MainAxisAlignment.spaceBetween,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Not now'),
+        ),
+        FilledButton.icon(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.explore_outlined),
+          label: const Text('Start exploring'),
+        ),
+      ],
+    );
+  }
+}
+
+class _TutorialStep extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+
+  const _TutorialStep({
+    required this.icon,
+    required this.title,
+    required this.description,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: colors.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  description,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

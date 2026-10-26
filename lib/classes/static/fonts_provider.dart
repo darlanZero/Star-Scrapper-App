@@ -239,9 +239,44 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
   Future<void> saveSingleSelectedChapterId(
     String bookId,
     String chapterId,
-    String chapterTitle,
-  ) async {
+    String chapterTitle, {
+    MangaSource? scrapper,
+  }) async {
     await _readingProgress.addReadChapter(bookId, chapterId, chapterTitle);
+    final source = scrapper;
+    if (source is ReadingHistoryMangaSource) {
+      final historySource = source as ReadingHistoryMangaSource;
+      unawaited(
+        historySource
+            .markChapterRead(mangaId: bookId, chapterId: chapterId)
+            .catchError((Object _) {}),
+      );
+    }
+  }
+
+  /// Imports authenticated source history in the background. Local progress is
+  /// always authoritative when it is ahead of the remote account.
+  Future<int> syncReadingHistory({MangaSource? source}) async {
+    final candidates = source == null
+        ? _sourceController.sources.map((font) => font.api)
+        : <MangaSource>[source];
+    var imported = 0;
+    for (final api in candidates) {
+      if (api is! ReadingHistoryMangaSource) continue;
+      final historySource = api as ReadingHistoryMangaSource;
+      try {
+        if (api is BrowserSessionMangaSource) {
+          final sessionSource = api as BrowserSessionMangaSource;
+          await sessionSource.restoreSession();
+          if (!sessionSource.isAuthenticated) continue;
+        }
+        final entries = await historySource.fetchReadingHistory();
+        imported += await _readingProgress.mergeRemoteHistory(api.id, entries);
+      } catch (error) {
+        debugPrint('Could not sync ${api.name} reading history: $error');
+      }
+    }
+    return imported;
   }
 
   void addBookToReadBooks(Map<String, dynamic> book) {
@@ -260,6 +295,8 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
   Future<void> _loadLibraryState() async {
     await _loadFavoritedBooks();
     await _readingProgress.initialize();
+    await _sourcesLoaded;
+    unawaited(syncReadingHistory());
   }
 
   Future<void> refreshFromStorage() async {

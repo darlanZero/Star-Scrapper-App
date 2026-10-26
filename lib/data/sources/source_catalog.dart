@@ -90,8 +90,7 @@ abstract final class SourceCatalog {
         ),
         Fonte(
           id: 'mediocrescan',
-          image:
-              'https://mediocrescan.com/_next/image?url=%2Flogo.png&w=48&q=75',
+          image: 'https://mediocrescan.com/favicon.png',
           name: 'MediocreScan',
           languagePrefix: 'Pt-BR',
           flags: [

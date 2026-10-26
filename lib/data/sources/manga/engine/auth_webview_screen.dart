@@ -1,8 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as iaw;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:webview_flutter/webview_flutter.dart' as wv;
 import 'package:webview_windows/webview_windows.dart' as wvw;
 import 'package:star_scrapper_app/data/sources/manga/engine/scrapper_profile.dart';
 import 'package:star_scrapper_app/data/sources/manga/engine/session_manager.dart';
@@ -77,8 +78,8 @@ class AuthWebViewScreen extends StatefulWidget {
 class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
   static const _cookieChannel = MethodChannel('starslibrary/webview_cookies');
 
-  // ── Mobile / Web (webview_flutter) ──
-  wv.WebViewController? _mobileController;
+  // ── Mobile / Web (flutter_inappwebview) ──
+  iaw.InAppWebViewController? _mobileController;
 
   // ── Windows (webview_windows) ──
   wvw.WebviewController? _windowsController;
@@ -86,6 +87,7 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
 
   bool _isLoading = true;
   bool _loginDetected = false;
+  bool _popupOpen = false;
   String _currentUrl = '';
 
   bool get _isWindows =>
@@ -96,38 +98,57 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
     super.initState();
     if (_isWindows) {
       _initWindowsWebView();
-    } else {
-      _initMobileWebView();
     }
   }
 
-  // ─── Mobile init ─────────────────────────────────────────────────────────
+  iaw.InAppWebViewSettings get _mobileSettings => iaw.InAppWebViewSettings(
+        javaScriptEnabled: true,
+        domStorageEnabled: true,
+        databaseEnabled: true,
+        thirdPartyCookiesEnabled: true,
+        supportMultipleWindows: true,
+        javaScriptCanOpenWindowsAutomatically: true,
+        useHybridComposition: true,
+        userAgent: 'Mozilla/5.0 (Linux; Android 14; Mobile) '
+            'AppleWebKit/537.36 (KHTML, like Gecko) '
+            'Chrome/131.0.0.0 Mobile Safari/537.36',
+      );
 
-  void _initMobileWebView() {
-    final controller = wv.WebViewController()
-      ..setJavaScriptMode(wv.JavaScriptMode.unrestricted)
-      ..setNavigationDelegate(
-        wv.NavigationDelegate(
-          onPageStarted: (url) {
-            setState(() {
-              _currentUrl = url;
-              _isLoading = true;
-            });
-          },
-          onPageFinished: (url) async {
-            setState(() {
-              _currentUrl = url;
-              _isLoading = false;
-            });
-            await _checkLoginSuccess(url);
-          },
-          onWebResourceError: (error) {
-            debugPrint('[AuthWebView] resource error: ${error.description}');
-          },
+  Future<void> _showOAuthPopup(int windowId) async {
+    if (!mounted || _popupOpen) return;
+    _popupOpen = true;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (popupContext) => Dialog.fullscreen(
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('Continue login'),
+            leading: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(popupContext),
+            ),
+          ),
+          body: iaw.InAppWebView(
+            windowId: windowId,
+            initialSettings: _mobileSettings,
+            onCloseWindow: (_) {
+              if (popupContext.mounted && Navigator.canPop(popupContext)) {
+                Navigator.pop(popupContext);
+              }
+            },
+            onReceivedError: (_, request, error) {
+              if (request.isForMainFrame == true) {
+                debugPrint(
+                  '[AuthWebView] OAuth popup error: ${error.description}',
+                );
+              }
+            },
+          ),
         ),
-      )
-      ..loadRequest(Uri.parse(widget.profile.auth.loginUrl));
-    setState(() => _mobileController = controller);
+      ),
+    );
+    _popupOpen = false;
   }
 
   // ─── Windows init ─────────────────────────────────────────────────────────
@@ -185,13 +206,11 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
 
     _loginDetected = true;
 
-    // Aguarda renderização completa e extrai cookies
-    await Future.delayed(const Duration(milliseconds: 800));
-    final cookies = await _extractCookies();
-
+    // OAuth providers can finish the navigation before the SPA has written its
+    // own token cookies. Poll briefly instead of leaving an authenticated page
+    // open forever when the first read races that write.
+    final cookies = await _waitForSessionCookies();
     if (cookies.isEmpty) {
-      // Fallback: pode ter chegado em uma URL intermediária (ex.: OAuth).
-      // Continua monitorando.
       _loginDetected = false;
       return;
     }
@@ -232,6 +251,23 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
     }
 
     if (mounted) Navigator.of(context).pop(sessionCookies);
+  }
+
+  Future<Map<String, String>> _waitForSessionCookies() async {
+    final expected = widget.profile.auth.sessionCookieNames;
+    Map<String, String> latest = const {};
+    for (var attempt = 0; attempt < 20; attempt++) {
+      if (attempt > 0) {
+        await Future.delayed(const Duration(milliseconds: 250));
+      }
+      latest = await _extractCookies();
+      if (latest.isEmpty) continue;
+      if (expected.isEmpty || latest.containsKey(expected.first)) return latest;
+    }
+    debugPrint(
+      '[AuthWebView] Login page completed without the expected session cookies.',
+    );
+    return const {};
   }
 
   // ─── Extração de cookies ──────────────────────────────────────────────────
@@ -285,8 +321,34 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
               .replaceAll(r'\\', r'\');
         }
       } else if (_mobileController != null) {
-        rawJson = await _mobileController!.runJavaScriptReturningResult(js)
-            as String?;
+        const mobileJs = r'''
+          (function() {
+            const result = {};
+            if (document.cookie) {
+              document.cookie.split(';').forEach(pair => {
+                const idx = pair.indexOf('=');
+                if (idx > 0) {
+                  const key = pair.substring(0, idx).trim();
+                  const value = pair.substring(idx + 1).trim();
+                  if (key) result[key] = value;
+                }
+              });
+            }
+            return result;
+          })()
+        ''';
+        final result =
+            await _mobileController!.evaluateJavascript(source: mobileJs);
+        if (result is Map) {
+          return {
+            ...result.map((key, value) => MapEntry(
+                  key.toString(),
+                  value.toString(),
+                )),
+            ...nativeCookies,
+          };
+        }
+        rawJson = result?.toString().trim();
       }
 
       if (rawJson == null || rawJson == 'null' || rawJson.isEmpty) {
@@ -347,13 +409,31 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
       return const {};
     }
+    final currentUri = Uri.tryParse(_currentUrl);
+    final baseUri = Uri.parse(widget.profile.baseUrl);
+    final cookieUrls = <String>{
+      if (currentUri?.hasScheme == true) _currentUrl,
+      widget.profile.baseUrl,
+      '${baseUri.scheme}://${baseUri.host}/',
+    };
     try {
-      final siteUrl = Uri.tryParse(_currentUrl)?.hasScheme == true
-          ? _currentUrl
-          : widget.profile.baseUrl;
+      final result = <String, String>{};
+      for (final url in cookieUrls) {
+        final cookies = await iaw.CookieManager.instance().getCookies(
+          url: iaw.WebUri(url),
+        );
+        for (final cookie in cookies) {
+          if (cookie.name.isNotEmpty) result[cookie.name] = cookie.value;
+        }
+      }
+      if (result.isNotEmpty) return result;
+    } catch (error) {
+      debugPrint('[AuthWebView] InAppWebView cookie extraction failed: $error');
+    }
+    try {
       final header = await _cookieChannel.invokeMethod<String>(
             'getCookies',
-            {'url': siteUrl},
+            {'url': widget.profile.baseUrl},
           ) ??
           '';
       return SessionManager.parseCookieString(header);
@@ -435,11 +515,52 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
       return wvw.Webview(_windowsController!);
     }
 
-    if (_mobileController == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return wv.WebViewWidget(controller: _mobileController!);
+    return iaw.InAppWebView(
+      initialUrlRequest: iaw.URLRequest(
+        url: iaw.WebUri(widget.profile.auth.loginUrl),
+      ),
+      initialSettings: _mobileSettings,
+      onWebViewCreated: (controller) => _mobileController = controller,
+      onLoadStart: (_, url) {
+        if (!mounted) return;
+        setState(() {
+          _currentUrl = url?.toString() ?? _currentUrl;
+          _isLoading = true;
+        });
+      },
+      onLoadStop: (_, url) async {
+        final loadedUrl = url?.toString() ?? _currentUrl;
+        if (mounted) {
+          setState(() {
+            _currentUrl = loadedUrl;
+            _isLoading = false;
+          });
+        }
+        await _checkLoginSuccess(loadedUrl);
+      },
+      // MediocreScan completes OAuth with React Router's history.pushState.
+      // That changes /entrar to /inicio without a document load, so onLoadStop
+      // is never called for the authenticated route.
+      onUpdateVisitedHistory: (_, url, __) async {
+        final visitedUrl = url?.toString() ?? _currentUrl;
+        if (mounted) {
+          setState(() {
+            _currentUrl = visitedUrl;
+            _isLoading = false;
+          });
+        }
+        await _checkLoginSuccess(visitedUrl);
+      },
+      onCreateWindow: (_, action) async {
+        unawaited(_showOAuthPopup(action.windowId));
+        return true;
+      },
+      onReceivedError: (_, request, error) {
+        if (request.isForMainFrame == true) {
+          debugPrint('[AuthWebView] resource error: ${error.description}');
+        }
+      },
+    );
   }
 }
 

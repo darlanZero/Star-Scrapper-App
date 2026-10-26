@@ -42,6 +42,9 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   MangaTaxonomyKind? _selectedTaxonomyKind;
   String? _selectedTaxonomyId;
   String? _selectedTaxonomyName;
+  String? _selectedCatalogVariantId;
+  String? _selectedCatalogVariantName;
+  MangaSearchRequest? _catalogRequest;
   List<dynamic> allBooksData = [];
 
   /// Referência ao WebviewController após login WebView no Windows.
@@ -61,6 +64,15 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
             ? MangaCatalogFilter.updated
             : filters.firstOrNull ?? MangaCatalogFilter.popular;
     _currentFilter = initialFilter;
+    final api = widget.selectedFont.api;
+    if (api is VariantCatalogMangaSource) {
+      final variants =
+          (api as VariantCatalogMangaSource).catalogVariants(initialFilter);
+      if (variants.isNotEmpty) {
+        _selectedCatalogVariantId = variants.first.id;
+        _selectedCatalogVariantName = variants.first.label;
+      }
+    }
     _loadBooks();
   }
 
@@ -68,6 +80,9 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     setState(() {
       _authRequired = false;
       _hasMore = true;
+      _isLoadingMore = false;
+      _nextCursor = null;
+      allBooksData = [];
       _bookFuture = _fetchBooks();
     });
   }
@@ -93,6 +108,12 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
 
   String _labelFor(MangaCatalogFilter filter) =>
       widget.selectedFont.api.catalogFilterLabel(filter);
+
+  String get _activeFilterLabel {
+    final count = _catalogRequest?.activeFilterCount ?? 0;
+    if (count > 0) return 'Filters ($count)';
+    return _selectedTaxonomyName ?? _selectedGenreName ?? 'Filter';
+  }
 
   IconData _iconFor(MangaCatalogFilter filter) => switch (filter) {
         MangaCatalogFilter.updated => Icons.update_rounded,
@@ -153,6 +174,13 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     MangaSource api, {
     String? cursor,
   }) {
+    final catalogRequest = _catalogRequest;
+    if (catalogRequest != null && api is FilterableMangaSource) {
+      return (api as FilterableMangaSource).filterCatalog(
+        catalogRequest,
+        cursor: cursor,
+      );
+    }
     final taxonomyKind = _selectedTaxonomyKind;
     final taxonomyId = _selectedTaxonomyId;
     if (taxonomyKind != null &&
@@ -169,6 +197,14 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
       return (api as GenreBrowsableMangaSource).browseGenre(
         genreId,
         filter: _currentFilter,
+        cursor: cursor,
+      );
+    }
+    final variantId = _selectedCatalogVariantId;
+    if (variantId != null && api is VariantCatalogMangaSource) {
+      return (api as VariantCatalogMangaSource).browseVariant(
+        _currentFilter,
+        variantId,
         cursor: cursor,
       );
     }
@@ -255,6 +291,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
   /// Abre [AuthWebViewScreen] para login visual (form SPA, OAuth, etc.).
   Future<void> _openWebViewLogin(
       MangaSource api, ScrapperProfile profile) async {
+    final fontProvider = Provider.of<FontProvider>(context, listen: false);
     final cookies = await showAuthWebView(
       context: context,
       profile: profile,
@@ -283,6 +320,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
       },
     );
     if (cookies != null && cookies.isNotEmpty) {
+      await fontProvider.syncReadingHistory(source: api);
       _loadBooks();
     }
   }
@@ -312,24 +350,26 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
             try {
               await (api as CredentialAuthMangaSource)
                   .authenticateWithCredentials(email, pass);
-              if (mounted) {
+              if (mounted && ctx.mounted) {
+                await Provider.of<FontProvider>(context, listen: false)
+                    .syncReadingHistory(source: api);
+                if (!mounted || !ctx.mounted) return;
                 Navigator.pop(ctx);
                 _loadBooks();
               }
             } catch (e) {
+              if (!mounted || !ctx.mounted) return;
               setDialogState(() => loading = false);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                        'Login failed: ${e.toString().replaceAll('Exception: ', '')}'),
-                    backgroundColor: Colors.red,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                  ),
-                );
-              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      'Login failed: ${e.toString().replaceAll('Exception: ', '')}'),
+                  backgroundColor: Colors.red,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              );
             }
           }
 
@@ -499,10 +539,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
                       Icon(Icons.filter_list,
                           color: theme
                               .selectedTheme.textTheme.displayMedium?.color),
-                      Text(
-                          _selectedTaxonomyName ??
-                              _selectedGenreName ??
-                              'Filter',
+                      Text(_activeFilterLabel,
                           style: TextStyle(
                               color: theme.selectedTheme.textTheme.displayMedium
                                   ?.color)),
@@ -523,28 +560,88 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     IconData icon,
     ThemeProvider theme,
   ) {
-    final text = _labelFor(filter);
-    final isSelected = _currentFilter == filter;
+    final api = widget.selectedFont.api;
+    final variants = api is VariantCatalogMangaSource
+        ? (api as VariantCatalogMangaSource).catalogVariants(filter)
+        : const <MangaCatalogVariant>[];
+    final baseText = _labelFor(filter);
+    final text = variants.isNotEmpty &&
+            _currentFilter == filter &&
+            _selectedCatalogVariantName != null
+        ? '$baseText · $_selectedCatalogVariantName'
+        : baseText;
+    final isSelected = _catalogRequest == null && _currentFilter == filter;
+    final content = Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, color: theme.selectedTheme.textTheme.displayMedium?.color),
+      const SizedBox(width: 4),
+      Text(text,
+          style: TextStyle(
+              color: theme.selectedTheme.textTheme.displayMedium?.color)),
+      if (variants.isNotEmpty) ...[
+        const SizedBox(width: 2),
+        Icon(
+          Icons.arrow_drop_down_rounded,
+          color: theme.selectedTheme.textTheme.displayMedium?.color,
+        ),
+      ],
+    ]);
+    final style = OutlinedButton.styleFrom(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+      backgroundColor: isSelected
+          ? Colors.deepPurple.withValues(alpha: 0.3)
+          : Colors.transparent,
+    );
+    if (variants.isNotEmpty) {
+      return PopupMenuButton<String>(
+        tooltip: 'Choose $baseText type',
+        initialValue: _currentFilter == filter
+            ? _selectedCatalogVariantId
+            : variants.first.id,
+        onSelected: (variantId) {
+          final variant = variants.firstWhere((item) => item.id == variantId);
+          setState(() {
+            _currentFilter = filter;
+            _selectedCatalogVariantId = variant.id;
+            _selectedCatalogVariantName = variant.label;
+            _catalogRequest = null;
+            _selectedGenreId = null;
+            _selectedGenreName = null;
+            _selectedTaxonomyKind = null;
+            _selectedTaxonomyId = null;
+            _selectedTaxonomyName = null;
+          });
+          _loadBooks();
+        },
+        itemBuilder: (_) => [
+          for (final variant in variants)
+            PopupMenuItem(value: variant.id, child: Text(variant.label)),
+        ],
+        child: AbsorbPointer(
+          child: OutlinedButton(
+            onPressed: () {},
+            style: style,
+            child: content,
+          ),
+        ),
+      );
+    }
     return OutlinedButton(
       onPressed: () {
         setState(() {
           _currentFilter = filter;
-          _loadBooks();
+          _selectedCatalogVariantId = null;
+          _selectedCatalogVariantName = null;
+          _catalogRequest = null;
+          _selectedGenreId = null;
+          _selectedGenreName = null;
+          _selectedTaxonomyKind = null;
+          _selectedTaxonomyId = null;
+          _selectedTaxonomyName = null;
         });
+        _loadBooks();
       },
-      style: OutlinedButton.styleFrom(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-        backgroundColor: isSelected
-            ? Colors.deepPurple.withValues(alpha: 0.3)
-            : Colors.transparent,
-      ),
-      child: Row(children: [
-        Icon(icon, color: theme.selectedTheme.textTheme.displayMedium?.color),
-        Text(text,
-            style: TextStyle(
-                color: theme.selectedTheme.textTheme.displayMedium?.color)),
-      ]),
+      style: style,
+      child: content,
     );
   }
 
@@ -838,6 +935,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
       final bookDetails =
           (await widget.selectedFont.api.getDetails(bookId)).toJson();
       if (kDebugMode) print(bookDetails);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
       Navigator.push(
@@ -848,8 +946,11 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
             scrapper: widget.selectedFont.api,
           ),
         ),
-      ).then((_) => setState(() {}));
+      ).then((_) {
+        if (mounted) setState(() {});
+      });
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
       // Sessão expirou durante a navegação → redireciona para tela de login
@@ -873,6 +974,37 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
 
   Future<void> _showFilterPopup() async {
     final api = widget.selectedFont.api;
+    if (api is FilterableMangaSource) {
+      try {
+        final options = await (api as FilterableMangaSource).getSearchOptions();
+        if (!mounted) return;
+        final request = await showModalBottomSheet<MangaSearchRequest>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          builder: (_) => _MangaAdvancedFilterSheet(
+            options: options,
+            initial: _catalogRequest,
+          ),
+        );
+        if (!mounted || request == null) return;
+        setState(() {
+          _catalogRequest = request.hasFilters ? request : null;
+          _selectedGenreId = null;
+          _selectedGenreName = null;
+          _selectedTaxonomyKind = null;
+          _selectedTaxonomyId = null;
+          _selectedTaxonomyName = null;
+        });
+        _loadBooks();
+      } catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not load filters: $error')),
+        );
+      }
+      return;
+    }
     if (api is TaxonomyBrowsableMangaSource) {
       final selection = await showDialog<_MangaTaxonomySelection>(
         context: context,
@@ -1012,6 +1144,271 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     );
   }
 }
+
+class _MangaAdvancedFilterSheet extends StatefulWidget {
+  final MangaSearchOptions options;
+  final MangaSearchRequest? initial;
+
+  const _MangaAdvancedFilterSheet({required this.options, this.initial});
+
+  @override
+  State<_MangaAdvancedFilterSheet> createState() =>
+      _MangaAdvancedFilterSheetState();
+}
+
+class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
+  late Set<String> _formats;
+  late Set<String> _statuses;
+  late Set<String> _tags;
+  late MangaSearchSort _sort;
+  late final TextEditingController _minimumController;
+  late final TextEditingController _maximumController;
+  final TextEditingController _tagSearchController = TextEditingController();
+  String _tagQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initial;
+    _formats = {...?initial?.formats};
+    _statuses = {...?initial?.statuses};
+    _tags = {...?initial?.tags};
+    _sort = initial?.sort ?? MangaSearchSort.recentlyAdded;
+    _minimumController = TextEditingController(
+      text: initial?.minimumChapters?.toString() ?? '',
+    );
+    _maximumController = TextEditingController(
+      text: initial?.maximumChapters?.toString() ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _minimumController.dispose();
+    _maximumController.dispose();
+    _tagSearchController.dispose();
+    super.dispose();
+  }
+
+  int? _number(TextEditingController controller) {
+    final value = int.tryParse(controller.text.trim());
+    return value == null || value < 0 ? null : value;
+  }
+
+  void _setChapterRange(int? minimum, int? maximum) {
+    setState(() {
+      _minimumController.text = minimum?.toString() ?? '';
+      _maximumController.text = maximum?.toString() ?? '';
+    });
+  }
+
+  void _apply() {
+    Navigator.pop(
+      context,
+      MangaSearchRequest(
+        formats: _formats,
+        statuses: _statuses,
+        tags: _tags,
+        minimumChapters: _number(_minimumController),
+        maximumChapters: _number(_maximumController),
+        sort: _sort,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleTags = widget.options.tags.where((tag) {
+      return _tagQuery.isEmpty ||
+          tag.label.toLowerCase().contains(_tagQuery.toLowerCase());
+    }).toList(growable: false);
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: .9,
+      minChildSize: .55,
+      maxChildSize: .96,
+      builder: (context, controller) => ListView(
+        controller: controller,
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Catalog filters',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, MangaSearchRequest()),
+                child: const Text('Reset'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text('Format', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              for (final option in widget.options.formats)
+                FilterChip(
+                  label: Text(option.label),
+                  selected: _formats.contains(option.value),
+                  onSelected: (selected) => setState(() {
+                    selected
+                        ? _formats.add(option.value)
+                        : _formats.remove(option.value);
+                    _tags.clear();
+                  }),
+                ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Text('Chapters', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              ActionChip(
+                label: const Text('< 50'),
+                onPressed: () => _setChapterRange(null, 49),
+              ),
+              ActionChip(
+                label: const Text('50–150'),
+                onPressed: () => _setChapterRange(50, 150),
+              ),
+              ActionChip(
+                label: const Text('150+'),
+                onPressed: () => _setChapterRange(150, null),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _minimumController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Minimum'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _maximumController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Maximum'),
+                ),
+              ),
+            ],
+          ),
+          if (widget.options.statuses.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              title: const Text('Status'),
+              subtitle: Text(
+                _statuses.isEmpty
+                    ? 'Any status'
+                    : '${_statuses.length} selected',
+              ),
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      for (final option in widget.options.statuses)
+                        FilterChip(
+                          label: Text(option.label),
+                          selected: _statuses.contains(option.value),
+                          onSelected: (selected) => setState(() {
+                            selected
+                                ? _statuses.add(option.value)
+                                : _statuses.remove(option.value);
+                          }),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (widget.options.tags.isNotEmpty)
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              title: const Text('Tags'),
+              subtitle: Text(
+                _tags.isEmpty ? 'Any tag' : '${_tags.length} selected',
+              ),
+              children: [
+                TextField(
+                  controller: _tagSearchController,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.search_rounded),
+                    labelText: 'Find a tag',
+                  ),
+                  onChanged: (value) => setState(() => _tagQuery = value),
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      for (final option in visibleTags)
+                        FilterChip(
+                          label: Text(option.label),
+                          selected: _tags.contains(option.value),
+                          onSelected: (selected) => setState(() {
+                            selected
+                                ? _tags.add(option.value)
+                                : _tags.remove(option.value);
+                          }),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          const SizedBox(height: 14),
+          DropdownButtonFormField<MangaSearchSort>(
+            initialValue: _sort,
+            decoration: const InputDecoration(labelText: 'Order by'),
+            items: [
+              for (final sort in widget.options.sorts)
+                DropdownMenuItem(
+                    value: sort, child: Text(_mangaSortLabel(sort))),
+            ],
+            onChanged: (value) => setState(
+              () => _sort = value ?? MangaSearchSort.recentlyAdded,
+            ),
+          ),
+          const SizedBox(height: 22),
+          FilledButton.icon(
+            onPressed: _apply,
+            icon: const Icon(Icons.filter_alt_rounded),
+            label: const Text('Apply filters'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _mangaSortLabel(MangaSearchSort sort) => switch (sort) {
+      MangaSearchSort.recentlyAdded => 'Most recent',
+      MangaSearchSort.popular => 'Popular',
+      MangaSearchSort.rating => 'Best rated',
+      MangaSearchSort.titleAscending => 'A-Z',
+      MangaSearchSort.titleDescending => 'Z-A',
+      MangaSearchSort.chapterCount => 'Most chapters',
+    };
 
 class _MangaTaxonomySelection {
   final MangaTaxonomyKind kind;

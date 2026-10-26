@@ -58,6 +58,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   int _webViewReadinessAttempts = 0;
   int? _pendingRestorePage;
   bool _recalcScheduled = false;
+  bool _didRecordChapter = false;
   Timer? _controlsAutoHideTimer;
 
   late PageController? _pageController;
@@ -99,6 +100,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
         .readChapter(mangaId: widget.mangaID, chapterId: widget.chapterId)
         .listen(
       (page) {
+        _recordChapterRead();
         final pageIndex = _chapterImages.length;
         setState(() {
           _chapterImages.add(page);
@@ -144,6 +146,21 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
         }
       },
     );
+  }
+
+  void _recordChapterRead() {
+    if (_didRecordChapter) return;
+    _didRecordChapter = true;
+    unawaited(_fontProvider.saveSingleSelectedChapterId(
+      widget.mangaID,
+      widget.chapterId,
+      widget.chapterNumber?.trim().isNotEmpty == true
+          ? widget.chapterNumber!.trim()
+          : (widget.chapterTitle?.trim().isNotEmpty == true
+              ? widget.chapterTitle!.trim()
+              : widget.chapterId),
+      scrapper: _activeScrapper,
+    ));
   }
 
   Future<void> _retryNativeReader() async {
