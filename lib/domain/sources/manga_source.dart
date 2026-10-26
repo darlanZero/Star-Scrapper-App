@@ -31,13 +31,22 @@ class MangaCatalogVariant {
 }
 
 enum MangaSearchSort {
+  updated,
   recentlyAdded,
   popular,
   rating,
+  title,
   titleAscending,
   titleDescending,
+  year,
   chapterCount,
 }
+
+enum MangaCategoryMode { any, all }
+
+enum MangaAdultMode { hide, include, only }
+
+enum MangaSortDirection { ascending, descending }
 
 class MangaFilterOption {
   final String value;
@@ -50,16 +59,36 @@ class MangaSearchOptions {
   final List<MangaFilterOption> formats;
   final List<MangaFilterOption> statuses;
   final List<MangaFilterOption> tags;
+  final List<MangaFilterOption> genres;
+  final List<MangaFilterOption> themes;
   final List<MangaSearchSort> sorts;
+  final bool supportsAuthor;
+  final bool supportsArtist;
+  final bool supportsYearRange;
+  final bool supportsChapterRange;
+  final bool supportsCategoryMode;
+  final bool supportsAdultMode;
+  final bool supportsSortDirection;
 
   MangaSearchOptions({
     Iterable<MangaFilterOption> formats = const [],
     Iterable<MangaFilterOption> statuses = const [],
     Iterable<MangaFilterOption> tags = const [],
+    Iterable<MangaFilterOption> genres = const [],
+    Iterable<MangaFilterOption> themes = const [],
     Iterable<MangaSearchSort> sorts = MangaSearchSort.values,
+    this.supportsAuthor = false,
+    this.supportsArtist = false,
+    this.supportsYearRange = false,
+    this.supportsChapterRange = true,
+    this.supportsCategoryMode = false,
+    this.supportsAdultMode = false,
+    this.supportsSortDirection = false,
   })  : formats = List.unmodifiable(formats),
         statuses = List.unmodifiable(statuses),
         tags = List.unmodifiable(tags),
+        genres = List.unmodifiable(genres),
+        themes = List.unmodifiable(themes),
         sorts = List.unmodifiable(sorts);
 }
 
@@ -67,35 +96,72 @@ class MangaSearchRequest {
   final Set<String> formats;
   final Set<String> statuses;
   final Set<String> tags;
+  final Set<String> genres;
+  final Set<String> themes;
+  final String author;
+  final String artist;
+  final int? minimumYear;
+  final int? maximumYear;
   final int? minimumChapters;
   final int? maximumChapters;
   final MangaSearchSort sort;
+  final MangaCategoryMode categoryMode;
+  final MangaAdultMode adultMode;
+  final MangaSortDirection sortDirection;
 
   MangaSearchRequest({
     Set<String> formats = const {},
     Set<String> statuses = const {},
     Set<String> tags = const {},
+    Set<String> genres = const {},
+    Set<String> themes = const {},
+    this.author = '',
+    this.artist = '',
+    this.minimumYear,
+    this.maximumYear,
     this.minimumChapters,
     this.maximumChapters,
     this.sort = MangaSearchSort.recentlyAdded,
+    this.categoryMode = MangaCategoryMode.any,
+    this.adultMode = MangaAdultMode.hide,
+    this.sortDirection = MangaSortDirection.descending,
   })  : formats = Set.unmodifiable(formats),
         statuses = Set.unmodifiable(statuses),
-        tags = Set.unmodifiable(tags);
+        tags = Set.unmodifiable(tags),
+        genres = Set.unmodifiable(genres),
+        themes = Set.unmodifiable(themes);
 
   bool get hasFilters =>
       formats.isNotEmpty ||
       statuses.isNotEmpty ||
       tags.isNotEmpty ||
+      genres.isNotEmpty ||
+      themes.isNotEmpty ||
+      author.trim().isNotEmpty ||
+      artist.trim().isNotEmpty ||
+      minimumYear != null ||
+      maximumYear != null ||
       minimumChapters != null ||
       maximumChapters != null ||
-      sort != MangaSearchSort.recentlyAdded;
+      sort != MangaSearchSort.recentlyAdded ||
+      categoryMode != MangaCategoryMode.any ||
+      adultMode != MangaAdultMode.hide ||
+      sortDirection != MangaSortDirection.descending;
 
   int get activeFilterCount =>
       (formats.isEmpty ? 0 : 1) +
       statuses.length +
       tags.length +
+      genres.length +
+      themes.length +
+      (author.trim().isEmpty ? 0 : 1) +
+      (artist.trim().isEmpty ? 0 : 1) +
+      (minimumYear == null && maximumYear == null ? 0 : 1) +
       (minimumChapters == null && maximumChapters == null ? 0 : 1) +
-      (sort == MangaSearchSort.recentlyAdded ? 0 : 1);
+      (sort == MangaSearchSort.recentlyAdded ? 0 : 1) +
+      (categoryMode == MangaCategoryMode.any ? 0 : 1) +
+      (adultMode == MangaAdultMode.hide ? 0 : 1) +
+      (sortDirection == MangaSortDirection.descending ? 0 : 1);
 }
 
 /// Publication state reported by a manga source.

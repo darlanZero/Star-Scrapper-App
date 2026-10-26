@@ -829,11 +829,14 @@ class MediocrescanSource
   }
 
   String _sortValue(MangaSearchSort sort) => switch (sort) {
+        MangaSearchSort.updated => 'atualizada_em_desc',
         MangaSearchSort.recentlyAdded => 'criada_em_desc',
         MangaSearchSort.popular => 'populares',
         MangaSearchSort.rating => 'rating_desc',
+        MangaSearchSort.title => 'nome_asc',
         MangaSearchSort.titleAscending => 'nome_asc',
         MangaSearchSort.titleDescending => 'nome_desc',
+        MangaSearchSort.year => 'criada_em_desc',
         MangaSearchSort.chapterCount => 'capitulos_desc',
       };
 

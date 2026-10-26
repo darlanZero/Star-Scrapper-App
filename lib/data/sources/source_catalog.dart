@@ -12,6 +12,7 @@ import 'package:star_scrapper_app/data/sources/manga/seita_celestial_source.dart
 import 'package:star_scrapper_app/data/sources/manga/luratoons_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/mediocrescan_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/imperio_britannia_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/nexus_toons_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/leitura_manga_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/hdoujin_source.dart';
 import 'package:star_scrapper_app/infrastructure/webview/browser_html_loader.dart';
@@ -43,6 +44,7 @@ abstract final class SourceCatalog {
         ),
         MediocrescanSource(),
         ImperioBritanniaSource(),
+        NexusToonsSource(),
         LeituraMangaSource(),
         HDoujinSource(),
       ];
@@ -112,6 +114,19 @@ abstract final class SourceCatalog {
           api: ImperioBritanniaSource(),
           contentType: SourceContentType.manga,
           // Catálogo misto com um formato adulto separado.
+          isRRated: false,
+        ),
+        Fonte(
+          id: 'nexus_toons',
+          image: 'https://nexustoons.com/favicon.ico',
+          name: 'Nexus Toons',
+          languagePrefix: 'Pt-BR',
+          flags: [
+            'https://cdn.countryflags.com/thumbs/brazil/flag-3d-250.png',
+          ],
+          api: NexusToonsSource(),
+          contentType: SourceContentType.manga,
+          // Catálogo misto; conteúdo adulto é controlado pelo filtro da source.
           isRRated: false,
         ),
         Fonte(

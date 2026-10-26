@@ -241,10 +241,14 @@ class ImperioBritanniaSource
       formats: request.formats,
       tags: request.tags,
       order: switch (request.sort) {
+        MangaSearchSort.updated => 'criada_em_desc',
         MangaSearchSort.popular => 'views_desc',
+        MangaSearchSort.title => 'nome_asc',
         MangaSearchSort.titleAscending => 'nome_asc',
         MangaSearchSort.titleDescending => 'nome_desc',
+        MangaSearchSort.year => 'criada_em_desc',
         MangaSearchSort.chapterCount => 'capitulos_desc',
+        MangaSearchSort.rating => 'criada_em_desc',
         _ => 'criada_em_desc',
       },
     );

@@ -1160,11 +1160,24 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
   late Set<String> _formats;
   late Set<String> _statuses;
   late Set<String> _tags;
+  late Set<String> _genres;
+  late Set<String> _themes;
   late MangaSearchSort _sort;
+  late MangaCategoryMode _categoryMode;
+  late MangaAdultMode _adultMode;
+  late MangaSortDirection _sortDirection;
+  late final TextEditingController _authorController;
+  late final TextEditingController _artistController;
+  late final TextEditingController _minimumYearController;
+  late final TextEditingController _maximumYearController;
   late final TextEditingController _minimumController;
   late final TextEditingController _maximumController;
   final TextEditingController _tagSearchController = TextEditingController();
+  final TextEditingController _genreSearchController = TextEditingController();
+  final TextEditingController _themeSearchController = TextEditingController();
   String _tagQuery = '';
+  String _genreQuery = '';
+  String _themeQuery = '';
 
   @override
   void initState() {
@@ -1173,7 +1186,20 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
     _formats = {...?initial?.formats};
     _statuses = {...?initial?.statuses};
     _tags = {...?initial?.tags};
+    _genres = {...?initial?.genres};
+    _themes = {...?initial?.themes};
     _sort = initial?.sort ?? MangaSearchSort.recentlyAdded;
+    _categoryMode = initial?.categoryMode ?? MangaCategoryMode.any;
+    _adultMode = initial?.adultMode ?? MangaAdultMode.hide;
+    _sortDirection = initial?.sortDirection ?? MangaSortDirection.descending;
+    _authorController = TextEditingController(text: initial?.author ?? '');
+    _artistController = TextEditingController(text: initial?.artist ?? '');
+    _minimumYearController = TextEditingController(
+      text: initial?.minimumYear?.toString() ?? '',
+    );
+    _maximumYearController = TextEditingController(
+      text: initial?.maximumYear?.toString() ?? '',
+    );
     _minimumController = TextEditingController(
       text: initial?.minimumChapters?.toString() ?? '',
     );
@@ -1186,7 +1212,13 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
   void dispose() {
     _minimumController.dispose();
     _maximumController.dispose();
+    _authorController.dispose();
+    _artistController.dispose();
+    _minimumYearController.dispose();
+    _maximumYearController.dispose();
     _tagSearchController.dispose();
+    _genreSearchController.dispose();
+    _themeSearchController.dispose();
     super.dispose();
   }
 
@@ -1209,10 +1241,82 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
         formats: _formats,
         statuses: _statuses,
         tags: _tags,
+        genres: _genres,
+        themes: _themes,
+        author: _authorController.text.trim(),
+        artist: _artistController.text.trim(),
+        minimumYear: _number(_minimumYearController),
+        maximumYear: _number(_maximumYearController),
         minimumChapters: _number(_minimumController),
         maximumChapters: _number(_maximumController),
         sort: _sort,
+        categoryMode: _categoryMode,
+        adultMode: _adultMode,
+        sortDirection: _sortDirection,
       ),
+    );
+  }
+
+  Widget _optionExpansion({
+    required String title,
+    required String searchLabel,
+    required List<MangaFilterOption> options,
+    required Set<String> selected,
+    required TextEditingController searchController,
+    required ValueChanged<String> onSearch,
+  }) {
+    final query = searchController.text.trim().toLowerCase();
+    final visible = options
+        .where((option) =>
+            query.isEmpty || option.label.toLowerCase().contains(query))
+        .take(query.isEmpty ? 80 : 200)
+        .toList(growable: false);
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      title: Text(title),
+      subtitle: Text(
+        selected.isEmpty
+            ? 'Any ${title.toLowerCase()}'
+            : '${selected.length} selected',
+      ),
+      children: [
+        TextField(
+          controller: searchController,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.search_rounded),
+            labelText: searchLabel,
+          ),
+          onChanged: onSearch,
+        ),
+        const SizedBox(height: 10),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              for (final option in visible)
+                FilterChip(
+                  label: Text(option.label),
+                  selected: selected.contains(option.value),
+                  onSelected: (enabled) => setState(() {
+                    enabled
+                        ? selected.add(option.value)
+                        : selected.remove(option.value);
+                  }),
+                ),
+            ],
+          ),
+        ),
+        if (query.isEmpty && options.length > visible.length)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Text(
+              'Type to search all ${options.length} options.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+      ],
     );
   }
 
@@ -1221,6 +1325,14 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
     final visibleTags = widget.options.tags.where((tag) {
       return _tagQuery.isEmpty ||
           tag.label.toLowerCase().contains(_tagQuery.toLowerCase());
+    }).toList(growable: false);
+    final visibleGenres = widget.options.genres.where((genre) {
+      return _genreQuery.isEmpty ||
+          genre.label.toLowerCase().contains(_genreQuery.toLowerCase());
+    }).toList(growable: false);
+    final visibleThemes = widget.options.themes.where((theme) {
+      return _themeQuery.isEmpty ||
+          theme.label.toLowerCase().contains(_themeQuery.toLowerCase());
     }).toList(growable: false);
     return DraggableScrollableSheet(
       expand: false,
@@ -1265,46 +1377,98 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
                 ),
             ],
           ),
-          const SizedBox(height: 18),
-          Text('Chapters', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: [
-              ActionChip(
-                label: const Text('< 50'),
-                onPressed: () => _setChapterRange(null, 49),
-              ),
-              ActionChip(
-                label: const Text('50–150'),
-                onPressed: () => _setChapterRange(50, 150),
-              ),
-              ActionChip(
-                label: const Text('150+'),
-                onPressed: () => _setChapterRange(150, null),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _minimumController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Minimum'),
+          if (widget.options.supportsAuthor ||
+              widget.options.supportsArtist) ...[
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                if (widget.options.supportsAuthor)
+                  Expanded(
+                    child: TextField(
+                      controller: _authorController,
+                      decoration: const InputDecoration(labelText: 'Author'),
+                    ),
+                  ),
+                if (widget.options.supportsAuthor &&
+                    widget.options.supportsArtist)
+                  const SizedBox(width: 12),
+                if (widget.options.supportsArtist)
+                  Expanded(
+                    child: TextField(
+                      controller: _artistController,
+                      decoration: const InputDecoration(labelText: 'Artist'),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          if (widget.options.supportsYearRange) ...[
+            const SizedBox(height: 18),
+            Text('Release year',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _minimumYearController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'From'),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _maximumController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Maximum'),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _maximumYearController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'To'),
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
+          if (widget.options.supportsChapterRange) ...[
+            const SizedBox(height: 18),
+            Text('Chapters', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                ActionChip(
+                  label: const Text('< 50'),
+                  onPressed: () => _setChapterRange(null, 49),
+                ),
+                ActionChip(
+                  label: const Text('50–150'),
+                  onPressed: () => _setChapterRange(50, 150),
+                ),
+                ActionChip(
+                  label: const Text('150+'),
+                  onPressed: () => _setChapterRange(150, null),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _minimumController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Minimum'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _maximumController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Maximum'),
+                  ),
+                ),
+              ],
+            ),
+          ],
           if (widget.options.statuses.isNotEmpty) ...[
             const SizedBox(height: 14),
             ExpansionTile(
@@ -1338,6 +1502,24 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
               ],
             ),
           ],
+          if (widget.options.genres.isNotEmpty)
+            _optionExpansion(
+              title: 'Genres',
+              searchLabel: 'Find a genre',
+              options: visibleGenres,
+              selected: _genres,
+              searchController: _genreSearchController,
+              onSearch: (value) => setState(() => _genreQuery = value),
+            ),
+          if (widget.options.themes.isNotEmpty)
+            _optionExpansion(
+              title: 'Themes',
+              searchLabel: 'Find a theme',
+              options: visibleThemes,
+              selected: _themes,
+              searchController: _themeSearchController,
+              onSearch: (value) => setState(() => _themeQuery = value),
+            ),
           if (widget.options.tags.isNotEmpty)
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
@@ -1376,18 +1558,89 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
                 ),
               ],
             ),
-          const SizedBox(height: 14),
-          DropdownButtonFormField<MangaSearchSort>(
-            initialValue: _sort,
-            decoration: const InputDecoration(labelText: 'Order by'),
-            items: [
-              for (final sort in widget.options.sorts)
+          if (widget.options.supportsCategoryMode) ...[
+            const SizedBox(height: 14),
+            DropdownButtonFormField<MangaCategoryMode>(
+              initialValue: _categoryMode,
+              decoration: const InputDecoration(labelText: 'Category matching'),
+              items: const [
                 DropdownMenuItem(
-                    value: sort, child: Text(_mangaSortLabel(sort))),
-            ],
-            onChanged: (value) => setState(
-              () => _sort = value ?? MangaSearchSort.recentlyAdded,
+                  value: MangaCategoryMode.any,
+                  child: Text('Any selected category (OR)'),
+                ),
+                DropdownMenuItem(
+                  value: MangaCategoryMode.all,
+                  child: Text('All selected categories (AND)'),
+                ),
+              ],
+              onChanged: (value) => setState(
+                () => _categoryMode = value ?? MangaCategoryMode.any,
+              ),
             ),
+          ],
+          if (widget.options.supportsAdultMode) ...[
+            const SizedBox(height: 14),
+            DropdownButtonFormField<MangaAdultMode>(
+              initialValue: _adultMode,
+              decoration: const InputDecoration(labelText: 'Adult content'),
+              items: const [
+                DropdownMenuItem(
+                  value: MangaAdultMode.hide,
+                  child: Text('Hide 18+'),
+                ),
+                DropdownMenuItem(
+                  value: MangaAdultMode.include,
+                  child: Text('Include 18+'),
+                ),
+                DropdownMenuItem(
+                  value: MangaAdultMode.only,
+                  child: Text('Only 18+'),
+                ),
+              ],
+              onChanged: (value) => setState(
+                () => _adultMode = value ?? MangaAdultMode.hide,
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<MangaSearchSort>(
+                  initialValue: _sort,
+                  decoration: const InputDecoration(labelText: 'Order by'),
+                  items: [
+                    for (final sort in widget.options.sorts)
+                      DropdownMenuItem(
+                        value: sort,
+                        child: Text(_mangaSortLabel(sort)),
+                      ),
+                  ],
+                  onChanged: (value) => setState(
+                    () => _sort = value ?? MangaSearchSort.recentlyAdded,
+                  ),
+                ),
+              ),
+              if (widget.options.supportsSortDirection) ...[
+                const SizedBox(width: 12),
+                IconButton.filledTonal(
+                  tooltip: _sortDirection == MangaSortDirection.descending
+                      ? 'Descending'
+                      : 'Ascending',
+                  onPressed: () => setState(() {
+                    _sortDirection =
+                        _sortDirection == MangaSortDirection.descending
+                            ? MangaSortDirection.ascending
+                            : MangaSortDirection.descending;
+                  }),
+                  icon: Icon(
+                    _sortDirection == MangaSortDirection.descending
+                        ? Icons.arrow_downward_rounded
+                        : Icons.arrow_upward_rounded,
+                  ),
+                ),
+              ],
+            ],
           ),
           const SizedBox(height: 22),
           FilledButton.icon(
@@ -1402,11 +1655,14 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
 }
 
 String _mangaSortLabel(MangaSearchSort sort) => switch (sort) {
+      MangaSearchSort.updated => 'Last updated',
       MangaSearchSort.recentlyAdded => 'Most recent',
       MangaSearchSort.popular => 'Popular',
       MangaSearchSort.rating => 'Best rated',
+      MangaSearchSort.title => 'Title',
       MangaSearchSort.titleAscending => 'A-Z',
       MangaSearchSort.titleDescending => 'Z-A',
+      MangaSearchSort.year => 'Release year',
       MangaSearchSort.chapterCount => 'Most chapters',
     };
 
