@@ -11,6 +11,7 @@ import 'package:star_scrapper_app/data/sources/manga/mangadex_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/seita_celestial_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/luratoons_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/mediocrescan_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/imperio_britannia_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/leitura_manga_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/hdoujin_source.dart';
 import 'package:star_scrapper_app/infrastructure/webview/browser_html_loader.dart';
@@ -41,6 +42,7 @@ abstract final class SourceCatalog {
           binaryLoader: BrowserHtmlLoader.loadBytes,
         ),
         MediocrescanSource(),
+        ImperioBritanniaSource(),
         LeituraMangaSource(),
         HDoujinSource(),
       ];
@@ -98,6 +100,19 @@ abstract final class SourceCatalog {
           ],
           api: MediocrescanSource(),
           contentType: SourceContentType.manga,
+        ),
+        Fonte(
+          id: 'imperio_britannia',
+          image: 'https://imperiodabritannia.net/favicon-32x32.png',
+          name: 'Império da Britannia',
+          languagePrefix: 'Pt-BR',
+          flags: [
+            'https://cdn.countryflags.com/thumbs/brazil/flag-3d-250.png',
+          ],
+          api: ImperioBritanniaSource(),
+          contentType: SourceContentType.manga,
+          // Catálogo misto com um formato adulto separado.
+          isRRated: false,
         ),
         Fonte(
           id: 'leitura_manga',

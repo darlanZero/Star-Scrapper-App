@@ -7,10 +7,12 @@ import 'package:star_scrapper_app/data/library/anime_library_storage.dart';
 import 'package:star_scrapper_app/domain/library/anime_library_record.dart';
 import 'package:star_scrapper_app/domain/sources/anime_source.dart';
 import 'package:star_scrapper_app/application/library/library_organization_contracts.dart';
+import 'package:star_scrapper_app/application/notifications/app_notification_service.dart';
 
 class AnimeLibraryController extends ChangeNotifier
     implements LibraryOrganizationUpdater {
   final AnimeLibraryStorage storage;
+  final AppNotificationService _notifications;
   final Map<String, AnimeLibraryRecord> _favorites = {};
   final Map<String, AnimeEpisodeProgress> _progress = {};
   bool _initialized = false;
@@ -24,8 +26,11 @@ class AnimeLibraryController extends ChangeNotifier
   bool _tabConfigurationReady = false;
   Timer? _updateTimer;
 
-  AnimeLibraryController({AnimeLibraryStorage? storage})
-      : storage = storage ?? AnimeLibraryStorage();
+  AnimeLibraryController({
+    AnimeLibraryStorage? storage,
+    AppNotificationService? notifications,
+  })  : storage = storage ?? AnimeLibraryStorage(),
+        _notifications = notifications ?? AppNotificationService.instance;
 
   bool get initialized => _initialized;
   bool get trackerEnabled => _trackerEnabled;
@@ -241,13 +246,14 @@ class AnimeLibraryController extends ChangeNotifier
     notifyListeners();
   }
 
-  Future<int> runTrackerNow() async {
-    var changes = 0;
-    final selected = _tabsToUpdate.isEmpty
-        ? favorites
-        : favorites.where(
-            (record) => record.tabs.any(_tabsToUpdate.contains),
-          );
+  Future<int> runTrackerNow({bool notifyCompletion = false}) async {
+    final updatedTitles = <String>[];
+    final selected = (_tabsToUpdate.isEmpty
+            ? favorites
+            : favorites.where(
+                (record) => record.tabs.any(_tabsToUpdate.contains),
+              ))
+        .toList(growable: false);
     for (final record in selected) {
       final source =
           _sources.where((item) => item.id == record.sourceId).firstOrNull;
@@ -257,7 +263,9 @@ class AnimeLibraryController extends ChangeNotifier
         if (episodes.isEmpty) continue;
         final token = episodes.last.id;
         final previous = _latestEpisodeByAnime[record.key];
-        if (previous != null && previous != token) changes++;
+        if (previous != null && previous != token) {
+          updatedTitles.add(record.title);
+        }
         _latestEpisodeByAnime[record.key] = token;
       } catch (_) {
         // A failing source must not stop updates from the other sources.
@@ -265,8 +273,18 @@ class AnimeLibraryController extends ChangeNotifier
     }
     _trackerLastCheckedAt = DateTime.now();
     await _saveTrackerSettings();
+    if (updatedTitles.isNotEmpty) {
+      await _notifications.notifyAnimeUpdates(updatedTitles);
+    }
+    if (notifyCompletion) {
+      await _notifications.notifyTrackerCompleted(
+        mediaType: 'Anime',
+        checkedCount: selected.length,
+        updateCount: updatedTitles.length,
+      );
+    }
     notifyListeners();
-    return changes;
+    return updatedTitles.length;
   }
 
   Future<void> _loadTrackerSettings() async {

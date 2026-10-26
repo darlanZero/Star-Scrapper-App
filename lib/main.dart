@@ -1,6 +1,5 @@
 import 'package:desktop_webview_window/desktop_webview_window.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/application/playback/playback_preferences.dart';
@@ -13,25 +12,15 @@ import 'package:star_scrapper_app/pages/pages.dart';
 import 'package:star_scrapper_app/pages/settings_screen.dart';
 import 'package:star_scrapper_app/pages/tracker_homepage.dart';
 import 'package:star_scrapper_app/data/sources/source_catalog.dart';
+import 'package:star_scrapper_app/application/notifications/app_notification_service.dart';
 
-void main(List<String> args) {
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
-
+Future<void> main(List<String> args) async {
   if (runWebViewTitleBarWidget(args)) {
     return;
   }
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
-
-  const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-
-  final InitializationSettings initializationSettings = InitializationSettings(
-    android: initializationSettingsAndroid,
-  );
-
-  flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  await AppNotificationService.instance.initialize();
 
   runApp(
     MultiProvider(providers: [

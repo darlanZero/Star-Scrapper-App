@@ -6,6 +6,7 @@ import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/services/backup_service.dart';
 import 'package:star_scrapper_app/application/library/anime_library_controller.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
+import 'package:star_scrapper_app/application/notifications/app_notification_service.dart';
 
 class LibraryBackupRestoreScreen extends StatefulWidget {
   const LibraryBackupRestoreScreen({super.key});
@@ -18,6 +19,7 @@ class LibraryBackupRestoreScreen extends StatefulWidget {
 class _LibraryBackupRestoreScreenState
     extends State<LibraryBackupRestoreScreen> {
   final BackupService _backupService = BackupService();
+  final AppNotificationService _notifications = AppNotificationService.instance;
   List<FileSystemEntity> _backupFiles = [];
   bool _isBusy = false;
 
@@ -37,6 +39,7 @@ class _LibraryBackupRestoreScreenState
     setState(() => _isBusy = true);
     try {
       final path = await _backupService.createBackup();
+      await _notifications.notifyBackupCreated(_fileName(path));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Backup created in: $path')),
@@ -85,6 +88,7 @@ class _LibraryBackupRestoreScreenState
       await tabsState.reloadLibraryStructure();
       await fontProvider.refreshFromStorage();
       await animeLibrary.initialize();
+      await _notifications.notifyBackupRestored(_fileName(filePath));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Backup restored successfully.')),
@@ -98,6 +102,9 @@ class _LibraryBackupRestoreScreenState
       if (mounted) setState(() => _isBusy = false);
     }
   }
+
+  String _fileName(String filePath) =>
+      filePath.split(Platform.pathSeparator).last;
 
   Future<void> _deleteBackup(String filePath) async {
     await _backupService.deleteBackup(filePath);

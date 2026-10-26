@@ -94,6 +94,7 @@ void main() {
     expect(ids, contains('seita_celestial'));
     expect(ids, contains('luratoons'));
     expect(ids, contains('mediocrescan'));
+    expect(ids, contains('imperio_britannia'));
     expect(ids, contains('leitura_manga'));
     expect(ids, contains('hdoujin'));
   });
@@ -105,6 +106,18 @@ void main() {
 
     expect(source.languagePrefix, 'Pt-BR');
     expect(source.isRRated, isFalse);
+  });
+
+  test('Império da Britannia is a mixed PT-BR authenticated source', () {
+    final source = SourceCatalog.createAll().singleWhere(
+      (source) => source.id == 'imperio_britannia',
+    );
+
+    expect(source.languagePrefix, 'Pt-BR');
+    expect(source.isRRated, isFalse);
+    expect(source.api, isA<CredentialAuthMangaSource>());
+    expect(source.api, isA<BrowserSessionMangaSource>());
+    expect(source.api, isA<FilterableMangaSource>());
   });
 
   test('HDoujin is an All languages adult manga source', () {

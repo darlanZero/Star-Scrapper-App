@@ -108,15 +108,16 @@ class _LibraryItemsSettingsScreenState
     setState(() => runningNow = true);
     try {
       final changes = _library == _TrackedLibrary.manga
-          ? await context.read<FontProvider>().runTrackerNow().then((_) => null)
-          : await context.read<AnimeLibraryController>().runTrackerNow();
+          ? await context.read<FontProvider>().runTrackerNow()
+          : await context
+              .read<AnimeLibraryController>()
+              .runTrackerNow(notifyCompletion: true);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            changes == null
-                ? 'Manga tracker completed.'
-                : 'Anime tracker completed: $changes update(s).',
+            '${_library == _TrackedLibrary.manga ? 'Manga' : 'Anime'} '
+            'tracker completed: $changes update(s).',
           ),
         ),
       );

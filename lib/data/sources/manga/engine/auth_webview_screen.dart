@@ -302,6 +302,12 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
               }
             });
           }
+          ['token', 'access_token', 'refresh_token'].forEach(key => {
+            try {
+              const value = window.localStorage.getItem(key);
+              if (value) result[key] = value;
+            } catch (_) {}
+          });
           return JSON.stringify(result);
         })()
       ''';
@@ -334,6 +340,12 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
                 }
               });
             }
+            ['token', 'access_token', 'refresh_token'].forEach(key => {
+              try {
+                const value = window.localStorage.getItem(key);
+                if (value) result[key] = value;
+              } catch (_) {}
+            });
             return result;
           })()
         ''';

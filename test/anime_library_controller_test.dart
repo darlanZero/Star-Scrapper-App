@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/application/library/anime_library_controller.dart';
 import 'package:star_scrapper_app/domain/sources/anime_source.dart';
 import 'package:star_scrapper_app/application/library/library_organization_contracts.dart';
+import 'package:star_scrapper_app/application/notifications/app_notification_service.dart';
 
 class _FakeTabConfiguration implements LibraryTabConfiguration {
   @override
@@ -236,6 +237,36 @@ void main() {
     expect(controller.history.single.animeTitle, 'Anime One');
   });
 
+  test('notifies new episodes after the initial tracker baseline', () async {
+    final delivered = <AppNotificationChannel>[];
+    final notifications = AppNotificationService(
+      deliver: ({
+        required id,
+        required title,
+        required body,
+        required payload,
+        required channel,
+      }) async {
+        delivered.add(channel);
+      },
+    );
+    final source = _TrackerAnimeSource();
+    final controller = AnimeLibraryController(notifications: notifications);
+    controller.setSources([source]);
+    await controller.initialize();
+    await controller.toggleFavorite(sourceId: source.id, details: details);
+
+    expect(await controller.runTrackerNow(), 0);
+    expect(delivered, isEmpty);
+
+    source.latestEpisode = 2;
+    expect(await controller.runTrackerNow(notifyCompletion: true), 1);
+    expect(delivered, [
+      AppNotificationChannel.libraryUpdates,
+      AppNotificationChannel.tracker,
+    ]);
+  });
+
   test('renames and migrates a favorite with matched episode progress',
       () async {
     final controller = AnimeLibraryController();
@@ -278,4 +309,65 @@ void main() {
       const Duration(minutes: 5),
     );
   });
+}
+
+class _TrackerAnimeSource implements AnimeSource {
+  int latestEpisode = 1;
+
+  @override
+  String get id => 'source-1';
+
+  @override
+  String get name => 'Tracker source';
+
+  @override
+  Uri get baseUri => Uri.parse('https://example.com');
+
+  @override
+  Map<String, String> get requestHeaders => const {};
+
+  @override
+  List<AnimeCatalogFilter> get catalogFilters =>
+      const [AnimeCatalogFilter.recent];
+
+  @override
+  Future<AnimeCatalogPage> browse({
+    AnimeCatalogFilter filter = AnimeCatalogFilter.recent,
+    String? cursor,
+  }) async =>
+      AnimeCatalogPage(items: const []);
+
+  @override
+  Future<AnimeCatalogPage> search(String query, {String? cursor}) => browse();
+
+  @override
+  Future<AnimeDetails> getDetails(String animeId) async => AnimeDetails(
+        item: AnimeCatalogItem(id: animeId, title: 'Anime One'),
+      );
+
+  @override
+  Future<List<AnimeEpisode>> getEpisodes(String animeId) async => [
+        for (var number = 1; number <= latestEpisode; number++)
+          AnimeEpisode(
+            id: 'episode-$number',
+            animeId: animeId,
+            title: 'Episode $number',
+            number: number.toDouble(),
+          ),
+      ];
+
+  @override
+  Future<AnimePlayback> getPlayback({
+    required String animeId,
+    required String episodeId,
+  }) async =>
+      AnimePlayback(
+        streams: [
+          AnimeVideoStream(
+            uri: Uri.parse('https://example.com/video.mp4'),
+            protocol: VideoProtocol.progressive,
+            quality: '720p',
+          ),
+        ],
+      );
 }

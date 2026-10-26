@@ -7,7 +7,7 @@ import 'package:star_scrapper_app/application/library/library_organization_contr
 import 'package:star_scrapper_app/application/library/library_update_tracker.dart';
 import 'package:star_scrapper_app/application/library/reading_progress_controller.dart';
 import 'package:star_scrapper_app/application/library/tabs_state.dart';
-import 'package:star_scrapper_app/application/notifications/library_update_notifier.dart';
+import 'package:star_scrapper_app/application/notifications/app_notification_service.dart';
 import 'package:star_scrapper_app/application/sources/source_controller.dart';
 import 'package:star_scrapper_app/application/sources/anime_source_controller.dart';
 import 'package:star_scrapper_app/application/sources/source_health_monitor.dart';
@@ -28,10 +28,13 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
   late final LibraryOrganizer _libraryOrganizer;
   late final LibraryUpdateTracker _libraryUpdateTracker;
   late final ReadingProgressController _readingProgress;
-  final LibraryUpdateNotifier _libraryUpdateNotifier = LibraryUpdateNotifier();
+  final AppNotificationService _notifications;
   final LibraryStorage _libraryStorage = LibraryStorage();
 
-  FontProvider(TabsState tabsState) {
+  FontProvider(
+    TabsState tabsState, {
+    AppNotificationService? notifications,
+  }) : _notifications = notifications ?? AppNotificationService.instance {
     _libraryOrganizer = LibraryOrganizer(tabsState: tabsState);
     _readingProgress = ReadingProgressController(
       storage: _libraryStorage,
@@ -45,7 +48,9 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
     );
     _libraryUpdateTracker = LibraryUpdateTracker(onChanged: notifyListeners);
     _chapterUpdateScheduler = ChapterUpdateScheduler(
-      onRun: _updateLibraryBooks,
+      onRun: () async {
+        await _updateLibraryBooks();
+      },
       onChanged: notifyListeners,
     );
     _sourcesLoaded = Future.wait([
@@ -169,12 +174,19 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
     _libraryOrganizer.replaceBookPreservingOrganization(updatedBook);
   }
 
-  Future<void> _updateLibraryBooks() async {
-    if (!_chapterUpdateScheduler.enabled) return;
+  Future<int> _updateLibraryBooks({
+    bool notifyCompletion = false,
+    bool force = false,
+  }) async {
+    if (!_chapterUpdateScheduler.enabled && !force) return 0;
 
     final booksToTrack = <Map<String, dynamic>>[];
-    for (final tab in _chapterUpdateScheduler.tabs) {
-      booksToTrack.addAll(getBooksInTab(tab));
+    if (_chapterUpdateScheduler.tabs.isEmpty) {
+      booksToTrack.addAll(favoritedBooks);
+    } else {
+      for (final tab in _chapterUpdateScheduler.tabs) {
+        booksToTrack.addAll(getBooksInTab(tab));
+      }
     }
 
     final updatedBooks = await _libraryUpdateTracker.checkBooks(
@@ -192,14 +204,21 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
     await _readingProgress.saveSelectedChaptersSilently();
 
     if (updatedBooks.isNotEmpty) {
-      await _libraryUpdateNotifier.notifyUpdatedBooks(updatedBooks);
+      await _notifications.notifyMangaUpdates(updatedBooks);
+    }
+    if (notifyCompletion) {
+      await _notifications.notifyTrackerCompleted(
+        mediaType: 'Manga',
+        checkedCount: booksToTrack.map((book) => book['id']).toSet().length,
+        updateCount: updatedBooks.length,
+      );
     }
     notifyListeners();
+    return updatedBooks.length;
   }
 
-  Future<void> runTrackerNow() async {
-    await _updateLibraryBooks();
-  }
+  Future<int> runTrackerNow() =>
+      _updateLibraryBooks(notifyCompletion: true, force: true);
 
   //General Functions
 
