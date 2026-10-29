@@ -104,6 +104,7 @@ void main() {
     expect(ids, contains('leitura_manga'));
     expect(ids, contains('manga_livre'));
     expect(ids, contains('animy_manga'));
+    expect(ids, contains('yomu'));
     expect(ids, contains('hdoujin'));
   });
 
@@ -139,6 +140,17 @@ void main() {
     expect(source.api, isA<ReadingHistoryMangaSource>());
     expect(source.api, isA<FilterableMangaSource>());
     expect(source.api, isA<VariantCatalogMangaSource>());
+  });
+
+  test('Yomu is a mixed PT-BR browser-authenticated manga source', () {
+    final source = SourceCatalog.createAll().singleWhere(
+      (source) => source.id == 'yomu',
+    );
+
+    expect(source.languagePrefix, 'Pt-BR');
+    expect(source.isRRated, isFalse);
+    expect(source.api, isA<BrowserSessionMangaSource>());
+    expect(source.api, isA<FilterableMangaSource>());
   });
 
   test('Império da Britannia is a mixed PT-BR authenticated source', () {

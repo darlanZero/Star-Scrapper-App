@@ -19,14 +19,30 @@ abstract final class BrowserHtmlLoader {
     return operation;
   }
 
+  /// Loads a JavaScript-rendered page after walking through its lazy content.
+  ///
+  /// Readers such as Yomu only attach page image URLs when each page slot
+  /// approaches the viewport. A regular DOM snapshot therefore contains just
+  /// the first few pages. This variant asks the Android WebView driver to visit
+  /// every direct reader slot before returning the final HTML.
+  static Future<String> loadScrolled(Uri uri, String userAgent) {
+    final operation = _pending.then(
+      (_) => _loadNow(uri, userAgent, autoScroll: true),
+    );
+    _pending = operation.then<void>((_) {}, onError: (_) {});
+    return operation;
+  }
+
   static Future<String> _loadNow(
     Uri uri,
-    String userAgent,
-  ) async {
+    String userAgent, {
+    bool autoScroll = false,
+  }) async {
     final encoded = await _channel.invokeMethod<String>('loadHtml', {
       'url': uri.toString(),
       'userAgent': userAgent,
       'readySelector': _defaultReadySelector,
+      'autoScroll': autoScroll,
     });
     if (encoded == null || encoded.isEmpty) {
       throw StateError('The browser returned an empty page.');
@@ -115,11 +131,28 @@ abstract final class BrowserHtmlLoader {
   ) {
     return _readerPagesChannel
         .receiveBroadcastStream(<String, dynamic>{
+          'mode': 'blobFiles',
           'url': uri.toString(),
           'userAgent': userAgent,
           'pageCount': pageCount,
         })
         .map((event) => event?.toString() ?? '')
         .where((path) => path.isNotEmpty);
+  }
+
+  /// Streams lazy reader image URLs as soon as their slots are materialized.
+  ///
+  /// Unlike [loadScrolled], this does not wait for the complete DOM snapshot.
+  /// The native reader can start rendering the first pages while the offscreen
+  /// WebView continues walking the remaining placeholders.
+  static Stream<String> lazyReaderUrls(Uri uri, String userAgent) {
+    return _readerPagesChannel
+        .receiveBroadcastStream(<String, dynamic>{
+          'mode': 'lazyUrls',
+          'url': uri.toString(),
+          'userAgent': userAgent,
+        })
+        .map((event) => event?.toString() ?? '')
+        .where((url) => url.isNotEmpty);
   }
 }

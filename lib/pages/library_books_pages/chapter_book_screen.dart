@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:star_scrapper_app/domain/library/reader_progress.dart';
 import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
@@ -36,7 +38,8 @@ class ChapterBookScreen extends StatefulWidget {
   State<ChapterBookScreen> createState() => _ChapterBookScreenState();
 }
 
-class _ChapterBookScreenState extends State<ChapterBookScreen> {
+class _ChapterBookScreenState extends State<ChapterBookScreen>
+    with WidgetsBindingObserver {
   static const int _preloadWindowSize = 4;
 
   bool _showControls = false;
@@ -50,16 +53,21 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   StreamSubscription<MangaReaderPage>? _chapterImagesSubscription;
   bool _showWebView = false;
   bool _streamDone = false;
+  bool _streamCompletedSuccessfully = false;
   String? _readerError;
   flutter_webview.WebViewController? _androidWebViewController;
   int _webViewProgress = 0;
   String? _webViewError;
   Timer? _webViewReadinessTimer;
   int _webViewReadinessAttempts = 0;
-  int? _pendingRestorePage;
+  ReaderProgressPosition? _pendingRestorePosition;
+  double _currentPageFraction = 0;
+  double _chapterProgress = 0;
+  bool _restoringPosition = false;
   bool _recalcScheduled = false;
   bool _didRecordChapter = false;
   Timer? _controlsAutoHideTimer;
+  Timer? _progressSaveTimer;
 
   late PageController? _pageController;
   late ScrollController _scrollController;
@@ -71,6 +79,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _chapterWebViewUrl = widget.chapterWebViewUrl;
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
     _fontProvider = Provider.of<FontProvider>(context, listen: false);
@@ -83,12 +92,11 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
         _onScroll();
       });
       _pageController = PageController(
-          initialPage: _currentPage,
+          initialPage: _currentPage < _chapterImages.length ? _currentPage : 0,
           viewportFraction: _isPaginatedView ? 0.75 : 1.0);
       _pageController!.addListener(() {
-        setState(() {
-          _currentPage = _pageController!.page?.round() ?? 0;
-        });
+        final page = _pageController!.page?.round() ?? 0;
+        _updatePaginatedProgress(page);
       });
       _setControlsVisible(true);
       setState(() {});
@@ -100,7 +108,6 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
         .readChapter(mangaId: widget.mangaID, chapterId: widget.chapterId)
         .listen(
       (page) {
-        _recordChapterRead();
         final pageIndex = _chapterImages.length;
         setState(() {
           _chapterImages.add(page);
@@ -110,6 +117,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
           _preloadPagesAround(0);
         }
         _tryRestoreScrollPosition();
+        _scheduleScrollProgressRecalc();
       },
       onError: (Object error) {
         if (mounted) {
@@ -127,7 +135,14 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
         }
       },
       onDone: () {
-        if (mounted) setState(() => _streamDone = true);
+        if (mounted) {
+          setState(() {
+            _streamDone = true;
+            _streamCompletedSuccessfully = true;
+          });
+          _tryRestoreScrollPosition();
+          _scheduleScrollProgressRecalc();
+        }
         // Se a fonte não forneceu imagens (ex.: conteúdo protegido por DRM),
         // abre automaticamente a WebView com a URL do capítulo.
         if (_chapterImages.isEmpty &&
@@ -151,6 +166,8 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   void _recordChapterRead() {
     if (_didRecordChapter) return;
     _didRecordChapter = true;
+    _chapterProgress = 1;
+    _scheduleReadingProgressSave();
     unawaited(_fontProvider.saveSingleSelectedChapterId(
       widget.mangaID,
       widget.chapterId,
@@ -163,6 +180,37 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
     ));
   }
 
+  void _maybeRecordChapterRead() {
+    if (_didRecordChapter || _chapterImages.isEmpty) return;
+    final position =
+        _scrollController.hasClients ? _scrollController.position : null;
+    final completed = readerReachedCompletion(
+      mode: _readerLayoutMode,
+      streamDone: _streamCompletedSuccessfully,
+      currentPage: _currentPage,
+      pageCount: _chapterImages.length,
+      extentAfter: position?.extentAfter ?? double.infinity,
+      viewportDimension: position?.viewportDimension ?? 0,
+    );
+    if (completed) _recordChapterRead();
+  }
+
+  void _updatePaginatedProgress(int page) {
+    if (!mounted || _chapterImages.isEmpty || !_isPaginatedView) return;
+    final safePage = page.clamp(0, _chapterImages.length - 1);
+    final progress = (safePage + 1) / _chapterImages.length;
+    if (safePage != _currentPage || _chapterProgress != progress) {
+      setState(() {
+        _currentPage = safePage;
+        _currentPageFraction = 0;
+        _chapterProgress = progress;
+      });
+      _preloadPagesAround(safePage);
+      _scheduleReadingProgressSave();
+    }
+    _maybeRecordChapterRead();
+  }
+
   Future<void> _retryNativeReader() async {
     await _chapterImagesSubscription?.cancel();
     if (!mounted) return;
@@ -173,6 +221,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
       _preloadingPageIndexes.clear();
       _readerError = null;
       _streamDone = false;
+      _streamCompletedSuccessfully = false;
     });
     await _loadChapterImages();
   }
@@ -364,7 +413,19 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   }
 
   Widget _buildPageImage(MangaReaderPage page, {BoxFit fit = BoxFit.contain}) {
-    return Image(image: _imageProvider(page), fit: fit);
+    return Image(
+      image: _imageProvider(page),
+      fit: fit,
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (frame != null || wasSynchronouslyLoaded) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _tryRestoreScrollPosition();
+            _scheduleScrollProgressRecalc();
+          });
+        }
+        return child;
+      },
+    );
   }
 
   ImageProvider<Object> _imageProvider(MangaReaderPage page) {
@@ -447,27 +508,83 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controlsAutoHideTimer?.cancel();
+    _progressSaveTimer?.cancel();
     _webViewReadinessTimer?.cancel();
-    _saveReadingProgress();
+    unawaited(_saveReadingProgress());
     _scrollController.dispose();
     _pageController?.dispose();
     _chapterImagesSubscription?.cancel();
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      unawaited(_saveReadingProgress());
+    }
+  }
+
   Future<void> _loadReadingProgress() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedPage = prefs.getInt('reading_progress_${widget.chapterId}') ?? 0;
-    _pendingRestorePage = savedPage;
+    ReaderProgressPosition? position;
+    final encoded = prefs.getString(_readingProgressKey);
+    if (encoded != null) {
+      try {
+        final decoded = jsonDecode(encoded);
+        if (decoded is Map) {
+          position = ReaderProgressPosition.fromJson(decoded);
+        }
+      } catch (_) {
+        // Fall through to the legacy page-only position.
+      }
+    }
+    position ??= ReaderProgressPosition(
+      pageIndex: prefs.getInt('reading_progress_${widget.chapterId}') ?? 0,
+      pageFraction: 0,
+      chapterFraction: 0,
+      mode: ReaderLayoutMode.webtoon,
+    );
+    _pendingRestorePosition = position;
     setState(() {
-      _currentPage = savedPage;
+      _currentPage = position!.pageIndex;
+      _currentPageFraction = position.pageFraction;
+      _chapterProgress = position.chapterFraction;
+      _isPaginatedView = position.mode == ReaderLayoutMode.paginated;
+      _didRecordChapter = position.completed;
     });
   }
 
   Future<void> _saveReadingProgress() async {
     final prefs = await SharedPreferences.getInstance();
-    prefs.setInt('reading_progress_${widget.chapterId}', _currentPage);
+    final position = ReaderProgressPosition(
+      pageIndex: _currentPage,
+      pageFraction: _currentPageFraction,
+      chapterFraction: _chapterProgress,
+      mode: _readerLayoutMode,
+      completed: _didRecordChapter,
+    );
+    await prefs.setString(_readingProgressKey, jsonEncode(position.toJson()));
+  }
+
+  String get _readingProgressKey => readerProgressStorageKey(
+        sourceId: _activeScrapper.id,
+        mangaId: widget.mangaID,
+        chapterId: widget.chapterId,
+      );
+
+  ReaderLayoutMode get _readerLayoutMode =>
+      _isPaginatedView ? ReaderLayoutMode.paginated : ReaderLayoutMode.webtoon;
+
+  void _scheduleReadingProgressSave() {
+    _progressSaveTimer?.cancel();
+    _progressSaveTimer = Timer(
+      const Duration(milliseconds: 400),
+      () => unawaited(_saveReadingProgress()),
+    );
   }
 
   void _onScroll() {
@@ -485,11 +602,18 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   }
 
   void _recalculateCurrentPageFromViewport() {
-    if (!mounted || _chapterImages.isEmpty || _isPaginatedView) return;
+    if (!mounted ||
+        _chapterImages.isEmpty ||
+        _isPaginatedView ||
+        _restoringPosition ||
+        _pendingRestorePosition != null) {
+      return;
+    }
 
     final viewportHeight = MediaQuery.of(context).size.height;
     final probeY = viewportHeight * 0.35;
     int bestIndex = _currentPage.clamp(0, _chapterImages.length - 1).toInt();
+    double bestFraction = _currentPageFraction;
     double bestDistance = double.infinity;
 
     for (var i = 0; i < _imageItemKeys.length; i++) {
@@ -499,49 +623,135 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
       if (render is! RenderBox) continue;
 
       final top = render.localToGlobal(Offset.zero).dy;
-      final center = top + (render.size.height / 2);
+      final height = render.size.height;
+      if (height <= 0) continue;
+      final bottom = top + height;
+      if (probeY >= top && probeY <= bottom) {
+        bestIndex = i;
+        bestFraction = ((probeY - top) / height).clamp(0.0, 1.0);
+        bestDistance = 0;
+        break;
+      }
+      final center = top + (height / 2);
       final distance = (center - probeY).abs();
       if (distance < bestDistance) {
         bestDistance = distance;
         bestIndex = i;
+        bestFraction = ((probeY - top) / height).clamp(0.0, 1.0);
       }
     }
 
-    if (bestIndex != _currentPage) {
+    final scrollPosition =
+        _scrollController.hasClients ? _scrollController.position : null;
+    final chapterFraction = scrollPosition == null
+        ? _chapterProgress
+        : normalizedReaderScrollProgress(
+            pixels: scrollPosition.pixels,
+            maxScrollExtent: scrollPosition.maxScrollExtent,
+          );
+    if (bestIndex != _currentPage ||
+        (bestFraction - _currentPageFraction).abs() >= 0.002 ||
+        (chapterFraction - _chapterProgress).abs() >= 0.002) {
       setState(() {
         _currentPage = bestIndex;
+        _currentPageFraction = bestFraction;
+        _chapterProgress = chapterFraction;
       });
       _preloadPagesAround(bestIndex);
+      _scheduleReadingProgressSave();
     }
+    _maybeRecordChapterRead();
   }
 
   void _tryRestoreScrollPosition() {
-    if (_isPaginatedView || _pendingRestorePage == null) return;
-    final target = _pendingRestorePage!;
-    if (target < 0 || target >= _imageItemKeys.length) return;
+    final saved = _pendingRestorePosition;
+    if (saved == null || _chapterImages.isEmpty) return;
+    if (saved.pageIndex >= _chapterImages.length && !_streamDone) {
+      if (!_isPaginatedView && _scrollController.hasClients) {
+        final position = _scrollController.position;
+        _restoringPosition = true;
+        _scrollController.jumpTo(
+          (position.maxScrollExtent * saved.chapterFraction)
+              .clamp(0.0, position.maxScrollExtent),
+        );
+        _restoringPosition = false;
+      }
+      return;
+    }
+    final target = saved.pageIndex.clamp(0, _chapterImages.length - 1);
+
+    if (_isPaginatedView) {
+      if (_pageController?.hasClients == true) {
+        _pageController!.jumpToPage(target);
+        _pendingRestorePosition = null;
+      }
+      return;
+    }
+    if (!_scrollController.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _tryRestoreScrollPosition(),
+      );
+      return;
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _pendingRestorePage == null) return;
+      if (!mounted || _pendingRestorePosition == null) return;
       final targetContext = _imageItemKeys[target].currentContext;
-      if (targetContext == null) return;
-
-      Scrollable.ensureVisible(
-        targetContext,
-        duration: Duration.zero,
-        alignment: 0,
-      );
+      if (targetContext == null) {
+        final position = _scrollController.position;
+        final approximate = position.maxScrollExtent * saved.chapterFraction;
+        _restoringPosition = true;
+        _scrollController.jumpTo(
+          approximate.clamp(0.0, position.maxScrollExtent),
+        );
+        _restoringPosition = false;
+        return;
+      }
+      final render = targetContext.findRenderObject();
+      if (render is! RenderBox || render.size.height <= 0) return;
+      final probeY = MediaQuery.of(context).size.height * 0.35;
+      final targetY = render.localToGlobal(Offset.zero).dy +
+          render.size.height * saved.pageFraction;
+      final position = _scrollController.position;
+      final destination = (position.pixels + targetY - probeY)
+          .clamp(0.0, position.maxScrollExtent);
+      _restoringPosition = true;
+      _scrollController.jumpTo(destination);
+      _restoringPosition = false;
+      setState(() {
+        _currentPage = target;
+        _currentPageFraction = saved.pageFraction;
+        _chapterProgress = saved.chapterFraction;
+      });
       _preloadPagesAround(target);
-      _pendingRestorePage = null;
+      _pendingRestorePosition = null;
     });
   }
 
   void _toggleView() {
+    _setReaderMode(!_isPaginatedView);
+  }
+
+  void _setReaderMode(bool paginated) {
+    if (_isPaginatedView == paginated) return;
+    final resume = ReaderProgressPosition(
+      pageIndex: _currentPage,
+      pageFraction: _currentPageFraction,
+      chapterFraction: _chapterProgress,
+      mode: paginated ? ReaderLayoutMode.paginated : ReaderLayoutMode.webtoon,
+      completed: _didRecordChapter,
+    );
     setState(() {
-      _isPaginatedView = !_isPaginatedView;
+      _isPaginatedView = paginated;
+      _pendingRestorePosition = resume;
       _pageController?.dispose();
       _pageController =
           PageController(initialPage: _currentPage, viewportFraction: 1.0);
     });
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _tryRestoreScrollPosition(),
+    );
+    _scheduleReadingProgressSave();
     _scheduleControlsAutoHide();
   }
 
@@ -566,7 +776,14 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
   Future<void> _jumpToPage(int target) async {
     if (_chapterImages.isEmpty) return;
     final index = target.clamp(0, _chapterImages.length - 1);
-    setState(() => _currentPage = index);
+    if (_isPaginatedView) {
+      _updatePaginatedProgress(index);
+    } else {
+      setState(() {
+        _currentPage = index;
+        _currentPageFraction = 0;
+      });
+    }
     _preloadPagesAround(index);
 
     if (_isPaginatedView) {
@@ -582,8 +799,19 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
           curve: Curves.easeOut,
           alignment: 0,
         );
+        _scheduleScrollProgressRecalc();
       }
     }
+  }
+
+  void _jumpToChapterProgress(double value) {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    _scrollController.jumpTo(
+      (position.maxScrollExtent * value.clamp(0.0, 1.0))
+          .clamp(0.0, position.maxScrollExtent),
+    );
+    _scheduleScrollProgressRecalc();
   }
 
   void _showReaderPreferences() {
@@ -627,13 +855,8 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                     SwitchListTile(
                       value: _isPaginatedView,
                       onChanged: (v) {
-                        setModalState(() => _isPaginatedView = v);
-                        setState(() {
-                          _isPaginatedView = v;
-                          _pageController?.dispose();
-                          _pageController = PageController(
-                              initialPage: _currentPage, viewportFraction: 1.0);
-                        });
+                        _setReaderMode(v);
+                        setModalState(() {});
                       },
                       contentPadding: EdgeInsets.zero,
                       title: Text('Paginated mode',
@@ -888,10 +1111,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                         child: _isPaginatedView
                             ? PageView.builder(
                                 onPageChanged: (index) {
-                                  setState(() {
-                                    _currentPage = index;
-                                  });
-                                  _preloadPagesAround(index);
+                                  _updatePaginatedProgress(index);
                                   _scheduleControlsAutoHide();
                                 },
                                 reverse: _reverseReading,
@@ -925,7 +1145,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
           ? FloatingActionButton(
               onPressed: () async {
                 await _saveReadingProgress();
-                if (!mounted) return;
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Reading progress saved'),
@@ -953,7 +1173,8 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (_chapterImages.length > 1)
+                          if ((_isPaginatedView && _chapterImages.length > 1) ||
+                              (!_isPaginatedView && _chapterImages.isNotEmpty))
                             SliderTheme(
                               data: SliderTheme.of(context).copyWith(
                                 activeTrackColor: colors.primary,
@@ -965,12 +1186,18 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                                 trackHeight: 3,
                               ),
                               child: Slider(
-                                value: _currentPage
-                                    .clamp(0, _chapterImages.length - 1)
-                                    .toDouble(),
+                                value: _isPaginatedView
+                                    ? _currentPage
+                                        .clamp(0, _chapterImages.length - 1)
+                                        .toDouble()
+                                    : _chapterProgress.clamp(0.0, 1.0),
                                 min: 0,
-                                max: (_chapterImages.length - 1).toDouble(),
-                                onChanged: (v) => _jumpToPage(v.round()),
+                                max: _isPaginatedView
+                                    ? (_chapterImages.length - 1).toDouble()
+                                    : 1,
+                                onChanged: _isPaginatedView
+                                    ? (v) => _jumpToPage(v.round())
+                                    : _jumpToChapterProgress,
                               ),
                             ),
                           Padding(
@@ -984,7 +1211,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen> {
                                   onPressed: () => _openAdjacentChapter(false),
                                 ),
                                 Text(
-                                  '${_chapterImages.isEmpty ? 0 : _currentPage + 1}/${_chapterImages.length} • ${_chapterImages.isEmpty ? 0 : (((_currentPage + 1) / _chapterImages.length) * 100).round()}%',
+                                  '${(_chapterProgress * 100).round()}% • ${_chapterImages.isEmpty ? 0 : _currentPage + 1}/${_chapterImages.length}',
                                   style: TextStyle(
                                     color: colors.onSurfaceVariant,
                                     fontWeight: FontWeight.bold,

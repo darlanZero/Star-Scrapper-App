@@ -68,6 +68,7 @@ class MainActivity: FlutterActivity() {
                     url = call.argument<String>("url"),
                     userAgent = call.argument<String>("userAgent"),
                     readySelector = call.argument<String>("readySelector"),
+                    autoScroll = call.argument<Boolean>("autoScroll") ?: false,
                     result = result,
                 )
                 "loadImage" -> loadImageInWebView(
@@ -100,12 +101,20 @@ class MainActivity: FlutterActivity() {
         ).setStreamHandler(object : EventChannel.StreamHandler {
             override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
                 val args = arguments as? Map<*, *>
-                startReaderStream(
-                    url = args?.get("url") as? String,
-                    userAgent = args?.get("userAgent") as? String,
-                    pageCount = (args?.get("pageCount") as? Int) ?: 0,
-                    events = events,
-                )
+                if (args?.get("mode") == "lazyUrls") {
+                    startLazyReaderUrlStream(
+                        url = args["url"] as? String,
+                        userAgent = args["userAgent"] as? String,
+                        events = events,
+                    )
+                } else {
+                    startReaderStream(
+                        url = args?.get("url") as? String,
+                        userAgent = args?.get("userAgent") as? String,
+                        pageCount = (args?.get("pageCount") as? Int) ?: 0,
+                        events = events,
+                    )
+                }
             }
 
             override fun onCancel(arguments: Any?) {
@@ -421,6 +430,7 @@ class MainActivity: FlutterActivity() {
         url: String?,
         userAgent: String?,
         readySelector: String?,
+        autoScroll: Boolean,
         result: MethodChannel.Result,
     ) {
         if (url.isNullOrBlank()) {
@@ -429,10 +439,23 @@ class MainActivity: FlutterActivity() {
         }
         val handler = Handler(Looper.getMainLooper())
         val webView = WebView(this)
-        val layoutParams = FrameLayout.LayoutParams(1, 1)
+        // Lazy readers size placeholders from the viewport and commonly use
+        // IntersectionObserver to materialize the next image. A 1x1 WebView
+        // collapses those placeholders and may expose only the first batch.
+        val viewportWidth = if (autoScroll) {
+            resources.displayMetrics.widthPixels.coerceAtLeast(360)
+        } else {
+            1
+        }
+        val viewportHeight = if (autoScroll) {
+            resources.displayMetrics.heightPixels.coerceAtLeast(640)
+        } else {
+            1
+        }
+        val layoutParams = FrameLayout.LayoutParams(viewportWidth, viewportHeight)
         webView.alpha = 0.01f
-        webView.translationX = -10f
-        webView.translationY = -10f
+        webView.translationX = -(viewportWidth * 2).toFloat()
+        webView.translationY = -(viewportHeight * 2).toFloat()
         addContentView(webView, layoutParams)
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
@@ -456,6 +479,68 @@ class MainActivity: FlutterActivity() {
                 dispose()
             }
         }
+        fun scrollLazyContent() {
+            webView.evaluateJavascript(
+                """
+                (() => {
+                  if (window.__starsLazyWalkStarted) return;
+                  window.__starsLazyWalkStarted = true;
+                  window.__starsLazyWalkDone = false;
+                  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+                  (async () => {
+                    const slotSelector =
+                      'main > div:first-child > div.w-full.flex.justify-center';
+                    const loadedReaderImages = () => Array.from(
+                      document.querySelectorAll(slotSelector + ' img[alt^="Página"]')
+                    ).filter(image => image.currentSrc || image.getAttribute('src')).length;
+                    let readerSlots = Array.from(document.querySelectorAll(slotSelector));
+                    if (readerSlots.length > 0) {
+                      // React replaces each placeholder as it enters the
+                      // observer area, so re-query on every step instead of
+                      // walking a stale NodeList captured before lazy loading.
+                      for (let pass = 0; pass < 4; pass++) {
+                        readerSlots = Array.from(document.querySelectorAll(slotSelector));
+                        for (let index = 0; index < readerSlots.length; index++) {
+                          const liveSlots = Array.from(
+                            document.querySelectorAll(slotSelector)
+                          );
+                          const slot = liveSlots[index];
+                          if (!slot) continue;
+                          const image = slot.querySelector('img[alt^="Página"]');
+                          if (image && (image.currentSrc || image.getAttribute('src'))) {
+                            continue;
+                          }
+                          slot.scrollIntoView({block: 'center'});
+                          await sleep(550);
+                        }
+                        const expected = document.querySelectorAll(slotSelector).length;
+                        if (expected > 0 && loadedReaderImages() >= expected) break;
+                      }
+                    } else {
+                      let previousHeight = 0;
+                      let stable = 0;
+                      while (stable < 3) {
+                        window.scrollBy(0, Math.max(window.innerHeight * 0.8, 600));
+                        await sleep(350);
+                        const height = document.documentElement.scrollHeight;
+                        stable = height === previousHeight &&
+                          window.scrollY + window.innerHeight >= height - 8
+                            ? stable + 1
+                            : 0;
+                        previousHeight = height;
+                      }
+                    }
+                    // Give the final observer callbacks and React render a
+                    // chance to replace the last placeholders before taking
+                    // the DOM snapshot.
+                    await sleep(1200);
+                    window.scrollTo(0, 0);
+                    window.__starsLazyWalkDone = true;
+                  })().catch(() => { window.__starsLazyWalkDone = true; });
+                })()
+                """.trimIndent(),
+            ) { }
+        }
         fun probe() {
             if (finished) return
             val selector = JSONObject.quote(readySelector ?: "main, body")
@@ -463,13 +548,28 @@ class MainActivity: FlutterActivity() {
                 "Boolean(document.querySelector($selector))",
             ) { ready ->
                 if (finished) return@evaluateJavascript
-                if (ready == "true") handler.postDelayed({ finishWithHtml() }, 500)
-                else handler.postDelayed({ probe() }, 500)
+                if (ready == "true") {
+                    if (!autoScroll) {
+                        handler.postDelayed({ finishWithHtml() }, 500)
+                    } else {
+                        scrollLazyContent()
+                        fun waitForScroll() {
+                            if (finished) return
+                            webView.evaluateJavascript(
+                                "Boolean(window.__starsLazyWalkDone)",
+                            ) { done ->
+                                if (done == "true") finishWithHtml()
+                                else handler.postDelayed({ waitForScroll() }, 400)
+                            }
+                        }
+                        handler.postDelayed({ waitForScroll() }, 500)
+                    }
+                } else handler.postDelayed({ probe() }, 500)
             }
         }
 
         val timeout = Runnable { finishWithHtml() }
-        handler.postDelayed(timeout, 20_000)
+        handler.postDelayed(timeout, if (autoScroll) 60_000 else 20_000)
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, loadedUrl: String?) {
                 handler.postDelayed({ probe() }, 350)
@@ -572,6 +672,192 @@ class MainActivity: FlutterActivity() {
             webView.stopLoading()
             webView.destroy()
         }
+    }
+
+    /**
+     * Walks a slot-based lazy reader and emits each remote image URL as soon
+     * as the frontend attaches it. The Dart side can therefore render the
+     * first pages while this offscreen WebView keeps materializing the rest.
+     */
+    private fun startLazyReaderUrlStream(
+        url: String?,
+        userAgent: String?,
+        events: EventChannel.EventSink?,
+    ) {
+        if (events == null) return
+        if (url.isNullOrBlank()) {
+            events.error("invalid_url", "A URL is required.", null)
+            events.endOfStream()
+            return
+        }
+        stopReaderStream()
+        readerActive = true
+
+        val webView = WebView(this)
+        readerWebView = webView
+        val viewportWidth = resources.displayMetrics.widthPixels.coerceAtLeast(360)
+        val viewportHeight = resources.displayMetrics.heightPixels.coerceAtLeast(640)
+        val layoutParams = FrameLayout.LayoutParams(viewportWidth, viewportHeight)
+        webView.alpha = 0.01f
+        webView.translationX = -(viewportWidth * 2).toFloat()
+        webView.translationY = -(viewportHeight * 2).toFloat()
+        addContentView(webView, layoutParams)
+        webView.settings.javaScriptEnabled = true
+        webView.settings.domStorageEnabled = true
+        webView.settings.loadsImagesAutomatically = true
+        if (!userAgent.isNullOrBlank()) webView.settings.userAgentString = userAgent
+        CookieManager.getInstance().setAcceptCookie(true)
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
+        CookieManager.getInstance().flush()
+
+        var emitted = 0
+        fun finish() {
+            if (!readerActive) return
+            readerActive = false
+            events.endOfStream()
+            stopReaderStream()
+        }
+        readerHandler.postDelayed({ finish() }, 120_000L)
+
+        val driver = """
+            (function(){
+              if (window.__starsLazyReader) return;
+              var state = window.__starsLazyReader = {
+                urls: [], drained: 0, expected: 0, done: false, error: null
+              };
+              var selector =
+                'main > div:first-child > div.w-full.flex.justify-center';
+              function sleep(ms){
+                return new Promise(function(resolve){ setTimeout(resolve, ms); });
+              }
+              function imageUrl(slot){
+                var image = slot && slot.querySelector('img[alt^="Página"]');
+                return image && (image.currentSrc || image.getAttribute('src'));
+              }
+              function capture(){
+                var slots = Array.from(document.querySelectorAll(selector));
+                state.expected = Math.max(state.expected, slots.length);
+                slots.forEach(function(slot, index){
+                  var src = imageUrl(slot);
+                  if (src && !state.urls[index]) state.urls[index] = src;
+                });
+                return slots;
+              }
+              function waitForSlots(){
+                var started = Date.now();
+                return (function check(){
+                  var slots = capture();
+                  if (slots.length) return Promise.resolve(slots);
+                  if (Date.now() - started > 25000) return Promise.resolve([]);
+                  return sleep(250).then(check);
+                })();
+              }
+              function materialize(index){
+                var attempts = 0;
+                return (function check(){
+                  var slots = capture();
+                  if (state.urls[index]) return Promise.resolve(true);
+                  var slot = slots[index];
+                  if (!slot || attempts++ >= 32) return Promise.resolve(false);
+                  slot.scrollIntoView({block: 'center'});
+                  return sleep(250).then(check);
+                })();
+              }
+              waitForSlots().then(function(slots){
+                if (!slots.length) throw new Error('Reader slots were not found.');
+                var pass = 0;
+                return (function walk(){
+                  capture();
+                  var index = 0;
+                  return (function next(){
+                    var current = capture();
+                    if (index >= current.length) return Promise.resolve();
+                    var target = index++;
+                    return materialize(target).then(next);
+                  })().then(function(){
+                    capture();
+                    var complete = state.expected > 0;
+                    for (var i = 0; i < state.expected; i++) {
+                      if (!state.urls[i]) { complete = false; break; }
+                    }
+                    if (complete || ++pass >= 4) return;
+                    return sleep(600).then(walk);
+                  });
+                })();
+              }).then(function(){
+                window.scrollTo(0, 0);
+                state.done = true;
+              }).catch(function(error){
+                state.error = String((error && error.message) || error);
+                state.done = true;
+              });
+            })();
+        """.trimIndent()
+
+        val drainJs = """
+            (function(){
+              var state = window.__starsLazyReader;
+              if (!state) return JSON.stringify({ready:false});
+              var url = state.urls[state.drained];
+              if (url) {
+                state.urls[state.drained] = null;
+                state.drained += 1;
+                return JSON.stringify({ready:true, url:url, done:state.done});
+              }
+              return JSON.stringify({
+                ready:true, url:null, done:state.done, error:state.error,
+                loaded:state.drained, expected:state.expected
+              });
+            })()
+        """.trimIndent()
+
+        fun poll() {
+            if (!readerActive) return
+            val view = readerWebView ?: return
+            view.evaluateJavascript(drainJs) { encoded ->
+                if (!readerActive) return@evaluateJavascript
+                val payload = try {
+                    if (encoded == null || encoded == "null") null
+                    else JSONObject(JSONObject("{\"v\":$encoded}").getString("v"))
+                } catch (_: Exception) {
+                    null
+                }
+                if (payload == null) {
+                    readerHandler.postDelayed({ poll() }, 200)
+                    return@evaluateJavascript
+                }
+                val pageUrl = if (payload.isNull("url")) null else payload.optString("url")
+                if (!pageUrl.isNullOrBlank()) {
+                    emitted += 1
+                    events.success(pageUrl)
+                    readerHandler.post { poll() }
+                } else if (payload.optBoolean("done", false)) {
+                    if (emitted == 0 && payload.has("error")) {
+                        events.error(
+                            "reader_failed",
+                            payload.optString("error", "The reader exposed no pages."),
+                            null,
+                        )
+                    }
+                    finish()
+                } else {
+                    readerHandler.postDelayed({ poll() }, 200)
+                }
+            }
+        }
+
+        var polling = false
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, loadedUrl: String?) {
+                if (!readerActive) return
+                webView.evaluateJavascript(driver, null)
+                if (!polling) {
+                    polling = true
+                    readerHandler.postDelayed({ poll() }, 350)
+                }
+            }
+        }
+        webView.loadUrl(url)
     }
 
     /**

@@ -17,6 +17,7 @@ import 'package:star_scrapper_app/data/sources/manga/nexus_toons_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/leitura_manga_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/manga_livre_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/animy_manga_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/yomu_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/hdoujin_source.dart';
 import 'package:star_scrapper_app/infrastructure/webview/browser_html_loader.dart';
 
@@ -52,6 +53,11 @@ abstract final class SourceCatalog {
         LeituraMangaSource(),
         MangaLivreSource(),
         AnimyMangaSource(),
+        YomuSource(
+          browserHtmlLoader: BrowserHtmlLoader.load,
+          scrolledHtmlLoader: BrowserHtmlLoader.loadScrolled,
+          readerPageLoader: BrowserHtmlLoader.lazyReaderUrls,
+        ),
         HDoujinSource(),
       ];
 
@@ -173,6 +179,23 @@ abstract final class SourceCatalog {
           api: AnimyMangaSource(),
           contentType: SourceContentType.manga,
           // Catálogo misto: conteúdo adulto é filtrável, não é o foco da source.
+          isRRated: false,
+        ),
+        Fonte(
+          id: 'yomu',
+          image: 'https://yomu.com.br/favicon.ico',
+          name: 'Yomu',
+          languagePrefix: 'Pt-BR',
+          flags: [
+            'https://cdn.countryflags.com/thumbs/brazil/flag-3d-250.png',
+          ],
+          api: YomuSource(
+            browserHtmlLoader: BrowserHtmlLoader.load,
+            scrolledHtmlLoader: BrowserHtmlLoader.loadScrolled,
+            readerPageLoader: BrowserHtmlLoader.lazyReaderUrls,
+          ),
+          contentType: SourceContentType.manga,
+          // Catálogo misto; os formatos adultos ficam separados nos filtros.
           isRRated: false,
         ),
         Fonte(
