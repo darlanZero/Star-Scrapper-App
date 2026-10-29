@@ -101,12 +101,15 @@ void main() {
     expect(details.item.coverUri?.host, 'cdn.yomu.com.br');
     expect(details.author, 'Autora Teste');
     expect(details.artist, 'Artista Teste');
+    expect(details.description, startsWith('Uma sinopse real'));
     expect(details.status, MangaStatus.ongoing);
     expect(details.genres, containsAll(['Drama', 'Fantasia']));
     expect(details.chapters.map((chapter) => chapter.id), [
       'obra-yomu|1',
       'obra-yomu|2',
     ]);
+    expect(details.chapters.first.title, isEmpty);
+    expect(details.chapters.first.publishedAt, '2026-10-20T00:00:00.000Z');
     expect(
         await source.nextChapterId('obra-yomu', 'obra-yomu|1'), 'obra-yomu|2');
 
@@ -131,6 +134,29 @@ void main() {
     final restored = YomuSource();
     await restored.restoreSession();
     expect(restored.isAuthenticated, isTrue);
+  });
+
+  test('Yomu rejects a stale detail page and retries the requested slug',
+      () async {
+    var detailLoads = 0;
+    final source = YomuSource(
+      client: MockClient((request) async {
+        if (request.url.path == '/api/genres') return _json([]);
+        return http.Response('forbidden', 403);
+      }),
+      browserHtmlLoader: (uri, userAgent) async {
+        if (uri.path == '/api/genres') return '<pre>[]</pre>';
+        detailLoads++;
+        if (detailLoads == 1) {
+          return '''<main><h1>Outra obra</h1><a href="/ler/outra-obra/1">Ler</a></main>''';
+        }
+        return _detailsHtml;
+      },
+    );
+
+    final details = await source.getDetails('obra-yomu');
+    expect(detailLoads, 2);
+    expect(details.item.title, 'Obra Yomu');
   });
 
   test('Yomu yields lazy reader URLs progressively', () async {
@@ -177,10 +203,13 @@ const _detailsHtml = '''
   <h1>Obra Yomu</h1>
   <div><span>Autor</span><span>Autora Teste</span></div>
   <div><span>Artista</span><span>Artista Teste</span></div>
-  <p>Uma descrição suficientemente longa para representar a sinopse principal da obra Yomu sem confundir com outros textos menores.</p>
+  <div class="whitespace-pre-wrap">Uma sinopse real suficientemente longa para representar a descrição principal da obra Yomu sem confundir com textos promocionais.</div>
+  <p>Adicione os links do MangaUpdates e do MyAnimeList para essa obra. Você ganha 1 Moeda por cada link inserido!</p>
   <div>Avaliação 9.4 / 10</div>
-  <a href="/ler/obra-yomu/2"><span title="CAPÍTULO 2">CAPÍTULO 2</span><span>Yomu</span><span>28/10/2026</span></a>
-  <a href="/ler/obra-yomu/1"><span title="CAPÍTULO 1">CAPÍTULO 1</span><span>Yomu</span><span>20/10/2026</span></a>
+  <div role="tabpanel">
+    <a href="/ler/obra-yomu/2"><span title="CAPÍTULO 2">CAPÍTULO 2</span><span>Yomu</span><span>28/10/2026</span></a>
+    <a href="/ler/obra-yomu/1"><span title="CAPÍTULO 1">CAPÍTULO 1</span><span>Yomu</span><span>20/10/2026</span></a>
+  </div>
 </main></body></html>
 ''';
 

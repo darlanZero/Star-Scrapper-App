@@ -268,17 +268,22 @@ class YomuSource
       );
     }
 
-    final cover = document
-        .querySelectorAll('main img')
-        .map((image) => image.attributes['src'] ?? '')
-        .firstWhere(
-          (src) =>
-              src.contains('cdn.yomu.com.br/obras/') && src.contains('/capa/'),
-          orElse: () => '',
-        );
+    final detailImages = document.querySelectorAll('main img');
+    final coverElement = detailImages.firstWhere(
+      (image) => _textAttribute(image, 'alt') == title,
+      orElse: () => detailImages.firstWhere(
+        (image) {
+          final src = image.attributes['src'] ?? '';
+          return src.contains('/capa/') || src.contains('/uploads/media/');
+        },
+        orElse: () => Element.tag('img'),
+      ),
+    );
+    final cover = coverElement.attributes['src'] ?? '';
     final chapters = <MangaChapter>[];
     final seen = <String>{};
-    for (final anchor in document.querySelectorAll('main a[href*="/ler/"]')) {
+    for (final anchor in document
+        .querySelectorAll('main [role="tabpanel"] a[href*="/ler/"]')) {
       final href = anchor.attributes['href'] ?? '';
       final parsed = Uri.tryParse(href);
       final segments =
@@ -287,10 +292,10 @@ class YomuSource
       if (segments.length < 3 || segments[0] != 'ler') continue;
       final number = segments.last;
       if (!seen.add(number)) continue;
-      final label = _text(anchor.querySelector('span[title]'));
+      final label = _chapterTitle(anchor, number);
       chapters.add(MangaChapter(
         id: '$slug|$number',
-        title: label.isEmpty ? 'Capítulo $number' : label,
+        title: label,
         number: number,
         language: 'pt-br',
         uploader: _chapterUploader(anchor),
@@ -310,13 +315,7 @@ class YomuSource
               orElse: () => '',
             );
     final rating = _rating(document.body?.text ?? '');
-    final description = document
-        .querySelectorAll('main p')
-        .map(_text)
-        .where((value) =>
-            value.length > 70 && !value.startsWith('Proibido comentários'))
-        .fold<String>(
-            '', (best, value) => value.length > best.length ? value : best);
+    final description = _description(document);
     final genreNames = (await _genreNames()).toSet();
     final genres = document
         .querySelectorAll('main span')
@@ -461,7 +460,7 @@ class YomuSource
         final response = await _client.get(uri, headers: requestHeaders);
         final document = html_parser.parse(_body(response));
         if (response.statusCode == 200 &&
-            _text(document.querySelector('main h1')).isNotEmpty) {
+            _isExpectedDetailDocument(document, uri)) {
           return document;
         }
       } catch (_) {}
@@ -472,7 +471,20 @@ class YomuSource
         'Conclua o login da Yomu nas configurações de sources.',
       );
     }
-    return html_parser.parse(await loader(uri, _userAgent));
+    for (var attempt = 0; attempt < 2; attempt++) {
+      final target = attempt == 0
+          ? uri
+          : uri.replace(queryParameters: {
+              ...uri.queryParameters,
+              '_stars_refresh':
+                  DateTime.now().millisecondsSinceEpoch.toString(),
+            });
+      final document = html_parser.parse(await loader(target, _userAgent));
+      if (_isExpectedDetailDocument(document, uri)) return document;
+    }
+    throw StateError(
+      'A Yomu retornou metadados de outra obra. Tente carregar novamente.',
+    );
   }
 
   Future<dynamic> _getJson(Uri uri) async {
@@ -555,8 +567,58 @@ class YomuSource
         .nullIfEmpty;
   }
 
-  String? _chapterDate(String text) =>
-      RegExp(r'\d{2}/\d{2}/\d{4}').firstMatch(text)?.group(0);
+  String _chapterTitle(Element anchor, String number) {
+    final raw = _text(anchor.querySelector('span[title]'));
+    if (raw.isEmpty) return '';
+    return raw
+        .replaceFirst(
+          RegExp(
+            '^cap[ií]tulo\\s*${RegExp.escape(number)}\\s*(?:[-:–—]\\s*)?',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .trim();
+  }
+
+  String? _chapterDate(String text) {
+    final match = RegExp(r'(\d{2})/(\d{2})/(\d{4})').firstMatch(text);
+    if (match == null) return null;
+    return '${match.group(3)}-${match.group(2)}-${match.group(1)}T00:00:00.000Z';
+  }
+
+  String _description(Document document) {
+    final primary = _text(document.querySelector('main .whitespace-pre-wrap'));
+    if (_isSynopsis(primary)) return primary;
+    return document
+        .querySelectorAll('main p, main div')
+        .map(_text)
+        .where(_isSynopsis)
+        .fold<String>(
+          '',
+          (best, value) => value.length > best.length ? value : best,
+        );
+  }
+
+  bool _isSynopsis(String value) {
+    final normalized = value.toLowerCase();
+    return value.length > 70 &&
+        !normalized.startsWith('proibido comentários') &&
+        !normalized.contains('adicione os links do mangaupdates') &&
+        !normalized.contains('você ganha 1 moeda') &&
+        !normalized.contains('capítulos comentários recentes');
+  }
+
+  bool _isExpectedDetailDocument(Document document, Uri requestedUri) {
+    final slug = _mangaSlug(requestedUri.toString());
+    if (slug.isEmpty || _text(document.querySelector('main h1')).isEmpty) {
+      return false;
+    }
+    return document.querySelector(
+          'main a[href^="/ler/$slug/"]',
+        ) !=
+        null;
+  }
 
   double? _rating(String text) => double.tryParse(
         RegExp(r'Avaliação\s+(\d+(?:[.,]\d+)?)\s*/\s*10', caseSensitive: false)
@@ -607,6 +669,8 @@ class YomuSource
       : double.tryParse(value?.toString().replaceAll(',', '.') ?? '');
   String _text(Element? element) =>
       element?.text.replaceAll(RegExp(r'\s+'), ' ').trim() ?? '';
+  String _textAttribute(Element element, String name) =>
+      (element.attributes[name] ?? '').replaceAll(RegExp(r'\s+'), ' ').trim();
   double _chapterValue(String value) =>
       double.tryParse(value.replaceAll(',', '.')) ?? 0;
   String? _formatLabel(dynamic value) {
