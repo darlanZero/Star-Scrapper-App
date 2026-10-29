@@ -89,6 +89,7 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
   bool _loginDetected = false;
   bool _popupOpen = false;
   String _currentUrl = '';
+  Timer? _tokenPoller;
 
   bool get _isWindows =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
@@ -96,6 +97,15 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.profile.auth.sessionCookieNames.any(
+      (name) => name == 'token' || name.endsWith('.token'),
+    )) {
+      _tokenPoller = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (_currentUrl.isNotEmpty) {
+          unawaited(_checkLoginSuccess(_currentUrl, tokenPoll: true));
+        }
+      });
+    }
     if (_isWindows) {
       _initWindowsWebView();
     }
@@ -176,8 +186,21 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
 
   // ─── Detecção de sucesso ──────────────────────────────────────────────────
 
-  Future<void> _checkLoginSuccess(String url) async {
+  Future<void> _checkLoginSuccess(
+    String url, {
+    bool tokenPoll = false,
+  }) async {
     if (_loginDetected) return;
+
+    Map<String, String>? polledCookies;
+    if (tokenPoll) {
+      polledCookies = await _extractCookies();
+      if (!widget.profile.auth.sessionCookieNames.every(
+        polledCookies.containsKey,
+      )) {
+        return;
+      }
+    }
 
     final loginUrl = widget.profile.auth.loginUrl;
     final successFragment = widget.profile.auth.successUrlFragment;
@@ -192,15 +215,18 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
     }
 
     // Ainda na página de login → aguarda
-    if (url.contains(loginUrl) ||
-        url.contains('/login') ||
-        url.contains('/entrar') ||
-        url.contains('accounts/login')) {
+    if (!tokenPoll &&
+        (url.contains(loginUrl) ||
+            url.contains('/login') ||
+            url.contains('/entrar') ||
+            url.contains('accounts/login'))) {
       return;
     }
 
     // Se successUrlFragment definido, verifica que a URL o contém
-    if (successFragment != null && !url.contains(successFragment)) {
+    if (!tokenPoll &&
+        successFragment != null &&
+        !url.contains(successFragment)) {
       return;
     }
 
@@ -209,7 +235,7 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
     // OAuth providers can finish the navigation before the SPA has written its
     // own token cookies. Poll briefly instead of leaving an authenticated page
     // open forever when the first read races that write.
-    final cookies = await _waitForSessionCookies();
+    final cookies = polledCookies ?? await _waitForSessionCookies();
     if (cookies.isEmpty) {
       _loginDetected = false;
       return;
@@ -302,7 +328,7 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
               }
             });
           }
-          ['token', 'access_token', 'refresh_token'].forEach(key => {
+          ['token', 'access_token', 'refresh_token', 'aniume.token'].forEach(key => {
             try {
               const value = window.localStorage.getItem(key);
               if (value) result[key] = value;
@@ -340,7 +366,7 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
                 }
               });
             }
-            ['token', 'access_token', 'refresh_token'].forEach(key => {
+            ['token', 'access_token', 'refresh_token', 'aniume.token'].forEach(key => {
               try {
                 const value = window.localStorage.getItem(key);
                 if (value) result[key] = value;
@@ -461,6 +487,7 @@ class _AuthWebViewScreenState extends State<AuthWebViewScreen> {
 
   @override
   void dispose() {
+    _tokenPoller?.cancel();
     _windowsController?.dispose();
     super.dispose();
   }

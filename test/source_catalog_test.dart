@@ -40,6 +40,7 @@ void main() {
     expect(ids, contains('goyabu'));
     expect(ids, contains('hentai_haven'));
     expect(ids, contains('animeq'));
+    expect(ids, contains('animy_anime'));
   });
 
   test('anime source presentation localizes audio labels by language', () {
@@ -47,6 +48,7 @@ void main() {
     final aniwave = sources.singleWhere((source) => source.id == 'aniwave');
     final goyabu = sources.singleWhere((source) => source.id == 'goyabu');
     final animeQ = sources.singleWhere((source) => source.id == 'animeq');
+    final animy = sources.singleWhere((source) => source.id == 'animy_anime');
 
     expect(aniwave.languageLabel, 'All languages');
     expect(aniwave.audioLabel, 'Sub/Dub');
@@ -58,6 +60,9 @@ void main() {
     expect(animeQ.languageLabel, 'Português (Brasil)');
     expect(animeQ.isRRated, isFalse);
     expect(animeQ.capabilityLabel, contains('MP4'));
+    expect(animy.languageLabel, 'Português (Brasil)');
+    expect(animy.audioLabel, 'Legendado/Dublado');
+    expect(animy.capabilityLabel, contains('HLS/MP4'));
     final hentaiHaven =
         sources.singleWhere((source) => source.id == 'hentai_haven');
     expect(hentaiHaven.isRRated, isTrue);
@@ -74,7 +79,7 @@ void main() {
     );
     expect(
       groups['PT-BR']!.map((source) => source.id),
-      ['smart_animes', 'goyabu', 'animeq'],
+      ['smart_animes', 'goyabu', 'animeq', 'animy_anime'],
     );
     expect(
       () => groups['PT-BR']!.add(SourceCatalog.createAnimeSources().first),
@@ -97,6 +102,8 @@ void main() {
     expect(ids, contains('imperio_britannia'));
     expect(ids, contains('nexus_toons'));
     expect(ids, contains('leitura_manga'));
+    expect(ids, contains('manga_livre'));
+    expect(ids, contains('animy_manga'));
     expect(ids, contains('hdoujin'));
   });
 
@@ -107,6 +114,31 @@ void main() {
 
     expect(source.languagePrefix, 'Pt-BR');
     expect(source.isRRated, isFalse);
+  });
+
+  test('MangaLivre is a mixed PT-BR authenticated source', () {
+    final source = SourceCatalog.createAll().singleWhere(
+      (source) => source.id == 'manga_livre',
+    );
+
+    expect(source.languagePrefix, 'Pt-BR');
+    expect(source.isRRated, isFalse);
+    expect(source.api, isA<CredentialAuthMangaSource>());
+    expect(source.api, isA<BrowserSessionMangaSource>());
+  });
+
+  test('Animy is a mixed PT-BR authenticated manga source', () {
+    final source = SourceCatalog.createAll().singleWhere(
+      (source) => source.id == 'animy_manga',
+    );
+
+    expect(source.languagePrefix, 'Pt-BR');
+    expect(source.isRRated, isFalse);
+    expect(source.api, isA<CredentialAuthMangaSource>());
+    expect(source.api, isA<BrowserSessionMangaSource>());
+    expect(source.api, isA<ReadingHistoryMangaSource>());
+    expect(source.api, isA<FilterableMangaSource>());
+    expect(source.api, isA<VariantCatalogMangaSource>());
   });
 
   test('Império da Britannia is a mixed PT-BR authenticated source', () {

@@ -381,17 +381,25 @@ extension AnimeSourcePresentation on AnimeSource {
 
   /// Compact label used to group providers in source-management screens.
   String get languageGroupLabel => switch (id) {
-        'goyabu' || 'smart_animes' || 'animeq' => 'PT-BR',
+        'goyabu' || 'smart_animes' || 'animeq' || 'animy_anime' => 'PT-BR',
         _ => 'All Languages',
       };
 
   String get languageLabel => switch (id) {
-        'goyabu' || 'smart_animes' || 'animeq' => 'Português (Brasil)',
+        'goyabu' ||
+        'smart_animes' ||
+        'animeq' ||
+        'animy_anime' =>
+          'Português (Brasil)',
         _ => 'All languages',
       };
 
   String get audioLabel => switch (id) {
-        'goyabu' || 'smart_animes' || 'animeq' => 'Legendado/Dublado',
+        'goyabu' ||
+        'smart_animes' ||
+        'animeq' ||
+        'animy_anime' =>
+          'Legendado/Dublado',
         _ => 'Sub/Dub',
       };
 
@@ -399,6 +407,7 @@ extension AnimeSourcePresentation on AnimeSource {
         'smart_animes' => '$languageLabel · $audioLabel · Google Drive',
         'goyabu' => '$languageLabel · $audioLabel · Blogger',
         'animeq' => '$languageLabel · $audioLabel · MP4',
+        'animy_anime' => '$languageLabel · $audioLabel · HLS/MP4',
         'hentai_haven' => 'R-rated · $audioLabel · Native/WebView',
         _ => '$languageLabel · $audioLabel · HLS · Subtitles',
       };

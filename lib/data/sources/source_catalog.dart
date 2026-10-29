@@ -7,6 +7,7 @@ import 'package:star_scrapper_app/data/sources/anime/smart_animes_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/goyabu_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/hentai_haven_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/animeq_source.dart';
+import 'package:star_scrapper_app/data/sources/anime/animy_anime_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/mangadex_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/seita_celestial_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/luratoons_source.dart';
@@ -14,6 +15,8 @@ import 'package:star_scrapper_app/data/sources/manga/mediocrescan_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/imperio_britannia_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/nexus_toons_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/leitura_manga_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/manga_livre_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/animy_manga_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/hdoujin_source.dart';
 import 'package:star_scrapper_app/infrastructure/webview/browser_html_loader.dart';
 
@@ -31,6 +34,7 @@ abstract final class SourceCatalog {
         ),
         HentaiHavenSource(),
         AnimeQSource(),
+        AnimyAnimeSource(),
       ];
 
   /// Manga/comic providers using the typed [MangaSource] contract (replaces the
@@ -46,6 +50,8 @@ abstract final class SourceCatalog {
         ImperioBritanniaSource(),
         NexusToonsSource(),
         LeituraMangaSource(),
+        MangaLivreSource(),
+        AnimyMangaSource(),
         HDoujinSource(),
       ];
 
@@ -140,6 +146,33 @@ abstract final class SourceCatalog {
           api: LeituraMangaSource(),
           contentType: SourceContentType.manga,
           // Catálogo misto: há obras adultas, mas esse não é o foco da source.
+          isRRated: false,
+        ),
+        Fonte(
+          id: 'manga_livre',
+          image:
+              'https://mangalivre.blog/wp-content/uploads/2026/09/download-2-1.png',
+          name: 'MangaLivre',
+          languagePrefix: 'Pt-BR',
+          flags: [
+            'https://cdn.countryflags.com/thumbs/brazil/flag-3d-250.png',
+          ],
+          api: MangaLivreSource(),
+          contentType: SourceContentType.manga,
+          // Catálogo misto: possui títulos adultos, mas não é adult-only.
+          isRRated: false,
+        ),
+        Fonte(
+          id: 'animy_manga',
+          image: 'https://animy.net/favicon.ico',
+          name: 'Animy',
+          languagePrefix: 'Pt-BR',
+          flags: [
+            'https://cdn.countryflags.com/thumbs/brazil/flag-3d-250.png',
+          ],
+          api: AnimyMangaSource(),
+          contentType: SourceContentType.manga,
+          // Catálogo misto: conteúdo adulto é filtrável, não é o foco da source.
           isRRated: false,
         ),
         Fonte(
