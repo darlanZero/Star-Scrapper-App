@@ -19,6 +19,25 @@ abstract final class BrowserHtmlLoader {
     return operation;
   }
 
+  /// Loads a rendered page only after [readySelector] is present.
+  static Future<String> loadWhen(
+    Uri uri,
+    String userAgent,
+    String readySelector,
+  ) {
+    final operation = _pending.then(
+      (_) => _loadNow(
+        uri,
+        userAgent,
+        readySelector: readySelector,
+        renderedViewport: true,
+        sanitizeHtml: true,
+      ),
+    );
+    _pending = operation.then<void>((_) {}, onError: (_) {});
+    return operation;
+  }
+
   /// Loads a JavaScript-rendered page after walking through its lazy content.
   ///
   /// Readers such as Yomu only attach page image URLs when each page slot
@@ -33,16 +52,49 @@ abstract final class BrowserHtmlLoader {
     return operation;
   }
 
+  /// Loads a rendered page and clicks a matching control before snapshotting.
+  ///
+  /// This is used for progressive server-rendered lists such as a chapter
+  /// panel whose "load more" button is backed by Livewire. [maxClicks] is a
+  /// safety bound; processing also stops as soon as the control disappears.
+  static Future<String> loadInteracted(
+    Uri uri,
+    String userAgent,
+    String clickSelector, {
+    int maxClicks = 1,
+  }) {
+    final operation = _pending.then(
+      (_) => _loadNow(
+        uri,
+        userAgent,
+        clickSelector: clickSelector,
+        maxClicks: maxClicks,
+      ),
+    );
+    _pending = operation.then<void>((_) {}, onError: (_) {});
+    return operation;
+  }
+
   static Future<String> _loadNow(
     Uri uri,
     String userAgent, {
     bool autoScroll = false,
+    bool renderedViewport = false,
+    bool sanitizeHtml = false,
+    String? readySelector,
+    String? clickSelector,
+    int maxClicks = 0,
   }) async {
     final encoded = await _channel.invokeMethod<String>('loadHtml', {
       'url': uri.toString(),
       'userAgent': userAgent,
-      'readySelector': _defaultReadySelector,
+      'readySelector': readySelector ?? _defaultReadySelector,
       'autoScroll': autoScroll,
+      'renderedViewport': renderedViewport,
+      'sanitizeHtml': sanitizeHtml,
+      if (clickSelector != null && clickSelector.isNotEmpty)
+        'clickSelector': clickSelector,
+      if (maxClicks > 0) 'maxClicks': maxClicks,
     });
     if (encoded == null || encoded.isEmpty) {
       throw StateError('The browser returned an empty page.');

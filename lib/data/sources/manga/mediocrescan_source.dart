@@ -838,6 +838,7 @@ class MediocrescanSource
         MangaSearchSort.titleDescending => 'nome_desc',
         MangaSearchSort.year => 'criada_em_desc',
         MangaSearchSort.chapterCount => 'capitulos_desc',
+        _ => 'criada_em_desc',
       };
 
   MangaCatalogItem _catalogItem(dynamic raw) {

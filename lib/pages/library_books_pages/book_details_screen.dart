@@ -37,6 +37,61 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
   Future<void>? _updateFuture;
 
+  Widget _sourceCoverImage({
+    required MangaSource? source,
+    required String imageUrl,
+    required BoxFit fit,
+    double? width,
+    double? height,
+    Color? color,
+    BlendMode? colorBlendMode,
+  }) {
+    final uri = Uri.tryParse(imageUrl);
+    if (source case final BrowserImageMangaSource browserSource
+        when uri != null) {
+      return FutureBuilder(
+        future: browserSource.loadBrowserImage(uri),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const ColoredBox(
+              color: Colors.black12,
+              child: Center(child: Icon(Icons.broken_image_outlined)),
+            );
+          }
+          final bytes = snapshot.data;
+          if (bytes == null) {
+            return const ColoredBox(
+              color: Colors.black12,
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            );
+          }
+          return Image.memory(
+            bytes,
+            width: width,
+            height: height,
+            fit: fit,
+            color: color,
+            colorBlendMode: colorBlendMode,
+            gaplessPlayback: true,
+          );
+        },
+      );
+    }
+    return Image.network(
+      imageUrl,
+      width: width,
+      height: height,
+      fit: fit,
+      headers: source?.coverImageHeaders,
+      color: color,
+      colorBlendMode: colorBlendMode,
+      errorBuilder: (_, __, ___) => const ColoredBox(
+        color: Colors.black12,
+        child: Center(child: Icon(Icons.broken_image_outlined)),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -210,6 +265,9 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
     String imageUrl = bookDetails['coverImageUrl'] ??
         'https://static.thenounproject.com/png/482114-200.png';
+    final effectiveScrapper = widget.scrapper ??
+        Provider.of<FontProvider>(context, listen: false)
+            .findScrapperForBook(bookDetails);
 
     void showManageTabsDialog(BuildContext context) {
       final fontProvider = Provider.of<FontProvider>(context, listen: false);
@@ -376,8 +434,9 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
               fit: StackFit.expand,
               children: <Widget>[
                 ClipRRect(
-                  child: Image.network(
-                    imageUrl,
+                  child: _sourceCoverImage(
+                    source: effectiveScrapper,
+                    imageUrl: imageUrl,
                     fit: isDesktop ? BoxFit.cover : BoxFit.fill,
                     color: Colors.black.withValues(alpha: 0.5),
                     colorBlendMode: BlendMode.darken,
@@ -403,8 +462,9 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          imageUrl,
+                        child: _sourceCoverImage(
+                          source: effectiveScrapper,
+                          imageUrl: imageUrl,
                           width: isDesktop ? 200 : 100,
                           height: isDesktop ? 300 : 200,
                           fit: BoxFit.cover,

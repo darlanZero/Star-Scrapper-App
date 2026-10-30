@@ -847,33 +847,78 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  CachedNetworkImage(
-                    imageUrl: imageUrl,
-                    httpHeaders: imageHeaders,
-                    fit: BoxFit.cover,
-                    color: isBookFavorited
-                        ? Colors.black.withValues(alpha: 0.32)
-                        : null,
-                    colorBlendMode:
-                        isBookFavorited ? BlendMode.srcOver : BlendMode.dstATop,
-                    placeholder: (context, _) => ColoredBox(
-                      color: colors.surfaceContainerHighest,
-                      child: const Center(
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                  if (api case final BrowserImageMangaSource browserSource)
+                    FutureBuilder(
+                      future: browserSource.loadBrowserImage(
+                        Uri.parse(imageUrl),
+                      ),
+                      builder: (context, snapshot) {
+                        final bytes = snapshot.data;
+                        if (snapshot.hasError) {
+                          return ColoredBox(
+                            color: colors.surfaceContainerHighest,
+                            child: const Icon(
+                              Icons.broken_image_outlined,
+                              color: Colors.grey,
+                            ),
+                          );
+                        }
+                        if (bytes == null) {
+                          return ColoredBox(
+                            color: colors.surfaceContainerHighest,
+                            child: const Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        return Image.memory(
+                          bytes,
+                          fit: BoxFit.cover,
+                          gaplessPlayback: true,
+                          color: isBookFavorited
+                              ? Colors.black.withValues(alpha: 0.32)
+                              : null,
+                          colorBlendMode: isBookFavorited
+                              ? BlendMode.srcOver
+                              : BlendMode.dstATop,
+                        );
+                      },
+                    )
+                  else
+                    CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      httpHeaders: imageHeaders,
+                      fit: BoxFit.cover,
+                      color: isBookFavorited
+                          ? Colors.black.withValues(alpha: 0.32)
+                          : null,
+                      colorBlendMode: isBookFavorited
+                          ? BlendMode.srcOver
+                          : BlendMode.dstATop,
+                      placeholder: (context, _) => ColoredBox(
+                        color: colors.surfaceContainerHighest,
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      ),
+                      errorWidget: (context, _, __) => ColoredBox(
+                        color: colors.surfaceContainerHighest,
+                        child: const Icon(
+                          Icons.broken_image_outlined,
+                          color: Colors.grey,
                         ),
                       ),
                     ),
-                    errorWidget: (context, _, __) => ColoredBox(
-                      color: colors.surfaceContainerHighest,
-                      child: const Icon(
-                        Icons.broken_image_outlined,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ),
                   if (isBookFavorited)
                     const Positioned(
                       top: 10,
@@ -1170,6 +1215,8 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
   late final TextEditingController _artistController;
   late final TextEditingController _minimumYearController;
   late final TextEditingController _maximumYearController;
+  late final TextEditingController _releaseStartController;
+  late final TextEditingController _releaseEndController;
   late final TextEditingController _minimumController;
   late final TextEditingController _maximumController;
   final TextEditingController _tagSearchController = TextEditingController();
@@ -1200,6 +1247,12 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
     _maximumYearController = TextEditingController(
       text: initial?.maximumYear?.toString() ?? '',
     );
+    _releaseStartController = TextEditingController(
+      text: initial?.releaseStart ?? '',
+    );
+    _releaseEndController = TextEditingController(
+      text: initial?.releaseEnd ?? '',
+    );
     _minimumController = TextEditingController(
       text: initial?.minimumChapters?.toString() ?? '',
     );
@@ -1216,6 +1269,8 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
     _artistController.dispose();
     _minimumYearController.dispose();
     _maximumYearController.dispose();
+    _releaseStartController.dispose();
+    _releaseEndController.dispose();
     _tagSearchController.dispose();
     _genreSearchController.dispose();
     _themeSearchController.dispose();
@@ -1247,6 +1302,8 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
         artist: _artistController.text.trim(),
         minimumYear: _number(_minimumYearController),
         maximumYear: _number(_maximumYearController),
+        releaseStart: _releaseStartController.text.trim(),
+        releaseEnd: _releaseEndController.text.trim(),
         minimumChapters: _number(_minimumController),
         maximumChapters: _number(_maximumController),
         sort: _sort,
@@ -1422,6 +1479,37 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
                     controller: _maximumYearController,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(labelText: 'To'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (widget.options.supportsReleaseDateRange) ...[
+            const SizedBox(height: 18),
+            Text('Release date',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _releaseStartController,
+                    keyboardType: TextInputType.datetime,
+                    decoration: const InputDecoration(
+                      labelText: 'Start date',
+                      hintText: 'MM/DD/YYYY',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _releaseEndController,
+                    keyboardType: TextInputType.datetime,
+                    decoration: const InputDecoration(
+                      labelText: 'End date',
+                      hintText: 'MM/DD/YYYY',
+                    ),
                   ),
                 ),
               ],
@@ -1658,7 +1746,11 @@ String _mangaSortLabel(MangaSearchSort sort) => switch (sort) {
       MangaSearchSort.updated => 'Last updated',
       MangaSearchSort.recentlyAdded => 'Most recent',
       MangaSearchSort.popular => 'Popular',
+      MangaSearchSort.mostViewed => 'Most viewed',
+      MangaSearchSort.releaseDate => 'Release date',
+      MangaSearchSort.mostLiked => 'Top rated',
       MangaSearchSort.rating => 'Best rated',
+      MangaSearchSort.fanFavorites => 'Fan Favorites',
       MangaSearchSort.title => 'Title',
       MangaSearchSort.titleAscending => 'A-Z',
       MangaSearchSort.titleDescending => 'Z-A',

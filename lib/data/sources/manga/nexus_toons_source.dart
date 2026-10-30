@@ -326,6 +326,7 @@ class NexusToonsSource
         MangaSearchSort.rating => 'rating',
         MangaSearchSort.year => 'releaseYear',
         MangaSearchSort.chapterCount => 'chapters',
+        _ => 'createdAt',
       },
       sortOrder: request.sort == MangaSearchSort.titleAscending
           ? 'asc'

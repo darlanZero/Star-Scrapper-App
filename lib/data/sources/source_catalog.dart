@@ -19,6 +19,7 @@ import 'package:star_scrapper_app/data/sources/manga/manga_livre_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/animy_manga_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/yomu_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/hdoujin_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/onisaga_source.dart';
 import 'package:star_scrapper_app/infrastructure/webview/browser_html_loader.dart';
 
 /// Single registry for the sources bundled with the application.
@@ -59,6 +60,26 @@ abstract final class SourceCatalog {
           readerPageLoader: BrowserHtmlLoader.lazyReaderUrls,
         ),
         HDoujinSource(),
+        OniSagaSource(
+          browserHtmlLoader: (uri, userAgent) => BrowserHtmlLoader.loadWhen(
+            uri,
+            userAgent,
+            'a[href*="/manga/"]',
+          ),
+          browserImageLoader: BrowserHtmlLoader.loadImage,
+          interactedHtmlLoader: (
+            uri,
+            userAgent,
+            clickSelector, {
+            required maxClicks,
+          }) =>
+              BrowserHtmlLoader.loadInteracted(
+            uri,
+            userAgent,
+            clickSelector,
+            maxClicks: maxClicks,
+          ),
+        ),
       ];
 
   static List<Fonte> createAll() => [
@@ -207,6 +228,38 @@ abstract final class SourceCatalog {
           api: HDoujinSource(),
           contentType: SourceContentType.manga,
           isRRated: true,
+        ),
+        Fonte(
+          id: 'onisaga',
+          image: 'https://onisaga.com/favicon.ico',
+          name: 'OniSaga',
+          languagePrefix: 'EN-US',
+          flags: [
+            'https://cdn.countryflags.com/thumbs/united-states-of-america/flag-3d-250.png',
+          ],
+          api: OniSagaSource(
+            browserHtmlLoader: (uri, userAgent) => BrowserHtmlLoader.loadWhen(
+              uri,
+              userAgent,
+              'a[href*="/manga/"]',
+            ),
+            browserImageLoader: BrowserHtmlLoader.loadImage,
+            interactedHtmlLoader: (
+              uri,
+              userAgent,
+              clickSelector, {
+              required maxClicks,
+            }) =>
+                BrowserHtmlLoader.loadInteracted(
+              uri,
+              userAgent,
+              clickSelector,
+              maxClicks: maxClicks,
+            ),
+          ),
+          contentType: SourceContentType.manga,
+          // Mixed catalog: adult works are a subset, not the source focus.
+          isRRated: false,
         ),
       ];
 }

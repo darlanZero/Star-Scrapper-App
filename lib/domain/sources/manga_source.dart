@@ -10,6 +10,8 @@
 /// already use (`coverImageUrl`, `translatedLanguage`, `chapter`, ...).
 library;
 
+import 'dart:typed_data';
+
 /// Catalog sort/listing options a manga source can expose.
 enum MangaCatalogFilter {
   popular,
@@ -34,7 +36,11 @@ enum MangaSearchSort {
   updated,
   recentlyAdded,
   popular,
+  mostViewed,
+  releaseDate,
+  mostLiked,
   rating,
+  fanFavorites,
   title,
   titleAscending,
   titleDescending,
@@ -65,6 +71,7 @@ class MangaSearchOptions {
   final bool supportsAuthor;
   final bool supportsArtist;
   final bool supportsYearRange;
+  final bool supportsReleaseDateRange;
   final bool supportsChapterRange;
   final bool supportsCategoryMode;
   final bool supportsAdultMode;
@@ -80,6 +87,7 @@ class MangaSearchOptions {
     this.supportsAuthor = false,
     this.supportsArtist = false,
     this.supportsYearRange = false,
+    this.supportsReleaseDateRange = false,
     this.supportsChapterRange = true,
     this.supportsCategoryMode = false,
     this.supportsAdultMode = false,
@@ -102,6 +110,8 @@ class MangaSearchRequest {
   final String artist;
   final int? minimumYear;
   final int? maximumYear;
+  final String releaseStart;
+  final String releaseEnd;
   final int? minimumChapters;
   final int? maximumChapters;
   final MangaSearchSort sort;
@@ -119,6 +129,8 @@ class MangaSearchRequest {
     this.artist = '',
     this.minimumYear,
     this.maximumYear,
+    this.releaseStart = '',
+    this.releaseEnd = '',
     this.minimumChapters,
     this.maximumChapters,
     this.sort = MangaSearchSort.recentlyAdded,
@@ -141,6 +153,8 @@ class MangaSearchRequest {
       artist.trim().isNotEmpty ||
       minimumYear != null ||
       maximumYear != null ||
+      releaseStart.trim().isNotEmpty ||
+      releaseEnd.trim().isNotEmpty ||
       minimumChapters != null ||
       maximumChapters != null ||
       sort != MangaSearchSort.recentlyAdded ||
@@ -157,6 +171,7 @@ class MangaSearchRequest {
       (author.trim().isEmpty ? 0 : 1) +
       (artist.trim().isEmpty ? 0 : 1) +
       (minimumYear == null && maximumYear == null ? 0 : 1) +
+      (releaseStart.trim().isEmpty && releaseEnd.trim().isEmpty ? 0 : 1) +
       (minimumChapters == null && maximumChapters == null ? 0 : 1) +
       (sort == MangaSearchSort.recentlyAdded ? 0 : 1) +
       (categoryMode == MangaCategoryMode.any ? 0 : 1) +
@@ -529,6 +544,12 @@ abstract interface class MangaSource {
     required String mangaId,
     required String chapterId,
   });
+}
+
+/// Optional capability for cover hosts that only serve assets to a real
+/// browser client or a browser-managed anti-bot session.
+abstract interface class BrowserImageMangaSource {
+  Future<Uint8List> loadBrowserImage(Uri uri);
 }
 
 /// Optional capability for sources whose chapters are only readable in a

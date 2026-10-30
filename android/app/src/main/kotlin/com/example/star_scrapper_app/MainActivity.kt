@@ -1,5 +1,7 @@
 package com.example.star_scrapper_app
 
+import android.content.ContentValues
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -12,9 +14,14 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.os.Handler
 import android.os.Looper
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Base64
+import android.util.Log
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -35,6 +42,27 @@ class MainActivity: FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "starslibrary/reader_images",
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "saveImage" -> saveReaderImage(
+                    sourcePath = call.argument<String>("path"),
+                    fileName = call.argument<String>("fileName"),
+                    mimeType = call.argument<String>("mimeType"),
+                    result = result,
+                )
+                "shareImage" -> shareReaderImage(
+                    sourcePath = call.argument<String>("path"),
+                    fileName = call.argument<String>("fileName"),
+                    mimeType = call.argument<String>("mimeType"),
+                    text = call.argument<String>("text"),
+                    result = result,
+                )
+                else -> result.notImplemented()
+            }
+        }
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "starslibrary/webview_cookies",
@@ -69,6 +97,10 @@ class MainActivity: FlutterActivity() {
                     userAgent = call.argument<String>("userAgent"),
                     readySelector = call.argument<String>("readySelector"),
                     autoScroll = call.argument<Boolean>("autoScroll") ?: false,
+                    renderedViewport = call.argument<Boolean>("renderedViewport") ?: false,
+                    sanitizeHtml = call.argument<Boolean>("sanitizeHtml") ?: false,
+                    clickSelector = call.argument<String>("clickSelector"),
+                    maxClicks = call.argument<Int>("maxClicks") ?: 0,
                     result = result,
                 )
                 "loadImage" -> loadImageInWebView(
@@ -121,6 +153,95 @@ class MainActivity: FlutterActivity() {
                 stopReaderStream()
             }
         })
+    }
+
+    private fun saveReaderImage(
+        sourcePath: String?,
+        fileName: String?,
+        mimeType: String?,
+        result: MethodChannel.Result,
+    ) {
+        val source = sourcePath?.let(::File)
+        if (source == null || !source.isFile || fileName.isNullOrBlank()) {
+            result.error("invalid_image", "The reader image file is unavailable.", null)
+            return
+        }
+        try {
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+                put(MediaStore.Images.Media.MIME_TYPE, mimeType ?: "image/jpeg")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(
+                        MediaStore.Images.Media.RELATIVE_PATH,
+                        Environment.DIRECTORY_PICTURES + "/StarsLibrary",
+                    )
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
+            }
+            val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            } else {
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            }
+            val uri = contentResolver.insert(collection, values)
+                ?: throw IllegalStateException("Android could not create the gallery item.")
+            try {
+                contentResolver.openOutputStream(uri, "w")?.use { output ->
+                    source.inputStream().use { input -> input.copyTo(output) }
+                } ?: throw IllegalStateException("Android could not open the gallery item.")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    values.clear()
+                    values.put(MediaStore.Images.Media.IS_PENDING, 0)
+                    contentResolver.update(uri, values, null, null)
+                }
+            } catch (error: Exception) {
+                contentResolver.delete(uri, null, null)
+                throw error
+            }
+            result.success("Pictures/StarsLibrary/$fileName")
+        } catch (error: Exception) {
+            result.error("save_failed", error.message ?: "Could not save image.", null)
+        }
+    }
+
+    private fun shareReaderImage(
+        sourcePath: String?,
+        fileName: String?,
+        mimeType: String?,
+        text: String?,
+        result: MethodChannel.Result,
+    ) {
+        val source = sourcePath?.let(::File)
+        if (source == null || !source.isFile || fileName.isNullOrBlank()) {
+            result.error("invalid_image", "The reader image file is unavailable.", null)
+            return
+        }
+        try {
+            val shareDirectory = File(cacheDir, "reader_shared_images").apply {
+                mkdirs()
+            }
+            shareDirectory.listFiles()?.forEach { oldFile ->
+                if (oldFile.name != fileName) oldFile.delete()
+            }
+            val sharedFile = File(shareDirectory, fileName)
+            source.copyTo(sharedFile, overwrite = true)
+            val uri = FileProvider.getUriForFile(
+                this,
+                "$packageName.reader_images",
+                sharedFile,
+            )
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = mimeType ?: "image/*"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                if (!text.isNullOrBlank()) putExtra(Intent.EXTRA_TEXT, text)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                clipData = android.content.ClipData.newRawUri(fileName, uri)
+            }
+            startActivity(Intent.createChooser(intent, "Share image"))
+            result.success(null)
+        } catch (error: Exception) {
+            result.error("share_failed", error.message ?: "Could not share image.", null)
+        }
     }
 
     /**
@@ -431,23 +552,31 @@ class MainActivity: FlutterActivity() {
         userAgent: String?,
         readySelector: String?,
         autoScroll: Boolean,
+        renderedViewport: Boolean,
+        sanitizeHtml: Boolean,
+        clickSelector: String?,
+        maxClicks: Int,
         result: MethodChannel.Result,
     ) {
         if (url.isNullOrBlank()) {
             result.error("invalid_url", "A URL is required.", null)
             return
         }
+        Log.v(
+            "StarsHtmlLoader",
+            "start url=$url selector=$readySelector autoScroll=$autoScroll renderedViewport=$renderedViewport sanitizeHtml=$sanitizeHtml",
+        )
         val handler = Handler(Looper.getMainLooper())
         val webView = WebView(this)
         // Lazy readers size placeholders from the viewport and commonly use
         // IntersectionObserver to materialize the next image. A 1x1 WebView
         // collapses those placeholders and may expose only the first batch.
-        val viewportWidth = if (autoScroll) {
+        val viewportWidth = if (autoScroll || renderedViewport) {
             resources.displayMetrics.widthPixels.coerceAtLeast(360)
         } else {
             1
         }
-        val viewportHeight = if (autoScroll) {
+        val viewportHeight = if (autoScroll || renderedViewport) {
             resources.displayMetrics.heightPixels.coerceAtLeast(640)
         } else {
             1
@@ -465,15 +594,62 @@ class MainActivity: FlutterActivity() {
         CookieManager.getInstance().flush()
 
         var finished = false
+        var snapshotting = false
         fun dispose() {
             (webView.parent as? ViewGroup)?.removeView(webView)
             webView.stopLoading()
             webView.destroy()
         }
         fun finishWithHtml() {
-            if (finished) return
-            webView.evaluateJavascript("document.documentElement.outerHTML") { html ->
+            if (finished || snapshotting) return
+            snapshotting = true
+            val snapshotScript = if (sanitizeHtml) {
+                """
+                (() => {
+                  const fragments = [];
+                  const seen = new Set();
+                  document.querySelectorAll('a[href*="/manga/"]').forEach(anchor => {
+                    const href = anchor.href || anchor.getAttribute('href') || '';
+                    if (!href || seen.has(href)) return;
+                    const title = (anchor.textContent || '').trim() ||
+                      anchor.getAttribute('aria-label') ||
+                      anchor.getAttribute('title') || href.split('/').filter(Boolean).pop();
+                    const image = anchor.parentElement && anchor.parentElement.querySelector('img');
+                    const source = anchor.parentElement &&
+                      (anchor.parentElement.querySelector('source[type="image/webp"][srcset]') ||
+                        anchor.parentElement.querySelector('source[srcset]'));
+                    const sourceCover = source && (source.getAttribute('srcset') || '')
+                      .split(',')[0].trim().split(/\s+/)[0];
+                    const rawCover = image && (
+                      image.getAttribute('data-src') ||
+                      image.getAttribute('data-lazy-src') ||
+                      image.getAttribute('src') || ''
+                    );
+                    const cover = sourceCover ||
+                      (rawCover && !rawCover.startsWith('data:') ? rawCover : '');
+                    const card = (anchor.parentElement && anchor.parentElement.parentElement) ||
+                      anchor.parentElement || anchor;
+                    const cardText = (card.textContent || '').replace(/\s+/g, ' ').trim();
+                    fragments.push(
+                      '<article><a href="' + href + '">' + title +
+                      (cover ? '<img src="' + cover + '">' : '') +
+                      '</a><span>' + cardText + '</span></article>'
+                    );
+                    seen.add(href);
+                  });
+                  return '<html><body>' + fragments.join('') + '</body></html>';
+                })()
+                """.trimIndent()
+            } else {
+                "document.documentElement.outerHTML"
+            }
+            webView.evaluateJavascript(snapshotScript) { html ->
                 if (finished) return@evaluateJavascript
+                val mangaLinks = Regex("/manga/").findAll(html ?: "").count()
+                Log.v(
+                    "StarsHtmlLoader",
+                    "finish url=${webView.url} htmlChars=${html?.length ?: 0} mangaLinks=$mangaLinks",
+                )
                 finished = true
                 result.success(html ?: "")
                 dispose()
@@ -541,6 +717,44 @@ class MainActivity: FlutterActivity() {
                 """.trimIndent(),
             ) { }
         }
+        fun clickProgressiveContent(onDone: () -> Unit) {
+            if (clickSelector.isNullOrBlank() || maxClicks <= 0) {
+                onDone()
+                return
+            }
+            val quotedSelector = JSONObject.quote(clickSelector)
+            var clicks = 0
+            fun clickNext() {
+                if (finished || clicks >= maxClicks) {
+                    onDone()
+                    return
+                }
+                webView.evaluateJavascript(
+                    """
+                    (() => {
+                      const element = document.querySelector($quotedSelector);
+                      if (!element || element.disabled) return 'missing';
+                      if (element.hasAttribute('data-loading') ||
+                          element.hasAttribute('data-flux-loading')) {
+                        return 'loading';
+                      }
+                      element.click();
+                      return 'clicked';
+                    })()
+                    """.trimIndent(),
+                ) { state ->
+                    if (state == "\"loading\"") {
+                        handler.postDelayed({ clickNext() }, 400)
+                    } else if (state == "\"clicked\"") {
+                        clicks += 1
+                        handler.postDelayed({ clickNext() }, 1_200)
+                    } else {
+                        onDone()
+                    }
+                }
+            }
+            clickNext()
+        }
         fun probe() {
             if (finished) return
             val selector = JSONObject.quote(readySelector ?: "main, body")
@@ -548,9 +762,12 @@ class MainActivity: FlutterActivity() {
                 "Boolean(document.querySelector($selector))",
             ) { ready ->
                 if (finished) return@evaluateJavascript
+                Log.v("StarsHtmlLoader", "probe url=${webView.url} ready=$ready selector=$readySelector")
                 if (ready == "true") {
                     if (!autoScroll) {
-                        handler.postDelayed({ finishWithHtml() }, 500)
+                        clickProgressiveContent {
+                            handler.postDelayed({ finishWithHtml() }, 700)
+                        }
                     } else {
                         scrollLazyContent()
                         fun waitForScroll() {
@@ -572,6 +789,7 @@ class MainActivity: FlutterActivity() {
         handler.postDelayed(timeout, if (autoScroll) 60_000 else 20_000)
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, loadedUrl: String?) {
+                Log.v("StarsHtmlLoader", "pageFinished url=$loadedUrl")
                 handler.postDelayed({ probe() }, 350)
             }
         }

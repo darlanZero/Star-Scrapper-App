@@ -5,6 +5,9 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/domain/library/reader_progress.dart';
 import 'package:star_scrapper_app/domain/sources/manga_source.dart';
@@ -41,6 +44,8 @@ class ChapterBookScreen extends StatefulWidget {
 class _ChapterBookScreenState extends State<ChapterBookScreen>
     with WidgetsBindingObserver {
   static const int _preloadWindowSize = 4;
+  static const MethodChannel _readerImageChannel =
+      MethodChannel('starslibrary/reader_images');
 
   bool _showControls = false;
   int _currentPage = 0;
@@ -592,6 +597,17 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
     if (_showControls) _scheduleControlsAutoHide();
   }
 
+  bool _handleReaderScrollNotification(ScrollNotification notification) {
+    final isUserDrag = notification is ScrollStartNotification &&
+        notification.dragDetails != null;
+    if (isUserDrag && _pendingRestorePosition != null) {
+      _pendingRestorePosition = null;
+      _restoringPosition = false;
+      _scheduleScrollProgressRecalc();
+    }
+    return false;
+  }
+
   void _scheduleScrollProgressRecalc() {
     if (_isPaginatedView || _recalcScheduled) return;
     _recalcScheduled = true;
@@ -886,11 +902,131 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
   }
 
   Future<void> _downloadImage(MangaReaderPage page) async {
-    // TODO: Implement image download logic
+    try {
+      final image = await _materializeReaderImage(page);
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        final savedLocation = await _readerImageChannel.invokeMethod<String>(
+          'saveImage',
+          <String, Object>{
+            'path': image.file.path,
+            'fileName': image.fileName,
+            'mimeType': image.mimeType,
+          },
+        );
+        _showImageActionMessage(
+          savedLocation == null
+              ? 'Image saved.'
+              : 'Image saved to $savedLocation',
+        );
+        return;
+      }
+
+      final downloads = await getDownloadsDirectory();
+      if (downloads == null) {
+        throw const FileSystemException('Downloads folder is unavailable.');
+      }
+      final destination = await _uniqueDestination(
+        downloads,
+        image.fileName,
+      );
+      await image.file.copy(destination.path);
+      _showImageActionMessage('Image saved to ${destination.path}');
+    } catch (error) {
+      _showImageActionMessage('Could not save image: $error', isError: true);
+    }
   }
 
   Future<void> _shareImage(MangaReaderPage page) async {
-    // TODO: Implement image sharing logic
+    try {
+      final image = await _materializeReaderImage(page);
+      if (defaultTargetPlatform != TargetPlatform.android) {
+        throw UnsupportedError(
+          'Image sharing is currently available on Android.',
+        );
+      }
+      await _readerImageChannel.invokeMethod<void>(
+        'shareImage',
+        <String, Object>{
+          'path': image.file.path,
+          'fileName': image.fileName,
+          'mimeType': image.mimeType,
+          'text': '${widget.bookTitle} — ${widget.chapterTitle ?? 'Chapter'}',
+        },
+      );
+    } catch (error) {
+      _showImageActionMessage('Could not share image: $error', isError: true);
+    }
+  }
+
+  Future<_MaterializedReaderImage> _materializeReaderImage(
+    MangaReaderPage page,
+  ) async {
+    late final Uint8List bytes;
+    String? contentType;
+    String? sourceExtension;
+
+    if (page.isLocal) {
+      final source = File(page.filePath!);
+      bytes = await source.readAsBytes();
+      sourceExtension = path.extension(source.path);
+    } else {
+      final uri = page.uri!;
+      final response = await http.get(uri, headers: page.headers);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw HttpException(
+          'HTTP ${response.statusCode}',
+          uri: uri,
+        );
+      }
+      bytes = response.bodyBytes;
+      contentType = response.headers['content-type']?.split(';').first.trim();
+      sourceExtension = path.extension(uri.path);
+    }
+
+    if (bytes.isEmpty) throw const FormatException('The image is empty.');
+    final format = _detectReaderImageFormat(
+      bytes,
+      contentType: contentType,
+      extension: sourceExtension,
+    );
+    final pageNumber = _chapterImages.indexOf(page) + 1;
+    final safeTitle = _safeFilePart(widget.bookTitle, fallback: 'manga');
+    final safeChapter = _safeFilePart(
+      widget.chapterNumber ?? widget.chapterTitle ?? widget.chapterId,
+      fallback: 'chapter',
+    );
+    final fileName = '${safeTitle}_${safeChapter}_p${pageNumber.clamp(1, 99999)}'
+        '.${format.extension}';
+    final temp = await getTemporaryDirectory();
+    final exportDirectory = Directory(path.join(temp.path, 'reader_exports'));
+    await exportDirectory.create(recursive: true);
+    final file = File(path.join(exportDirectory.path, fileName));
+    await file.writeAsBytes(bytes, flush: true);
+    return _MaterializedReaderImage(
+      file: file,
+      fileName: fileName,
+      mimeType: format.mimeType,
+    );
+  }
+
+  Future<File> _uniqueDestination(Directory directory, String fileName) async {
+    final stem = path.basenameWithoutExtension(fileName);
+    final extension = path.extension(fileName);
+    var candidate = File(path.join(directory.path, fileName));
+    for (var suffix = 2; await candidate.exists(); suffix++) {
+      candidate = File(path.join(directory.path, '$stem ($suffix)$extension'));
+    }
+    return candidate;
+  }
+
+  void _showImageActionMessage(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Theme.of(context).colorScheme.error : null,
+      ),
+    );
   }
 
   void _showImageOptions(MangaReaderPage page) {
@@ -922,6 +1058,34 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
             ),
           );
         });
+  }
+
+  int _pageIndexAtGlobalPosition(Offset globalPosition) {
+    if (_chapterImages.isEmpty) return 0;
+    if (_isPaginatedView) {
+      return _currentPage.clamp(0, _chapterImages.length - 1).toInt();
+    }
+
+    final y = globalPosition.dy;
+    var nearestIndex =
+        _currentPage.clamp(0, _chapterImages.length - 1).toInt();
+    var nearestDistance = double.infinity;
+    for (var index = 0; index < _imageItemKeys.length; index++) {
+      final render = _imageItemKeys[index].currentContext?.findRenderObject();
+      if (render is! RenderBox || !render.attached || render.size.height <= 0) {
+        continue;
+      }
+      final top = render.localToGlobal(Offset.zero).dy;
+      final bottom = top + render.size.height;
+      if (y >= top && y <= bottom) return index;
+
+      final distance = y < top ? top - y : y - bottom;
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = index;
+      }
+    }
+    return nearestIndex;
   }
 
   Widget _buildWebView(BuildContext context) {
@@ -1090,12 +1254,11 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
                       onTap: () {
                         _setControlsVisible(!_showControls);
                       },
-                      onLongPress: () {
+                      onLongPressStart: (details) {
                         if (_chapterImages.isEmpty) return;
-                        final safeIndex = _currentPage
-                            .clamp(0, _chapterImages.length - 1)
-                            .toInt();
-                        _showImageOptions(_chapterImages[safeIndex]);
+                        final touchedIndex =
+                            _pageIndexAtGlobalPosition(details.globalPosition);
+                        _showImageOptions(_chapterImages[touchedIndex]);
                       },
                       child: Container(
                         decoration: BoxDecoration(
@@ -1127,17 +1290,22 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
                                   return _buildPageImage(_chapterImages[index]);
                                 },
                               )
-                            : ListView.builder(
-                                controller: _scrollController,
-                                reverse: _reverseReading,
-                                itemCount: _chapterImages.length,
-                                itemBuilder: (context, index) {
-                                  return Container(
-                                    key: _imageItemKeys[index],
-                                    child:
-                                        _buildPageImage(_chapterImages[index]),
-                                  );
-                                },
+                            : NotificationListener<ScrollNotification>(
+                                onNotification:
+                                    _handleReaderScrollNotification,
+                                child: ListView.builder(
+                                  controller: _scrollController,
+                                  reverse: _reverseReading,
+                                  itemCount: _chapterImages.length,
+                                  itemBuilder: (context, index) {
+                                    return Container(
+                                      key: _imageItemKeys[index],
+                                      child: _buildPageImage(
+                                        _chapterImages[index],
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
                       ),
                     ),
@@ -1242,4 +1410,104 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
           : null,
     );
   }
+}
+
+class _MaterializedReaderImage {
+  final File file;
+  final String fileName;
+  final String mimeType;
+
+  const _MaterializedReaderImage({
+    required this.file,
+    required this.fileName,
+    required this.mimeType,
+  });
+}
+
+class _ReaderImageFormat {
+  final String extension;
+  final String mimeType;
+
+  const _ReaderImageFormat(this.extension, this.mimeType);
+}
+
+_ReaderImageFormat _detectReaderImageFormat(
+  Uint8List bytes, {
+  String? contentType,
+  String? extension,
+}) {
+  if (bytes.length >= 3 &&
+      bytes[0] == 0xff &&
+      bytes[1] == 0xd8 &&
+      bytes[2] == 0xff) {
+    return const _ReaderImageFormat('jpg', 'image/jpeg');
+  }
+  if (bytes.length >= 8 &&
+      bytes[0] == 0x89 &&
+      bytes[1] == 0x50 &&
+      bytes[2] == 0x4e &&
+      bytes[3] == 0x47) {
+    return const _ReaderImageFormat('png', 'image/png');
+  }
+  if (bytes.length >= 12 &&
+      String.fromCharCodes(bytes.sublist(0, 4)) == 'RIFF' &&
+      String.fromCharCodes(bytes.sublist(8, 12)) == 'WEBP') {
+    return const _ReaderImageFormat('webp', 'image/webp');
+  }
+  if (bytes.length >= 6) {
+    final signature = String.fromCharCodes(bytes.sublist(0, 6));
+    if (signature == 'GIF87a' || signature == 'GIF89a') {
+      return const _ReaderImageFormat('gif', 'image/gif');
+    }
+  }
+  if (bytes.length >= 12 &&
+      String.fromCharCodes(bytes.sublist(4, 8)) == 'ftyp') {
+    final brand = String.fromCharCodes(bytes.sublist(8, 12)).toLowerCase();
+    if (brand.contains('avif') || brand.contains('avis')) {
+      return const _ReaderImageFormat('avif', 'image/avif');
+    }
+    if (brand.contains('heic') || brand.contains('heif')) {
+      return const _ReaderImageFormat('heic', 'image/heic');
+    }
+  }
+
+  final normalizedType = contentType?.toLowerCase();
+  const byMime = <String, _ReaderImageFormat>{
+    'image/jpeg': _ReaderImageFormat('jpg', 'image/jpeg'),
+    'image/png': _ReaderImageFormat('png', 'image/png'),
+    'image/webp': _ReaderImageFormat('webp', 'image/webp'),
+    'image/gif': _ReaderImageFormat('gif', 'image/gif'),
+    'image/avif': _ReaderImageFormat('avif', 'image/avif'),
+    'image/heic': _ReaderImageFormat('heic', 'image/heic'),
+  };
+  if (normalizedType != null && byMime.containsKey(normalizedType)) {
+    return byMime[normalizedType]!;
+  }
+
+  switch (extension?.toLowerCase()) {
+    case '.jpeg':
+    case '.jpg':
+      return const _ReaderImageFormat('jpg', 'image/jpeg');
+    case '.png':
+      return const _ReaderImageFormat('png', 'image/png');
+    case '.webp':
+      return const _ReaderImageFormat('webp', 'image/webp');
+    case '.gif':
+      return const _ReaderImageFormat('gif', 'image/gif');
+    case '.avif':
+      return const _ReaderImageFormat('avif', 'image/avif');
+    case '.heic':
+    case '.heif':
+      return const _ReaderImageFormat('heic', 'image/heic');
+  }
+  return const _ReaderImageFormat('jpg', 'image/jpeg');
+}
+
+String _safeFilePart(String value, {required String fallback}) {
+  final sanitized = value
+      .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+  if (sanitized.isEmpty) return fallback;
+  return sanitized.length <= 60 ? sanitized : sanitized.substring(0, 60).trim();
 }
