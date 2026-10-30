@@ -85,3 +85,17 @@ bool readerReachedCompletion({
   final tolerance = (viewportDimension * 0.12).clamp(48.0, 240.0);
   return extentAfter <= tolerance;
 }
+
+/// AniList stores manga progress as whole chapters. Decimal releases (for
+/// example 12.5) count toward the last fully numbered chapter and invalid or
+/// special chapter labels are not synchronized automatically.
+int? trackerChapterProgress(String? rawChapter) {
+  final value = rawChapter?.trim() ?? '';
+  final direct = double.tryParse(value);
+  final embedded = direct ??
+      double.tryParse(
+        RegExp(r'\d+(?:\.\d+)?').firstMatch(value)?.group(0) ?? '',
+      );
+  final chapter = embedded?.floor();
+  return chapter != null && chapter > 0 ? chapter : null;
+}

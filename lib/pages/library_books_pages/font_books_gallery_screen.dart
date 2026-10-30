@@ -1213,11 +1213,16 @@ class _MangaAdvancedFilterSheet extends StatefulWidget {
 }
 
 class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
+  late Set<String> _types;
   late Set<String> _formats;
   late Set<String> _statuses;
   late Set<String> _tags;
   late Set<String> _genres;
   late Set<String> _themes;
+  late Set<String> _demographics;
+  late Set<String> _originalLanguages;
+  late Set<String> _translatedLanguages;
+  late String _chapterPreset;
   late MangaSearchSort _sort;
   late MangaCategoryMode _categoryMode;
   late MangaAdultMode _adultMode;
@@ -1241,11 +1246,16 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
   void initState() {
     super.initState();
     final initial = widget.initial;
+    _types = {...?initial?.types};
     _formats = {...?initial?.formats};
     _statuses = {...?initial?.statuses};
     _tags = {...?initial?.tags};
     _genres = {...?initial?.genres};
     _themes = {...?initial?.themes};
+    _demographics = {...?initial?.demographics};
+    _originalLanguages = {...?initial?.originalLanguages};
+    _translatedLanguages = {...?initial?.translatedLanguages};
+    _chapterPreset = initial?.chapterPreset ?? '';
     _sort = initial?.sort ?? MangaSearchSort.recentlyAdded;
     _categoryMode = initial?.categoryMode ?? MangaCategoryMode.any;
     _adultMode = initial?.adultMode ?? MangaAdultMode.hide;
@@ -1304,11 +1314,16 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
     Navigator.pop(
       context,
       MangaSearchRequest(
+        types: _types,
         formats: _formats,
         statuses: _statuses,
         tags: _tags,
         genres: _genres,
         themes: _themes,
+        demographics: _demographics,
+        originalLanguages: _originalLanguages,
+        translatedLanguages: _translatedLanguages,
+        chapterPreset: _chapterPreset,
         author: _authorController.text.trim(),
         artist: _artistController.text.trim(),
         minimumYear: _number(_minimumYearController),
@@ -1388,6 +1403,43 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
     );
   }
 
+  Widget _simpleOptionExpansion({
+    required String title,
+    required List<MangaFilterOption> options,
+    required Set<String> selected,
+  }) {
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      title: Text(title),
+      subtitle: Text(
+        selected.isEmpty
+            ? 'Any ${title.toLowerCase()}'
+            : '${selected.length} selected',
+      ),
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              for (final option in options)
+                FilterChip(
+                  label: Text(option.label),
+                  selected: selected.contains(option.value),
+                  onSelected: (enabled) => setState(() {
+                    enabled
+                        ? selected.add(option.value)
+                        : selected.remove(option.value);
+                  }),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final visibleTags = widget.options.tags.where((tag) {
@@ -1426,6 +1478,12 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
             ],
           ),
           const SizedBox(height: 8),
+          if (widget.options.types.isNotEmpty)
+            _simpleOptionExpansion(
+              title: 'Types',
+              options: widget.options.types,
+              selected: _types,
+            ),
           Text('Format', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           Wrap(
@@ -1568,6 +1626,26 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
               ],
             ),
           ],
+          if (widget.options.chapterPresets.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Text('Chapter count',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                for (final option in widget.options.chapterPresets)
+                  ChoiceChip(
+                    label: Text(option.label),
+                    selected: _chapterPreset == option.value,
+                    onSelected: (enabled) => setState(() {
+                      _chapterPreset = enabled ? option.value : '';
+                    }),
+                  ),
+              ],
+            ),
+          ],
           if (widget.options.statuses.isNotEmpty) ...[
             const SizedBox(height: 14),
             ExpansionTile(
@@ -1609,6 +1687,24 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
               selected: _genres,
               searchController: _genreSearchController,
               onSearch: (value) => setState(() => _genreQuery = value),
+            ),
+          if (widget.options.demographics.isNotEmpty)
+            _simpleOptionExpansion(
+              title: 'Demographics',
+              options: widget.options.demographics,
+              selected: _demographics,
+            ),
+          if (widget.options.originalLanguages.isNotEmpty)
+            _simpleOptionExpansion(
+              title: 'Original language',
+              options: widget.options.originalLanguages,
+              selected: _originalLanguages,
+            ),
+          if (widget.options.translatedLanguages.isNotEmpty)
+            _simpleOptionExpansion(
+              title: 'Translated language',
+              options: widget.options.translatedLanguages,
+              selected: _translatedLanguages,
             ),
           if (widget.options.themes.isNotEmpty)
             _optionExpansion(
@@ -1767,6 +1863,9 @@ String _mangaSortLabel(MangaSearchSort sort) => switch (sort) {
       MangaSearchSort.titleDescending => 'Z-A',
       MangaSearchSort.year => 'Release year',
       MangaSearchSort.chapterCount => 'Most chapters',
+      MangaSearchSort.mostFollows => 'Most follows',
+      MangaSearchSort.mostReviews => 'Most reviews',
+      MangaSearchSort.mostComments => 'Most comments',
     };
 
 class _MangaTaxonomySelection {

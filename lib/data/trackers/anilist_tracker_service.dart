@@ -343,25 +343,42 @@ class AniListTrackerService implements TrackerService {
     int? aniListId,
     int? malId,
     required String title,
+  }) =>
+      _addMediaToList(
+        type: TrackedMediaType.anime,
+        aniListId: aniListId,
+        malId: malId,
+        title: title,
+      );
+
+  Future<void> addMangaToList({
+    int? aniListId,
+    int? malId,
+    required String title,
+  }) =>
+      _addMediaToList(
+        type: TrackedMediaType.manga,
+        aniListId: aniListId,
+        malId: malId,
+        title: title,
+      );
+
+  Future<void> _addMediaToList({
+    required TrackedMediaType type,
+    int? aniListId,
+    int? malId,
+    required String title,
   }) async {
     if (accessToken == null || accessToken!.isEmpty) {
       throw const TrackerRequestException('AniList is not connected.');
     }
-    var mediaId = aniListId;
-    if (mediaId == null) {
-      const query = '''
-        query ResolveAnime(\$idMal: Int, \$search: String) {
-          Media(type: ANIME, idMal: \$idMal, search: \$search) { id }
-        }
-      ''';
-      final data = await _post(query, {
-        if (malId != null) 'idMal': malId,
-        if (malId == null) 'search': title,
-      });
-      final media = data['Media'];
-      if (media is Map) mediaId = (media['id'] as num?)?.toInt();
-    }
-    if (mediaId == null) {
+    final mediaId = await _resolveMediaId(
+      type: type,
+      aniListId: aniListId,
+      malId: malId,
+      title: title,
+    );
+    if (mediaId < 1) {
       throw TrackerRequestException('AniList could not match "$title".');
     }
     const mutation = '''
@@ -377,15 +394,54 @@ class AniListTrackerService implements TrackerService {
     int? malId,
     required String title,
     required int progress,
+  }) =>
+      _updateMediaProgress(
+        type: TrackedMediaType.anime,
+        aniListId: aniListId,
+        malId: malId,
+        title: title,
+        progress: progress,
+      );
+
+  Future<void> updateMangaProgress({
+    int? aniListId,
+    int? malId,
+    required String title,
+    required int progress,
+  }) =>
+      _updateMediaProgress(
+        type: TrackedMediaType.manga,
+        aniListId: aniListId,
+        malId: malId,
+        title: title,
+        progress: progress,
+        preventRegression: true,
+      );
+
+  Future<void> _updateMediaProgress({
+    required TrackedMediaType type,
+    int? aniListId,
+    int? malId,
+    required String title,
+    required int progress,
+    bool preventRegression = false,
   }) async {
     if (accessToken == null || accessToken!.isEmpty) {
       throw const TrackerRequestException('AniList is not connected.');
     }
-    final mediaId = await _resolveAnimeId(
+    final mediaId = await _resolveMediaId(
+      type: type,
       aniListId: aniListId,
       malId: malId,
       title: title,
     );
+    if (preventRegression) {
+      final currentProgress = await _loadMediaListProgress(
+        type: type,
+        mediaId: mediaId,
+      );
+      if (currentProgress != null && currentProgress >= progress) return;
+    }
     const mutation = '''
       mutation UpdateAnimeProgress(\$mediaId: Int!, \$progress: Int!) {
         SaveMediaListEntry(
@@ -398,15 +454,37 @@ class AniListTrackerService implements TrackerService {
     await _post(mutation, {'mediaId': mediaId, 'progress': progress});
   }
 
-  Future<int> _resolveAnimeId({
+  Future<int?> _loadMediaListProgress({
+    required TrackedMediaType type,
+    required int mediaId,
+  }) async {
+    const query = '''
+      query MediaListProgress(\$mediaId: Int!, \$type: MediaType!) {
+        Media(id: \$mediaId, type: \$type) {
+          mediaListEntry { progress }
+        }
+      }
+    ''';
+    final data = await _post(query, {
+      'mediaId': mediaId,
+      'type': _mediaType(type),
+    });
+    final media = data['Media'];
+    final entry = media is Map ? media['mediaListEntry'] : null;
+    return entry is Map ? (entry['progress'] as num?)?.toInt() : null;
+  }
+
+  Future<int> _resolveMediaId({
+    required TrackedMediaType type,
     int? aniListId,
     int? malId,
     required String title,
   }) async {
     if (aniListId != null) return aniListId;
-    const query = '''
-      query ResolveAnime(\$idMal: Int, \$search: String) {
-        Media(type: ANIME, idMal: \$idMal, search: \$search) { id }
+    final mediaType = _mediaType(type);
+    final query = '''
+      query ResolveMedia(\$idMal: Int, \$search: String) {
+        Media(type: $mediaType, idMal: \$idMal, search: \$search) { id }
       }
     ''';
     final data = await _post(query, {

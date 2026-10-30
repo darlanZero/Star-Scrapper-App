@@ -25,6 +25,7 @@ class ChapterBookScreen extends StatefulWidget {
   final String mangaID;
   final String chapterWebViewUrl;
   final MangaSource? scrapper;
+  final Future<void> Function(int chapter)? onChapterCompleted;
 
   const ChapterBookScreen({
     super.key,
@@ -35,6 +36,7 @@ class ChapterBookScreen extends StatefulWidget {
     this.chapterNumber,
     this.chapterWebViewUrl = '',
     this.scrapper,
+    this.onChapterCompleted,
   });
 
   @override
@@ -183,6 +185,25 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
               : widget.chapterId),
       scrapper: _activeScrapper,
     ));
+    final chapter = trackerChapterProgress(widget.chapterNumber);
+    if (chapter != null && chapter > 0 && widget.onChapterCompleted != null) {
+      unawaited(_syncCompletedChapter(chapter));
+    }
+  }
+
+  Future<void> _syncCompletedChapter(int chapter) async {
+    try {
+      await widget.onChapterCompleted!(chapter);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Chapter saved locally. AniList sync failed: $error',
+          ),
+        ),
+      );
+    }
   }
 
   void _maybeRecordChapterRead() {
@@ -506,6 +527,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
           mangaID: widget.mangaID,
           chapterWebViewUrl: webViewUrl,
           scrapper: _activeScrapper,
+          onChapterCompleted: widget.onChapterCompleted,
         ),
       ),
     );
@@ -995,7 +1017,8 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
       widget.chapterNumber ?? widget.chapterTitle ?? widget.chapterId,
       fallback: 'chapter',
     );
-    final fileName = '${safeTitle}_${safeChapter}_p${pageNumber.clamp(1, 99999)}'
+    final fileName =
+        '${safeTitle}_${safeChapter}_p${pageNumber.clamp(1, 99999)}'
         '.${format.extension}';
     final temp = await getTemporaryDirectory();
     final exportDirectory = Directory(path.join(temp.path, 'reader_exports'));
@@ -1067,8 +1090,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
     }
 
     final y = globalPosition.dy;
-    var nearestIndex =
-        _currentPage.clamp(0, _chapterImages.length - 1).toInt();
+    var nearestIndex = _currentPage.clamp(0, _chapterImages.length - 1).toInt();
     var nearestDistance = double.infinity;
     for (var index = 0; index < _imageItemKeys.length; index++) {
       final render = _imageItemKeys[index].currentContext?.findRenderObject();
@@ -1291,8 +1313,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
                                 },
                               )
                             : NotificationListener<ScrollNotification>(
-                                onNotification:
-                                    _handleReaderScrollNotification,
+                                onNotification: _handleReaderScrollNotification,
                                 child: ListView.builder(
                                   controller: _scrollController,
                                   reverse: _reverseReading,

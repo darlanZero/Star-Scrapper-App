@@ -76,4 +76,12 @@ void main() {
       isTrue,
     );
   });
+
+  test('AniList manga progress uses whole completed chapter numbers', () {
+    expect(trackerChapterProgress('12'), 12);
+    expect(trackerChapterProgress('12.5'), 12);
+    expect(trackerChapterProgress('Chapter 64'), 64);
+    expect(trackerChapterProgress('Oneshot'), isNull);
+    expect(trackerChapterProgress('0'), isNull);
+  });
 }

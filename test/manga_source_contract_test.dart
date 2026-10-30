@@ -110,6 +110,9 @@ void main() {
           pages: '20',
           uploader: 'Team',
           publishedAt: '2026-01-01',
+          scanId: 'scan-42',
+          scanName: 'Example Scan',
+          missingChapters: 'missing(2): 3-4',
         ),
       ],
     );
@@ -137,6 +140,9 @@ void main() {
     expect(restored.chapters.single.id, 'ch-1');
     expect(restored.chapters.single.number, '1');
     expect(restored.chapters.single.pages, '20');
+    expect(restored.chapters.single.scanId, 'scan-42');
+    expect(restored.chapters.single.scanName, 'Example Scan');
+    expect(restored.chapters.single.missingChapters, 'missing(2): 3-4');
   });
 
   test('details tolerate a map-shaped author and plain altTitles', () {

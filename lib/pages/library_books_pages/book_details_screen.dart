@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, kDebugMode;
 import 'package:provider/provider.dart';
+import 'package:star_scrapper_app/application/trackers/tracker_controller.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/domain/sources/manga_source.dart';
@@ -37,6 +38,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   // ignore: unused_field
   bool _isLoadingChapter = false;
   String? _selectedChapterId;
+  bool _syncingTrackers = false;
 
   Future<void>? _updateFuture;
 
@@ -385,6 +387,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     final effectiveScrapper = widget.scrapper ??
         Provider.of<FontProvider>(context, listen: false)
             .findScrapperForBook(bookDetails);
+    final usesScanCards = effectiveScrapper?.id == 'xcomic';
+    final trackers = context.watch<TrackerController>();
 
     void showManageTabsDialog(BuildContext context) {
       final fontProvider = Provider.of<FontProvider>(context, listen: false);
@@ -652,6 +656,19 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
             ),
           ),
           actions: [
+            if (trackers.aniListConnectedAndEnabled)
+              IconButton(
+                tooltip: 'Add manga to AniList',
+                onPressed: _syncingTrackers
+                    ? null
+                    : () => _addMangaToAniList(trackers),
+                icon: _syncingTrackers
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.sync_alt_rounded),
+              ),
             Consumer<FontProvider>(
               builder: (context, favoritedBooksState, child) {
                 final isFavorited =
@@ -773,181 +790,425 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
             ),
           ),
         ),
-        SliverList(
-            delegate: SliverChildBuilderDelegate(
-          (BuildContext context, int index) {
-            if (index >= chapters.length) {
-              return const SizedBox.shrink();
-            }
+        if (usesScanCards)
+          SliverToBoxAdapter(
+            child: _buildXComicScanCarousel(chapters, theme),
+          )
+        else
+          SliverList(
+              delegate: SliverChildBuilderDelegate(
+            (BuildContext context, int index) {
+              if (index >= chapters.length) {
+                return const SizedBox.shrink();
+              }
 
-            final chapter = chapters[index];
-            final fontProvider =
-                Provider.of<FontProvider>(context, listen: false);
-            final readChapterIds =
-                (fontProvider.selectedChapterIds[bookDetails['id']] ?? [])
-                    .map((c) => c['id'] as String)
-                    .toSet();
-            final isRead =
-                readChapterIds.contains(chapter['id'] as String? ?? '');
+              final chapter = chapters[index];
+              final fontProvider =
+                  Provider.of<FontProvider>(context, listen: false);
+              final readChapterIds =
+                  (fontProvider.selectedChapterIds[bookDetails['id']] ?? [])
+                      .map((c) => c['id'] as String)
+                      .toSet();
+              final isRead =
+                  readChapterIds.contains(chapter['id'] as String? ?? '');
 
-            return ListTile(
-                title: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _buildChapterLabel(chapter),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                        style: TextStyle(
+              return ListTile(
+                  title: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _buildChapterLabel(chapter),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                          style: TextStyle(
+                              color: theme
+                                  .selectedTheme.textTheme.titleSmall?.color,
+                              fontSize: 16.0,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      if (chapter['volume'] != null)
+                        Text(
+                          'Vol. ${_formatVolume(chapter['volume']?.toString())}',
+                          style: TextStyle(
                             color:
                                 theme.selectedTheme.textTheme.titleSmall?.color,
                             fontSize: 16.0,
-                            fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    if (chapter['volume'] != null)
+                          ),
+                        ),
+                      SizedBox(width: 8.0),
                       Text(
-                        'Vol. ${_formatVolume(chapter['volume']?.toString())}',
+                        '${chapter['translatedLanguage'] ?? ''}',
                         style: TextStyle(
                           color:
                               theme.selectedTheme.textTheme.titleSmall?.color,
                           fontSize: 16.0,
                         ),
-                      ),
-                    SizedBox(width: 8.0),
-                    Text(
-                      '${chapter['translatedLanguage'] ?? ''}',
-                      style: TextStyle(
-                        color: theme.selectedTheme.textTheme.titleSmall?.color,
-                        fontSize: 16.0,
-                      ),
-                    )
-                  ],
-                ),
-                leading: Icon(
-                  isRead ? Icons.check_circle : Icons.circle_outlined,
-                  color: isRead ? Colors.green : Colors.grey,
-                  size: 20,
-                ),
-                tileColor: _selectedChapterId == chapter['id']
-                    ? const Color(0xFF483D8B).withAlpha(150)
-                    : isRead
-                        ? Colors.green.withValues(alpha: 0.08)
-                        : null,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-                subtitle: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    if (chapter['pages'] != null)
+                      )
+                    ],
+                  ),
+                  leading: Icon(
+                    isRead ? Icons.check_circle : Icons.circle_outlined,
+                    color: isRead ? Colors.green : Colors.grey,
+                    size: 20,
+                  ),
+                  tileColor: _selectedChapterId == chapter['id']
+                      ? const Color(0xFF483D8B).withAlpha(150)
+                      : isRead
+                          ? Colors.green.withValues(alpha: 0.08)
+                          : null,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  subtitle: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      if (chapter['pages'] != null)
+                        Text(
+                          '${chapter['pages']} pages',
+                          style: TextStyle(
+                            color: theme
+                                .selectedTheme.textTheme.displayMedium?.color,
+                            fontSize: 14.0,
+                          ),
+                        ),
+                      if (chapter['uploader'] != null)
+                        Text(
+                          chapter['uploader'],
+                          style: TextStyle(
+                            color: theme
+                                .selectedTheme.textTheme.displayMedium?.color,
+                            fontSize: 14.0,
+                          ),
+                        ),
                       Text(
-                        '${chapter['pages']} pages',
+                        _formatDate(chapter['publishedAt']?.toString()),
                         style: TextStyle(
                           color: theme
                               .selectedTheme.textTheme.displayMedium?.color,
                           fontSize: 14.0,
                         ),
-                      ),
-                    if (chapter['uploader'] != null)
-                      Text(
-                        chapter['uploader'],
-                        style: TextStyle(
-                          color: theme
-                              .selectedTheme.textTheme.displayMedium?.color,
-                          fontSize: 14.0,
-                        ),
-                      ),
-                    Text(
-                      _formatDate(chapter['publishedAt']?.toString()),
-                      style: TextStyle(
-                        color:
-                            theme.selectedTheme.textTheme.displayMedium?.color,
-                        fontSize: 14.0,
-                      ),
-                    )
-                  ],
-                ),
-                onTap: () async {
-                  final chapterId = (chapter['id'] ?? '').toString();
-                  final chapterNumber = (chapter['chapter'] ?? '').toString();
-
-                  setState(() {
-                    _isLoadingChapter = true;
-                    _selectedChapterId = chapterId;
-                  });
-
-                  await Provider.of<FontProvider>(context, listen: false)
-                      .saveSingleSelectedChapterId(
-                    bookDetails['id'],
-                    chapterId,
-                    chapterNumber,
-                  );
-
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Row(children: const [
-                      Text('Loading chapter...'),
-                      SizedBox(width: 10),
-                      CircularProgressIndicator(),
-                    ]),
-                    duration: const Duration(minutes: 5),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10.0)),
-                  ));
-
-                  try {
-                    final fontProvider =
-                        Provider.of<FontProvider>(context, listen: false);
-                    final fontApi = widget.scrapper ??
-                        fontProvider.findScrapperForBook(bookDetails) ??
-                        fontProvider.selectedFontApi;
-                    final webViewUrl = fontApi is WebViewChapterMangaSource
-                        ? (fontApi as WebViewChapterMangaSource)
-                            .chapterWebUri(
-                              mangaId: bookDetails['id'].toString(),
-                              chapterId: chapterId,
-                            )
-                            .toString()
-                        : '';
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => ChapterBookScreen(
-                                  bookTitle: bookDetails['title'],
-                                  chapterId: chapterId,
-                                  chapterTitle: chapter['title'],
-                                  mangaID: bookDetails['id'].toString(),
-                                  chapterNumber: chapterNumber,
-                                  chapterWebViewUrl: webViewUrl,
-                                  scrapper: fontApi,
-                                )));
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text('Failed to load chapter: $e'),
-                      backgroundColor: Colors.red,
-                      behavior: SnackBarBehavior.floating,
-                      duration: const Duration(seconds: 10),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.0)),
-                    ));
-
-                    if (kDebugMode) {
-                      print('Failed to load chapter: $e');
-                    }
-                  } finally {
-                    setState(() {
-                      _isLoadingChapter = false;
-                    });
-                  }
-                });
-          },
-          childCount: chapters.length,
-        ))
+                      )
+                    ],
+                  ),
+                  onTap: () => _openChapter(chapter));
+            },
+            childCount: chapters.length,
+          ))
       ],
     );
+  }
+
+  Widget _buildXComicScanCarousel(
+    List<dynamic> chapters,
+    ThemeProvider theme,
+  ) {
+    final grouped = <String, List<Map<dynamic, dynamic>>>{};
+    for (final rawChapter in chapters) {
+      if (rawChapter is! Map) continue;
+      final chapter = Map<dynamic, dynamic>.from(rawChapter);
+      final scanId = _xComicScanId(chapter);
+      grouped.putIfAbsent(scanId, () => []).add(chapter);
+    }
+    if (grouped.isEmpty) return const SizedBox.shrink();
+
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final cardWidth = (screenWidth * .86).clamp(300.0, 390.0);
+    return SizedBox(
+      height: 520,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(12, 0, 24, 18),
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: grouped.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          final entry = grouped.entries.elementAt(index);
+          final scanChapters = entry.value;
+          final first = scanChapters.first;
+          final scanName = _xComicScanName(first);
+          final language = first['translatedLanguage']?.toString().trim() ?? '';
+          final missing = first['missingChapters']?.toString().trim() ?? '';
+          return SizedBox(
+            width: cardWidth,
+            child: Card(
+              clipBehavior: Clip.antiAlias,
+              color: theme.selectedTheme.cardTheme.color,
+              elevation: 1,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 10, 10),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            scanName.isEmpty
+                                ? '#${entry.key}'
+                                : '#${entry.key} · $scanName',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        if (language.isNotEmpty)
+                          Chip(
+                            label: Text(language),
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (missing.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .tertiaryContainer
+                            .withValues(alpha: .45),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline_rounded, size: 16),
+                          const SizedBox(width: 7),
+                          Expanded(
+                            child: Text(
+                              missing,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: ListView.builder(
+                      primary: false,
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      itemCount: scanChapters.length,
+                      itemBuilder: (context, chapterIndex) {
+                        final chapter = scanChapters[chapterIndex];
+                        final chapterId = chapter['id']?.toString() ?? '';
+                        final title = chapter['title']?.toString().trim() ?? '';
+                        final number =
+                            chapter['chapter']?.toString().trim() ?? '';
+                        final isRead = _isChapterRead(chapterId);
+                        return ListTile(
+                          dense: true,
+                          leading: Icon(
+                            isRead ? Icons.check_circle : Icons.circle_outlined,
+                            color: isRead ? Colors.green : Colors.grey,
+                            size: 20,
+                          ),
+                          title: Text(
+                            title.isNotEmpty
+                                ? title
+                                : number.isNotEmpty
+                                    ? 'Chapter $number'
+                                    : 'Chapter ?',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            _formatChapterDate(
+                              chapter['publishedAt']?.toString(),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          selected: _selectedChapterId == chapterId,
+                          selectedTileColor:
+                              const Color(0xFF483D8B).withAlpha(90),
+                          onTap: () => _openChapter(chapter),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _xComicScanId(Map<dynamic, dynamic> chapter) {
+    final explicit = chapter['scanId']?.toString().trim() ?? '';
+    if (explicit.isNotEmpty) return explicit;
+
+    // Compatibility with xComic details cached before scan metadata became a
+    // first-class part of MangaChapter. Those builds appended the scan id to
+    // the chapter title/uploader.
+    for (final value in [chapter['uploader'], chapter['title']]) {
+      final match = RegExp(r'#([a-zA-Z0-9_-]+)').firstMatch('$value');
+      if (match != null) return match.group(1)!;
+    }
+    return 'unknown';
+  }
+
+  String _xComicScanName(Map<dynamic, dynamic> chapter) {
+    final explicit = chapter['scanName']?.toString().trim() ?? '';
+    if (explicit.isNotEmpty) return explicit;
+    final uploader = chapter['uploader']?.toString().trim() ?? '';
+    if (uploader.isEmpty || uploader.startsWith('missing')) return '';
+    return uploader.replaceFirst(RegExp(r'\s*#[a-zA-Z0-9_-]+\s*$'), '').trim();
+  }
+
+  String _formatChapterDate(String? rawDate) {
+    final value = rawDate?.trim() ?? '';
+    if (value.isEmpty) return 'No date';
+    if (RegExp(
+      r'^(?:today|yesterday|\d+\s*(?:s|m|h|d|w|mo|y)(?:inute|our|ay|eek|onth|ear)?s?\s+ago)$',
+      caseSensitive: false,
+    ).hasMatch(value)) {
+      return value;
+    }
+    return _formatDate(value);
+  }
+
+  bool _isChapterRead(String chapterId) {
+    final fontProvider = Provider.of<FontProvider>(context, listen: false);
+    return (fontProvider.selectedChapterIds[bookDetails['id']] ?? [])
+        .any((chapter) => chapter['id']?.toString() == chapterId);
+  }
+
+  Future<void> _openChapter(Map<dynamic, dynamic> chapter) async {
+    final chapterId = (chapter['id'] ?? '').toString();
+    final chapterNumber = (chapter['chapter'] ?? '').toString();
+    setState(() {
+      _isLoadingChapter = true;
+      _selectedChapterId = chapterId;
+    });
+
+    final fontProvider = Provider.of<FontProvider>(context, listen: false);
+    await fontProvider.saveSingleSelectedChapterId(
+      bookDetails['id'],
+      chapterId,
+      chapterNumber,
+    );
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: const Row(children: [
+        Text('Loading chapter...'),
+        SizedBox(width: 10),
+        CircularProgressIndicator(),
+      ]),
+      duration: const Duration(minutes: 5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+    ));
+
+    try {
+      final fontApi = widget.scrapper ??
+          fontProvider.findScrapperForBook(bookDetails) ??
+          fontProvider.selectedFontApi;
+      final webViewUrl = fontApi is WebViewChapterMangaSource
+          ? (fontApi as WebViewChapterMangaSource)
+              .chapterWebUri(
+                mangaId: bookDetails['id'].toString(),
+                chapterId: chapterId,
+              )
+              .toString()
+          : '';
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ChapterBookScreen(
+            bookTitle: bookDetails['title'],
+            chapterId: chapterId,
+            chapterTitle: chapter['title'],
+            mangaID: bookDetails['id'].toString(),
+            chapterNumber: chapterNumber,
+            chapterWebViewUrl: webViewUrl,
+            scrapper: fontApi,
+            onChapterCompleted: _mangaProgressCallback(),
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Failed to load chapter: $error'),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+      if (kDebugMode) print('Failed to load chapter: $error');
+    } finally {
+      if (mounted) setState(() => _isLoadingChapter = false);
+    }
+  }
+
+  Future<void> _addMangaToAniList(TrackerController trackers) async {
+    setState(() => _syncingTrackers = true);
+    try {
+      final names = await trackers.addMangaToConnectedTrackers(
+        title: bookDetails['title']?.toString() ?? '',
+        aniListId: _externalTrackerId('anilist'),
+        malId: _externalTrackerId('mal'),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Added to ${names.join(' and ')}.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$error')),
+      );
+    } finally {
+      if (mounted) setState(() => _syncingTrackers = false);
+    }
+  }
+
+  Future<void> Function(int chapter)? _mangaProgressCallback() {
+    final trackers = context.read<TrackerController>();
+    if (!trackers.aniListConnectedAndEnabled) return null;
+    final title = bookDetails['title']?.toString() ?? '';
+    final aniListId = _externalTrackerId('anilist');
+    final malId = _externalTrackerId('mal');
+    return (chapter) async {
+      await trackers.updateMangaProgressOnConnectedTrackers(
+        title: title,
+        chapter: chapter,
+        aniListId: aniListId,
+        malId: malId,
+      );
+    };
+  }
+
+  int? _externalTrackerId(String tracker) {
+    final externalIds = bookDetails['externalIds'];
+    final candidates = <dynamic>[
+      if (externalIds is Map) externalIds[tracker],
+      if (externalIds is Map) externalIds['${tracker}Id'],
+      bookDetails[tracker],
+      bookDetails['${tracker}Id'],
+    ];
+    for (final value in candidates) {
+      final parsed = int.tryParse(value?.toString() ?? '');
+      if (parsed != null) return parsed;
+    }
+    return null;
   }
 
   List<Widget> _buildLanguageFilterButtons() {

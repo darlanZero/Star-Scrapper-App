@@ -380,8 +380,42 @@ void main() {
     await AniListTrackerService(accessToken: 'token', client: client)
         .addAnimeToList(malId: 2, title: 'Example');
 
-    expect(queries.first, contains('ResolveAnime'));
+    expect(queries.first, contains('ResolveMedia'));
+    expect(queries.first, contains('type: ANIME'));
     expect(queries.last, contains('SaveMediaListEntry'));
+  });
+
+  test('AniList resolves a manga and creates a reading entry', () async {
+    final requests = <Map<String, dynamic>>[];
+    final client = MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      requests.add(body);
+      if (requests.length == 1) {
+        return http.Response(
+          jsonEncode({
+            'data': {
+              'Media': {'id': 88},
+            },
+          }),
+          200,
+        );
+      }
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'SaveMediaListEntry': {'id': 10, 'status': 'CURRENT'},
+          },
+        }),
+        200,
+      );
+    });
+
+    await AniListTrackerService(accessToken: 'token', client: client)
+        .addMangaToList(title: 'Example Manga');
+
+    expect(requests.first['query'], contains('type: MANGA'));
+    expect(requests.first['variables'], {'search': 'Example Manga'});
+    expect(requests.last['variables'], {'mediaId': 88});
   });
 
   test('MAL adds a matched anime to the watching list', () async {
@@ -429,6 +463,85 @@ void main() {
     );
 
     expect(mutationVariables, {'mediaId': 77, 'progress': 4});
+  });
+
+  test('AniList resolves manga and updates completed chapter progress',
+      () async {
+    final requests = <Map<String, dynamic>>[];
+    final client = MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      requests.add(body);
+      if (requests.length == 1) {
+        return http.Response(
+          jsonEncode({
+            'data': {
+              'Media': {'id': 88},
+            },
+          }),
+          200,
+        );
+      }
+      if (requests.length == 2) {
+        return http.Response(
+          jsonEncode({
+            'data': {
+              'Media': {'mediaListEntry': null},
+            },
+          }),
+          200,
+        );
+      }
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'SaveMediaListEntry': {
+              'id': 10,
+              'status': 'CURRENT',
+              'progress': 12,
+            },
+          },
+        }),
+        200,
+      );
+    });
+
+    await AniListTrackerService(accessToken: 'token', client: client)
+        .updateMangaProgress(
+      title: 'Example Manga',
+      progress: 12,
+    );
+
+    expect(requests.first['query'], contains('type: MANGA'));
+    expect(requests[1]['variables'], {'mediaId': 88, 'type': 'MANGA'});
+    expect(requests.last['variables'], {'mediaId': 88, 'progress': 12});
+  });
+
+  test('AniList manga progress never regresses when rereading', () async {
+    final requests = <Map<String, dynamic>>[];
+    final client = MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      requests.add(body);
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'Media': {
+              'mediaListEntry': {'progress': 20},
+            },
+          },
+        }),
+        200,
+      );
+    });
+
+    await AniListTrackerService(accessToken: 'token', client: client)
+        .updateMangaProgress(
+      aniListId: 88,
+      title: 'Example Manga',
+      progress: 12,
+    );
+
+    expect(requests, hasLength(1));
+    expect(requests.single['query'], contains('MediaListProgress'));
   });
 
   test('MAL updates watched episode progress', () async {

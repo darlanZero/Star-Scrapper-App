@@ -106,6 +106,7 @@ void main() {
     expect(ids, contains('animy_manga'));
     expect(ids, contains('yomu'));
     expect(ids, contains('hdoujin'));
+    expect(ids, contains('xcomic'));
   });
 
   test('Leitura Manga is a mixed PT-BR source, not an adult-only source', () {
@@ -190,5 +191,16 @@ void main() {
       source.api.catalogFilterLabel(MangaCatalogFilter.updated),
       'Recent doujin',
     );
+  });
+
+  test('xComic is a mixed All languages filterable manga source', () {
+    final source = SourceCatalog.createAll().singleWhere(
+      (source) => source.id == 'xcomic',
+    );
+
+    expect(source.languagePrefix, 'All');
+    expect(source.contentType, SourceContentType.manga);
+    expect(source.isRRated, isFalse);
+    expect(source.api, isA<FilterableMangaSource>());
   });
 }

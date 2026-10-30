@@ -22,6 +22,7 @@ import 'package:star_scrapper_app/data/sources/manga/hdoujin_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/onisaga_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/nhentai_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/nhentai_xxx_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/xcomic_source.dart';
 import 'package:star_scrapper_app/infrastructure/webview/browser_html_loader.dart';
 
 /// Single registry for the sources bundled with the application.
@@ -64,6 +65,7 @@ abstract final class SourceCatalog {
         HDoujinSource(),
         NHentaiSource(),
         NHentaiXxxSource(),
+        XComicSource(),
         OniSagaSource(
           browserHtmlLoader: (uri, userAgent) => BrowserHtmlLoader.loadWhen(
             uri,
@@ -252,6 +254,17 @@ abstract final class SourceCatalog {
           api: NHentaiXxxSource(),
           contentType: SourceContentType.manga,
           isRRated: true,
+        ),
+        Fonte(
+          id: 'xcomic',
+          image: 'https://xcomic.net/static/img/fav.ico?3',
+          name: 'xComic',
+          languagePrefix: 'All',
+          flags: ['https://cdn-icons-png.flaticon.com/512/44/44386.png'],
+          api: XComicSource(),
+          contentType: SourceContentType.manga,
+          // Mixed catalog: adult titles coexist with general-audience works.
+          isRRated: false,
         ),
         Fonte(
           id: 'onisaga',

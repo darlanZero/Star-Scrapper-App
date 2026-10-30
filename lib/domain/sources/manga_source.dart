@@ -46,6 +46,9 @@ enum MangaSearchSort {
   titleDescending,
   year,
   chapterCount,
+  mostFollows,
+  mostReviews,
+  mostComments,
 }
 
 enum MangaCategoryMode { any, all }
@@ -62,11 +65,16 @@ class MangaFilterOption {
 }
 
 class MangaSearchOptions {
+  final List<MangaFilterOption> types;
   final List<MangaFilterOption> formats;
   final List<MangaFilterOption> statuses;
   final List<MangaFilterOption> tags;
   final List<MangaFilterOption> genres;
   final List<MangaFilterOption> themes;
+  final List<MangaFilterOption> demographics;
+  final List<MangaFilterOption> originalLanguages;
+  final List<MangaFilterOption> translatedLanguages;
+  final List<MangaFilterOption> chapterPresets;
   final List<MangaSearchSort> sorts;
   final bool supportsAuthor;
   final bool supportsArtist;
@@ -78,11 +86,16 @@ class MangaSearchOptions {
   final bool supportsSortDirection;
 
   MangaSearchOptions({
+    Iterable<MangaFilterOption> types = const [],
     Iterable<MangaFilterOption> formats = const [],
     Iterable<MangaFilterOption> statuses = const [],
     Iterable<MangaFilterOption> tags = const [],
     Iterable<MangaFilterOption> genres = const [],
     Iterable<MangaFilterOption> themes = const [],
+    Iterable<MangaFilterOption> demographics = const [],
+    Iterable<MangaFilterOption> originalLanguages = const [],
+    Iterable<MangaFilterOption> translatedLanguages = const [],
+    Iterable<MangaFilterOption> chapterPresets = const [],
     Iterable<MangaSearchSort> sorts = MangaSearchSort.values,
     this.supportsAuthor = false,
     this.supportsArtist = false,
@@ -92,20 +105,30 @@ class MangaSearchOptions {
     this.supportsCategoryMode = false,
     this.supportsAdultMode = false,
     this.supportsSortDirection = false,
-  })  : formats = List.unmodifiable(formats),
+  })  : types = List.unmodifiable(types),
+        formats = List.unmodifiable(formats),
         statuses = List.unmodifiable(statuses),
         tags = List.unmodifiable(tags),
         genres = List.unmodifiable(genres),
         themes = List.unmodifiable(themes),
+        demographics = List.unmodifiable(demographics),
+        originalLanguages = List.unmodifiable(originalLanguages),
+        translatedLanguages = List.unmodifiable(translatedLanguages),
+        chapterPresets = List.unmodifiable(chapterPresets),
         sorts = List.unmodifiable(sorts);
 }
 
 class MangaSearchRequest {
+  final Set<String> types;
   final Set<String> formats;
   final Set<String> statuses;
   final Set<String> tags;
   final Set<String> genres;
   final Set<String> themes;
+  final Set<String> demographics;
+  final Set<String> originalLanguages;
+  final Set<String> translatedLanguages;
+  final String chapterPreset;
   final String author;
   final String artist;
   final int? minimumYear;
@@ -120,11 +143,16 @@ class MangaSearchRequest {
   final MangaSortDirection sortDirection;
 
   MangaSearchRequest({
+    Set<String> types = const {},
     Set<String> formats = const {},
     Set<String> statuses = const {},
     Set<String> tags = const {},
     Set<String> genres = const {},
     Set<String> themes = const {},
+    Set<String> demographics = const {},
+    Set<String> originalLanguages = const {},
+    Set<String> translatedLanguages = const {},
+    this.chapterPreset = '',
     this.author = '',
     this.artist = '',
     this.minimumYear,
@@ -137,18 +165,27 @@ class MangaSearchRequest {
     this.categoryMode = MangaCategoryMode.any,
     this.adultMode = MangaAdultMode.hide,
     this.sortDirection = MangaSortDirection.descending,
-  })  : formats = Set.unmodifiable(formats),
+  })  : types = Set.unmodifiable(types),
+        formats = Set.unmodifiable(formats),
         statuses = Set.unmodifiable(statuses),
         tags = Set.unmodifiable(tags),
         genres = Set.unmodifiable(genres),
-        themes = Set.unmodifiable(themes);
+        themes = Set.unmodifiable(themes),
+        demographics = Set.unmodifiable(demographics),
+        originalLanguages = Set.unmodifiable(originalLanguages),
+        translatedLanguages = Set.unmodifiable(translatedLanguages);
 
   bool get hasFilters =>
+      types.isNotEmpty ||
       formats.isNotEmpty ||
       statuses.isNotEmpty ||
       tags.isNotEmpty ||
       genres.isNotEmpty ||
       themes.isNotEmpty ||
+      demographics.isNotEmpty ||
+      originalLanguages.isNotEmpty ||
+      translatedLanguages.isNotEmpty ||
+      chapterPreset.isNotEmpty ||
       author.trim().isNotEmpty ||
       artist.trim().isNotEmpty ||
       minimumYear != null ||
@@ -163,11 +200,16 @@ class MangaSearchRequest {
       sortDirection != MangaSortDirection.descending;
 
   int get activeFilterCount =>
+      (types.isEmpty ? 0 : 1) +
       (formats.isEmpty ? 0 : 1) +
       statuses.length +
       tags.length +
       genres.length +
       themes.length +
+      demographics.length +
+      originalLanguages.length +
+      translatedLanguages.length +
+      (chapterPreset.isEmpty ? 0 : 1) +
       (author.trim().isEmpty ? 0 : 1) +
       (artist.trim().isEmpty ? 0 : 1) +
       (minimumYear == null && maximumYear == null ? 0 : 1) +
@@ -374,6 +416,13 @@ class MangaChapter {
   final String? uploader;
   final String? publishedAt;
 
+  /// Optional scan/source grouping metadata. Most providers leave these null;
+  /// multi-scan catalogs such as xComic use them to present one chapter list
+  /// per scan without duplicating scan-level notices on every chapter row.
+  final String? scanId;
+  final String? scanName;
+  final String? missingChapters;
+
   const MangaChapter({
     required this.id,
     this.title = '',
@@ -383,6 +432,9 @@ class MangaChapter {
     this.pages,
     this.uploader,
     this.publishedAt,
+    this.scanId,
+    this.scanName,
+    this.missingChapters,
   });
 
   factory MangaChapter.fromJson(Map<dynamic, dynamic> json) {
@@ -395,6 +447,9 @@ class MangaChapter {
       pages: _nullableString(json['pages']),
       uploader: _nullableString(json['uploader']),
       publishedAt: _nullableString(json['publishedAt']),
+      scanId: _nullableString(json['scanId']),
+      scanName: _nullableString(json['scanName']),
+      missingChapters: _nullableString(json['missingChapters']),
     );
   }
 
@@ -407,6 +462,9 @@ class MangaChapter {
         if (pages != null) 'pages': pages,
         if (uploader != null) 'uploader': uploader,
         if (publishedAt != null) 'publishedAt': publishedAt,
+        if (scanId != null) 'scanId': scanId,
+        if (scanName != null) 'scanName': scanName,
+        if (missingChapters != null) 'missingChapters': missingChapters,
       };
 }
 

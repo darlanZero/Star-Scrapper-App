@@ -66,6 +66,8 @@ class TrackerController extends ChangeNotifier {
   int get connectedTrackerCount =>
       (_aniListConnectedAndEnabled ? 1 : 0) + (_malConnectedAndEnabled ? 1 : 0);
 
+  bool get aniListConnectedAndEnabled => _aniListConnectedAndEnabled;
+
   bool get _aniListConnectedAndEnabled =>
       _aniListEnabled && _aniListTokens != null && _aniListAccount != null;
   bool get _malConnectedAndEnabled =>
@@ -293,6 +295,42 @@ class TrackerController extends ChangeNotifier {
     }
     if (operations.isEmpty) return const [];
     return Future.wait(operations);
+  }
+
+  Future<List<String>> addMangaToConnectedTrackers({
+    required String title,
+    int? malId,
+    int? aniListId,
+  }) async {
+    if (!_aniListConnectedAndEnabled) {
+      throw const TrackerRequestException(
+        'Connect and enable AniList first.',
+      );
+    }
+    await AniListTrackerService(accessToken: _aniListTokens!.accessToken)
+        .addMangaToList(
+      aniListId: aniListId,
+      malId: malId,
+      title: title,
+    );
+    return const ['AniList'];
+  }
+
+  Future<List<String>> updateMangaProgressOnConnectedTrackers({
+    required String title,
+    required int chapter,
+    int? malId,
+    int? aniListId,
+  }) async {
+    if (!_aniListConnectedAndEnabled) return const [];
+    await AniListTrackerService(accessToken: _aniListTokens!.accessToken)
+        .updateMangaProgress(
+      aniListId: aniListId,
+      malId: malId,
+      title: title,
+      progress: chapter,
+    );
+    return const ['AniList'];
   }
 
   Future<TrackerHomeData> loadHome(TrackedMediaType type) async {
