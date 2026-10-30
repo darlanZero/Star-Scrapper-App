@@ -989,6 +989,17 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
           builder: (context) => BookDetailsScreen(
             bookDetails: bookDetails,
             scrapper: widget.selectedFont.api,
+            onTaxonomySelected: (kind, id, name) {
+              setState(() {
+                _selectedTaxonomyKind = kind;
+                _selectedTaxonomyId = id;
+                _selectedTaxonomyName = name;
+                _catalogRequest = null;
+                _selectedGenreId = null;
+                _selectedGenreName = null;
+              });
+              _loadBooks();
+            },
           ),
         ),
       ).then((_) {
@@ -1789,6 +1800,7 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
   List<MangaTaxonomyOption> _options = const [];
   String? _selectedId;
   String? _selectedName;
+  final Map<String, String> _selectedOptions = {};
   bool _loading = false;
   Object? _error;
   Timer? _debounce;
@@ -1800,6 +1812,15 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
     _kind = widget.initialKind ?? widget.source.taxonomyKinds.first;
     _selectedId = widget.initialId;
     _selectedName = widget.initialName;
+    final initialIds = widget.initialId?.split('|') ?? const [];
+    final initialNames = widget.initialName?.split(', ') ?? const [];
+    for (var index = 0; index < initialIds.length; index++) {
+      if (initialIds[index].isNotEmpty) {
+        _selectedOptions[initialIds[index]] = index < initialNames.length
+            ? initialNames[index]
+            : initialIds[index];
+      }
+    }
     _queryController = TextEditingController();
     if (_kind == MangaTaxonomyKind.tag) _loadOptions();
   }
@@ -1814,6 +1835,9 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
   String _kindLabel(MangaTaxonomyKind kind) => switch (kind) {
         MangaTaxonomyKind.tag => 'Tags',
         MangaTaxonomyKind.artist => 'Artists',
+        MangaTaxonomyKind.character => 'Characters',
+        MangaTaxonomyKind.parody => 'Parodies',
+        MangaTaxonomyKind.group => 'Groups',
         MangaTaxonomyKind.circle => 'Circles',
       };
 
@@ -1824,6 +1848,7 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
       _kind = value;
       _selectedId = null;
       _selectedName = null;
+      _selectedOptions.clear();
       _options = const [];
       _error = null;
       _queryController.clear();
@@ -1836,6 +1861,7 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
     setState(() {
       _selectedId = null;
       _selectedName = null;
+      _selectedOptions.clear();
     });
     _debounce = Timer(const Duration(milliseconds: 300), _loadOptions);
   }
@@ -1873,7 +1899,11 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
   Widget build(BuildContext context) {
     final needsQuery = _kind != MangaTaxonomyKind.tag;
     return AlertDialog(
-      title: const Text('Filter HDoujin'),
+      title: Text(
+        widget.source is MangaSource
+            ? 'Filter ${(widget.source as MangaSource).name}'
+            : 'Filter source',
+      ),
       content: SizedBox(
         width: 460,
         height: 520,
@@ -1900,7 +1930,7 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
                     needsQuery ? 'Type at least 2 characters' : 'Find a tag',
                 helperText: needsQuery
                     ? 'Suggestions appear as you type.'
-                    : 'Tags are listed alphabetically.',
+                    : 'Tags are alphabetical. Long press to combine.',
               ),
               onChanged: _onQueryChanged,
             ),
@@ -1921,16 +1951,18 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: _selectedId == null
+          onPressed: _selectedOptions.isEmpty
               ? null
               : () => Navigator.of(context).pop(
                     _MangaTaxonomySelection(
                       _kind,
-                      _selectedId!,
-                      _selectedName!,
+                      _selectedOptions.keys.join('|'),
+                      _selectedOptions.values.join(', '),
                     ),
                   ),
-          child: const Text('Apply'),
+          child: Text(_selectedOptions.length > 1
+              ? 'Apply (${_selectedOptions.length})'
+              : 'Apply'),
         ),
       ],
     );
@@ -1953,7 +1985,7 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
       itemCount: _options.length,
       itemBuilder: (context, index) {
         final option = _options[index];
-        final selected = option.id == _selectedId;
+        final selected = _selectedOptions.containsKey(option.id);
         return ListTile(
           selected: selected,
           title: Text(option.name),
@@ -1964,8 +1996,19 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
             selected ? Icons.radio_button_checked : Icons.radio_button_off,
           ),
           onTap: () => setState(() {
+            _selectedOptions.clear();
+            _selectedOptions[option.id] = option.name;
             _selectedId = option.id;
             _selectedName = option.name;
+          }),
+          onLongPress: () => setState(() {
+            if (selected) {
+              _selectedOptions.remove(option.id);
+            } else {
+              _selectedOptions[option.id] = option.name;
+            }
+            _selectedId = _selectedOptions.keys.firstOrNull;
+            _selectedName = _selectedOptions.values.firstOrNull;
           }),
         );
       },

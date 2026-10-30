@@ -16,10 +16,13 @@ class BookDetailsScreen extends StatefulWidget {
 
   /// Scrapper a ser usado nesta tela. Se null, usa o selectedFontApi global.
   final MangaSource? scrapper;
+  final void Function(MangaTaxonomyKind kind, String id, String name)?
+      onTaxonomySelected;
   const BookDetailsScreen({
     super.key,
     required this.bookDetails,
     this.scrapper,
+    this.onTaxonomySelected,
   });
 
   @override
@@ -36,6 +39,119 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   String? _selectedChapterId;
 
   Future<void>? _updateFuture;
+
+  Widget _buildTagChip(String rawTag, TextStyle? style) {
+    final tag = rawTag.trim();
+    final canSearch = widget.scrapper?.id == 'nhentai' &&
+        widget.onTaxonomySelected != null &&
+        tag.isNotEmpty;
+    final chip = Chip(
+      label: Text(tag, style: style),
+      backgroundColor: Colors.black.withValues(alpha: .62),
+      shadowColor: Colors.transparent,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      visualDensity: VisualDensity.compact,
+      elevation: 0,
+      surfaceTintColor: Colors.transparent,
+      shape: const StadiumBorder(),
+      side: const BorderSide(color: Colors.white24),
+    );
+    if (!canSearch) return chip;
+    return GestureDetector(
+      onTap: () => _applyTagSearch([tag]),
+      onLongPress: _showCombinedTagSearch,
+      child: chip,
+    );
+  }
+
+  Widget _buildScrollableTags() {
+    final tags = ((bookDetails['tags'] as List?) ?? const [])
+        .map((tag) => tag.toString().trim())
+        .where((tag) => tag.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (tags.isEmpty) return const SizedBox.shrink();
+
+    return Semantics(
+      label: 'Manga tags. Swipe horizontally to see more.',
+      child: SizedBox(
+        height: 40,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          itemCount: tags.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 6),
+          itemBuilder: (context, index) => _buildTagChip(
+            tags[index],
+            const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _applyTagSearch(List<String> tags) {
+    if (tags.isEmpty || widget.onTaxonomySelected == null) return;
+    final ids = tags.map((tag) => '/tag/${_slug(tag)}/').join('|');
+    widget.onTaxonomySelected!(MangaTaxonomyKind.tag, ids, tags.join(', '));
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _showCombinedTagSearch() async {
+    final tags = ((bookDetails['tags'] as List?) ?? const [])
+        .map((tag) => tag.toString().trim())
+        .where((tag) => tag.isNotEmpty)
+        .toList(growable: false);
+    final selected = <String>{};
+    final result = await showDialog<List<String>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Combine tags'),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final tag in tags)
+                    FilterChip(
+                      label: Text(tag),
+                      selected: selected.contains(tag),
+                      onSelected: (value) => setDialogState(() =>
+                          value ? selected.add(tag) : selected.remove(tag)),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: selected.isEmpty
+                  ? null
+                  : () => Navigator.pop(dialogContext, selected.toList()),
+              child: Text('Search (${selected.length})'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (result != null && mounted) _applyTagSearch(result);
+  }
+
+  String _slug(String value) => value
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+      .replaceAll(RegExp(r'^-+|-+$'), '');
 
   Widget _sourceCoverImage({
     required MangaSource? source,
@@ -487,39 +603,10 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                 ),
                 if (!isDesktop)
                   Positioned(
-                      bottom: 30.0,
+                      bottom: 52.0,
+                      left: 130.0,
                       right: 16.0,
-                      width: 300,
-                      child: Wrap(
-                        spacing: 8.0,
-                        runSpacing: 8.0,
-                        alignment: WrapAlignment.center,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        verticalDirection: VerticalDirection.down,
-                        direction: Axis.horizontal,
-                        children: ((widget.bookDetails['tags'] as List?) ?? [])
-                            .map<Widget>((tag) => Chip(
-                                  label: Text(
-                                    tag,
-                                    style: TextStyle(
-                                        color: theme.selectedTheme.textTheme
-                                            .displayMedium?.color),
-                                  ),
-                                  backgroundColor: Colors.transparent,
-                                  shadowColor: Colors.transparent,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8.0, vertical: 4.0),
-                                  visualDensity: VisualDensity.compact,
-                                  elevation: 2.0,
-                                  surfaceTintColor: Colors.transparent,
-                                  shape: const StadiumBorder(),
-                                  labelStyle:
-                                      const TextStyle(color: Colors.white),
-                                  side: const BorderSide(
-                                      color: Colors.transparent),
-                                ))
-                            .toList(),
-                      )),
+                      child: _buildScrollableTags()),
                 if (isDesktop)
                   Positioned(
                     top: 16.0,
@@ -666,33 +753,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                         color:
                             theme.selectedTheme.textTheme.displayMedium?.color),
                   ),
-                if (isDesktop)
-                  Wrap(
-                    spacing: 8.0,
-                    children: ((bookDetails['tags'] as List?) ?? [])
-                        .map<Widget>((tag) {
-                      return Chip(
-                        label: Text(
-                          tag,
-                          style: TextStyle(
-                              color: theme.selectedTheme.textTheme.displayMedium
-                                  ?.color),
-                        ),
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8.0, vertical: 4.0),
-                        visualDensity: VisualDensity.compact,
-                        elevation: 2.0,
-                        surfaceTintColor: Colors.transparent,
-                        shape: const StadiumBorder(),
-                        labelStyle: TextStyle(
-                            color: theme
-                                .selectedTheme.textTheme.displayMedium?.color),
-                        side: const BorderSide(color: Colors.transparent),
-                      );
-                    }).toList(),
-                  ),
+                if (isDesktop) _buildScrollableTags(),
                 Text(
                   'Chapters',
                   style: TextStyle(

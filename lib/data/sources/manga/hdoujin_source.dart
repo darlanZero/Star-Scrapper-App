@@ -126,6 +126,7 @@ class HDoujinSource
       MangaTaxonomyKind.tag => 'tag:',
       MangaTaxonomyKind.artist => 'artist:',
       MangaTaxonomyKind.circle => 'circle:',
+      _ => throw UnsupportedError('Unsupported HDoujin taxonomy: $kind'),
     };
     final search = taxonomyId.startsWith(prefix)
         ? taxonomyId

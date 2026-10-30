@@ -321,7 +321,7 @@ class MangaGenre {
 }
 
 /// Taxonomy groups exposed by sources with richer adult-gallery metadata.
-enum MangaTaxonomyKind { tag, artist, circle }
+enum MangaTaxonomyKind { tag, artist, character, parody, group, circle }
 
 /// A selectable tag, artist, or circle and its canonical source identifier.
 class MangaTaxonomyOption {
