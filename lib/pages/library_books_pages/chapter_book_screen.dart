@@ -16,6 +16,7 @@ import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart' as flutter_webview;
 import 'package:webview_windows/webview_windows.dart' as webview_windows;
+import 'reader_page_image.dart';
 
 class ChapterBookScreen extends StatefulWidget {
   final String bookTitle;
@@ -55,6 +56,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
   bool _reverseReading = false;
   final List<MangaReaderPage> _chapterImages = [];
   final List<GlobalKey> _imageItemKeys = [];
+  final Map<int, double> _pageAspectRatios = {};
   final Set<int> _preloadedPageIndexes = <int>{};
   final Set<int> _preloadingPageIndexes = <int>{};
   StreamSubscription<MangaReaderPage>? _chapterImagesSubscription;
@@ -76,7 +78,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
   Timer? _controlsAutoHideTimer;
   Timer? _progressSaveTimer;
 
-  late PageController? _pageController;
+  PageController? _pageController;
   late ScrollController _scrollController;
   // ignore: unused_field
   late FontProvider _fontProvider;
@@ -243,6 +245,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
     setState(() {
       _chapterImages.clear();
       _imageItemKeys.clear();
+      _pageAspectRatios.clear();
       _preloadedPageIndexes.clear();
       _preloadingPageIndexes.clear();
       _readerError = null;
@@ -747,6 +750,8 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
       }
       final render = targetContext.findRenderObject();
       if (render is! RenderBox || render.size.height <= 0) return;
+      // Wait for real image geometry, not the temporary loading placeholder.
+      if (!_pageAspectRatios.containsKey(target)) return;
       final probeY = MediaQuery.of(context).size.height * 0.35;
       final targetY = render.localToGlobal(Offset.zero).dy +
           render.size.height * saved.pageFraction;
@@ -1321,8 +1326,15 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
                                   itemBuilder: (context, index) {
                                     return Container(
                                       key: _imageItemKeys[index],
-                                      child: _buildPageImage(
-                                        _chapterImages[index],
+                                      child: ReaderPageImage(
+                                        image: _imageProvider(
+                                            _chapterImages[index]),
+                                        pageIndex: index,
+                                        aspectRatios: _pageAspectRatios,
+                                        onImageReady: () {
+                                          _tryRestoreScrollPosition();
+                                          _scheduleScrollProgressRecalc();
+                                        },
                                       ),
                                     );
                                   },
