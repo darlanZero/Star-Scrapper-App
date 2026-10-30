@@ -1805,6 +1805,32 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
   Object? _error;
   Timer? _debounce;
   int _generation = 0;
+  MangaTaxonomySort _taxonomySort = MangaTaxonomySort.alphabetical;
+  bool _popularResults = false;
+  late final ScrollController _taxonomyScrollController;
+  String? _nextTaxonomyCursor;
+  bool _loadingMore = false;
+
+  SortableTaxonomyMangaSource? get _sortableSource =>
+      widget.source is SortableTaxonomyMangaSource
+          ? widget.source as SortableTaxonomyMangaSource
+          : null;
+
+  PaginatedTaxonomyMangaSource? get _paginatedSource =>
+      widget.source is PaginatedTaxonomyMangaSource
+          ? widget.source as PaginatedTaxonomyMangaSource
+          : null;
+
+  bool get _usesPaginatedVisualIndex =>
+      (_paginatedSource?.supportsTaxonomyPagination(_kind) ?? false) &&
+      _queryController.text.trim().isEmpty;
+
+  bool get _needsQuery =>
+      _sortableSource?.taxonomyRequiresQuery(_kind) ??
+      _kind != MangaTaxonomyKind.tag;
+
+  bool get _supportsResultOrdering =>
+      _kind == MangaTaxonomyKind.character || _kind == MangaTaxonomyKind.parody;
 
   @override
   void initState() {
@@ -1822,12 +1848,15 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
       }
     }
     _queryController = TextEditingController();
-    if (_kind == MangaTaxonomyKind.tag) _loadOptions();
+    _taxonomyScrollController = ScrollController()
+      ..addListener(_onTaxonomyScroll);
+    if (!_needsQuery) _loadOptions();
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _taxonomyScrollController.dispose();
     _queryController.dispose();
     super.dispose();
   }
@@ -1852,8 +1881,12 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
       _options = const [];
       _error = null;
       _queryController.clear();
+      _taxonomySort = MangaTaxonomySort.alphabetical;
+      _popularResults = false;
+      _nextTaxonomyCursor = null;
+      _loadingMore = false;
     });
-    if (value == MangaTaxonomyKind.tag) _loadOptions();
+    if (!_needsQuery) _loadOptions();
   }
 
   void _onQueryChanged(String query) {
@@ -1862,13 +1895,15 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
       _selectedId = null;
       _selectedName = null;
       _selectedOptions.clear();
+      _nextTaxonomyCursor = null;
+      _loadingMore = false;
     });
     _debounce = Timer(const Duration(milliseconds: 300), _loadOptions);
   }
 
   Future<void> _loadOptions() async {
     final query = _queryController.text.trim();
-    if (_kind != MangaTaxonomyKind.tag && query.length < 2) {
+    if (_needsQuery && query.length < 2) {
       setState(() {
         _options = const [];
         _loading = false;
@@ -1882,9 +1917,26 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
       _error = null;
     });
     try {
-      final options = await widget.source.getTaxonomy(_kind, query: query);
+      final sortable = _sortableSource;
+      MangaTaxonomyPage? page;
+      final options = _usesPaginatedVisualIndex
+          ? (page = await _paginatedSource!.getTaxonomyPage(
+              _kind,
+              sort: _taxonomySort,
+            ))
+              .options
+          : sortable == null
+              ? await widget.source.getTaxonomy(_kind, query: query)
+              : await sortable.getSortedTaxonomy(
+                  _kind,
+                  query: query,
+                  sort: _taxonomySort,
+                );
       if (!mounted || generation != _generation) return;
-      setState(() => _options = options);
+      setState(() {
+        _options = options;
+        _nextTaxonomyCursor = page?.nextCursor;
+      });
     } catch (error) {
       if (!mounted || generation != _generation) return;
       setState(() => _error = error);
@@ -1895,9 +1947,56 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
     }
   }
 
+  void _onTaxonomyScroll() {
+    if (!_taxonomyScrollController.hasClients ||
+        _taxonomyScrollController.position.extentAfter > 280) {
+      return;
+    }
+    unawaited(_loadMoreOptions());
+  }
+
+  Future<void> _loadMoreOptions() async {
+    final source = _paginatedSource;
+    final cursor = _nextTaxonomyCursor;
+    if (!_usesPaginatedVisualIndex ||
+        source == null ||
+        cursor == null ||
+        _loading ||
+        _loadingMore) {
+      return;
+    }
+    final generation = _generation;
+    setState(() => _loadingMore = true);
+    try {
+      final page = await source.getTaxonomyPage(
+        _kind,
+        sort: _taxonomySort,
+        cursor: cursor,
+      );
+      if (!mounted || generation != _generation) return;
+      final known = _options.map((option) => option.id).toSet();
+      setState(() {
+        _options = [
+          ..._options,
+          ...page.options.where((option) => known.add(option.id)),
+        ];
+        _nextTaxonomyCursor = page.nextCursor;
+      });
+    } catch (_) {
+      if (mounted && generation == _generation) {
+        setState(() => _nextTaxonomyCursor = null);
+      }
+    } finally {
+      if (mounted && generation == _generation) {
+        setState(() => _loadingMore = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final needsQuery = _kind != MangaTaxonomyKind.tag;
+    final needsQuery = _needsQuery;
+    final sorts = _sortableSource?.taxonomySorts(_kind) ?? const [];
     return AlertDialog(
       title: Text(
         widget.source is MangaSource
@@ -1922,6 +2021,33 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
               onChanged: _onKindChanged,
             ),
             const SizedBox(height: 12),
+            if (sorts.length > 1) ...[
+              SegmentedButton<MangaTaxonomySort>(
+                segments: const [
+                  ButtonSegment(
+                    value: MangaTaxonomySort.alphabetical,
+                    label: Text('A-Z'),
+                    icon: Icon(Icons.sort_by_alpha_rounded),
+                  ),
+                  ButtonSegment(
+                    value: MangaTaxonomySort.popular,
+                    label: Text('Popular'),
+                    icon: Icon(Icons.local_fire_department_outlined),
+                  ),
+                ],
+                selected: {_taxonomySort},
+                onSelectionChanged: (selection) {
+                  setState(() {
+                    _taxonomySort = selection.first;
+                    _selectedOptions.clear();
+                    _nextTaxonomyCursor = null;
+                    _loadingMore = false;
+                  });
+                  _loadOptions();
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
             TextField(
               controller: _queryController,
               decoration: InputDecoration(
@@ -1934,6 +2060,28 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
               ),
               onChanged: _onQueryChanged,
             ),
+            if (_supportsResultOrdering) ...[
+              const SizedBox(height: 8),
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                    value: false,
+                    label: Text('Recent works'),
+                    icon: Icon(Icons.schedule_rounded),
+                  ),
+                  ButtonSegment(
+                    value: true,
+                    label: Text('Popular works'),
+                    icon: Icon(Icons.trending_up_rounded),
+                  ),
+                ],
+                selected: {_popularResults},
+                onSelectionChanged: (selection) => setState(() {
+                  _popularResults = selection.first;
+                  _selectedOptions.clear();
+                }),
+              ),
+            ],
             const SizedBox(height: 8),
             Expanded(child: _buildResults(needsQuery)),
           ],
@@ -1981,13 +2129,38 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
     if (_options.isEmpty) {
       return const Center(child: Text('No matching filters.'));
     }
+    if (_paginatedSource?.supportsTaxonomyPagination(_kind) ?? false) {
+      return _buildVisualResults();
+    }
     return ListView.builder(
       itemCount: _options.length,
       itemBuilder: (context, index) {
         final option = _options[index];
-        final selected = _selectedOptions.containsKey(option.id);
+        final optionId = _popularResults && option.popularId != null
+            ? option.popularId!
+            : option.id;
+        final selected = _selectedOptions.containsKey(optionId);
         return ListTile(
           selected: selected,
+          leading: option.imageUri == null
+              ? null
+              : ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    option.imageUri.toString(),
+                    headers: widget.source is MangaSource
+                        ? (widget.source as MangaSource).coverImageHeaders
+                        : null,
+                    width: 48,
+                    height: 64,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox(
+                      width: 48,
+                      height: 64,
+                      child: Icon(Icons.broken_image_outlined),
+                    ),
+                  ),
+                ),
           title: Text(option.name),
           subtitle: option.titleCount == null
               ? null
@@ -1997,21 +2170,232 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
           ),
           onTap: () => setState(() {
             _selectedOptions.clear();
-            _selectedOptions[option.id] = option.name;
-            _selectedId = option.id;
+            _selectedOptions[optionId] = option.name;
+            _selectedId = optionId;
             _selectedName = option.name;
           }),
           onLongPress: () => setState(() {
             if (selected) {
-              _selectedOptions.remove(option.id);
+              _selectedOptions.remove(optionId);
             } else {
-              _selectedOptions[option.id] = option.name;
+              _selectedOptions[optionId] = option.name;
             }
             _selectedId = _selectedOptions.keys.firstOrNull;
             _selectedName = _selectedOptions.values.firstOrNull;
           }),
         );
       },
+    );
+  }
+
+  Widget _buildVisualResults() {
+    return CustomScrollView(
+      controller: _taxonomyScrollController,
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.only(top: 4, bottom: 8),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              mainAxisExtent: 178,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => _buildVisualOption(_options[index]),
+              childCount: _options.length,
+            ),
+          ),
+        ),
+        if (_loadingMore)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 14),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          )
+        else if (_nextTaxonomyCursor == null)
+          const SliverToBoxAdapter(child: SizedBox(height: 8)),
+      ],
+    );
+  }
+
+  Widget _buildVisualOption(MangaTaxonomyOption option) {
+    final optionId = _popularResults && option.popularId != null
+        ? option.popularId!
+        : option.id;
+    final selected = _selectedOptions.containsKey(optionId);
+    final imageHeaders = widget.source is MangaSource
+        ? (widget.source as MangaSource).coverImageHeaders
+        : const <String, String>{};
+
+    void toggle({required bool multiple}) => setState(() {
+          if (!multiple) _selectedOptions.clear();
+          if (multiple && selected) {
+            _selectedOptions.remove(optionId);
+          } else {
+            _selectedOptions[optionId] = option.name;
+          }
+          _selectedId = _selectedOptions.keys.firstOrNull;
+          _selectedName = _selectedOptions.values.firstOrNull;
+        });
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: option.titleCount == null
+          ? option.name
+          : '${option.name}, ${option.titleCount} titles',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => toggle(multiple: false),
+        onLongPress: () => toggle(multiple: true),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.outlineVariant,
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(13),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (option.imageUri != null)
+                  CachedNetworkImage(
+                    imageUrl: option.imageUri.toString(),
+                    httpHeaders: imageHeaders,
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => const ColoredBox(
+                      color: Colors.black26,
+                      child: Icon(Icons.broken_image_outlined),
+                    ),
+                  )
+                else
+                  const ColoredBox(
+                    color: Colors.black26,
+                    child: Icon(Icons.image_outlined, size: 42),
+                  ),
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Colors.black87],
+                      stops: [.48, 1],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 10,
+                  right: 10,
+                  bottom: 24,
+                  child: _AutoScrollingTaxonomyName(option.name),
+                ),
+                if (option.titleCount != null)
+                  Positioned(
+                    left: 10,
+                    right: 38,
+                    bottom: 7,
+                    child: Text(
+                      '${option.titleCount} titles',
+                      maxLines: 1,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  right: 7,
+                  bottom: 7,
+                  child: Icon(
+                    selected
+                        ? Icons.check_circle_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                    color: selected
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.white,
+                    size: 23,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AutoScrollingTaxonomyName extends StatefulWidget {
+  final String text;
+
+  const _AutoScrollingTaxonomyName(this.text);
+
+  @override
+  State<_AutoScrollingTaxonomyName> createState() =>
+      _AutoScrollingTaxonomyNameState();
+}
+
+class _AutoScrollingTaxonomyNameState
+    extends State<_AutoScrollingTaxonomyName> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_run()));
+  }
+
+  Future<void> _run() async {
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    while (mounted && _controller.hasClients) {
+      final distance = _controller.position.maxScrollExtent;
+      if (distance <= 0) return;
+      final duration = Duration(
+        milliseconds: (1800 + distance * 22).round().clamp(1800, 6000),
+      );
+      await _controller.animateTo(
+        distance,
+        duration: duration,
+        curve: Curves.linear,
+      );
+      if (!mounted) return;
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      if (!_controller.hasClients) return;
+      _controller.jumpTo(0);
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      controller: _controller,
+      scrollDirection: Axis.horizontal,
+      physics: const NeverScrollableScrollPhysics(),
+      child: Text(
+        widget.text,
+        maxLines: 1,
+        softWrap: false,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          shadows: [Shadow(color: Colors.black, blurRadius: 3)],
+        ),
+      ),
     );
   }
 }

@@ -42,9 +42,10 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
   Widget _buildTagChip(String rawTag, TextStyle? style) {
     final tag = rawTag.trim();
-    final canSearch = widget.scrapper?.id == 'nhentai' &&
-        widget.onTaxonomySelected != null &&
-        tag.isNotEmpty;
+    final canSearch =
+        {'nhentai', 'nhentai_xxx'}.contains(widget.scrapper?.id) &&
+            widget.onTaxonomySelected != null &&
+            tag.isNotEmpty;
     final chip = Chip(
       label: Text(tag, style: style),
       backgroundColor: Colors.black.withValues(alpha: .62),

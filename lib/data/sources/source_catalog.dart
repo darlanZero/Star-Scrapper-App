@@ -21,6 +21,7 @@ import 'package:star_scrapper_app/data/sources/manga/yomu_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/hdoujin_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/onisaga_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/nhentai_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/nhentai_xxx_source.dart';
 import 'package:star_scrapper_app/infrastructure/webview/browser_html_loader.dart';
 
 /// Single registry for the sources bundled with the application.
@@ -62,6 +63,7 @@ abstract final class SourceCatalog {
         ),
         HDoujinSource(),
         NHentaiSource(),
+        NHentaiXxxSource(),
         OniSagaSource(
           browserHtmlLoader: (uri, userAgent) => BrowserHtmlLoader.loadWhen(
             uri,
@@ -238,6 +240,16 @@ abstract final class SourceCatalog {
           languagePrefix: 'All',
           flags: ['https://cdn-icons-png.flaticon.com/512/44/44386.png'],
           api: NHentaiSource(),
+          contentType: SourceContentType.manga,
+          isRRated: true,
+        ),
+        Fonte(
+          id: 'nhentai_xxx',
+          image: 'https://nhentai.xxx/favicon.ico',
+          name: 'nHentai.xxx',
+          languagePrefix: 'All',
+          flags: ['https://cdn-icons-png.flaticon.com/512/44/44386.png'],
+          api: NHentaiXxxSource(),
           contentType: SourceContentType.manga,
           isRRated: true,
         ),

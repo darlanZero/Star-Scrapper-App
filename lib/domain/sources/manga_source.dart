@@ -323,17 +323,40 @@ class MangaGenre {
 /// Taxonomy groups exposed by sources with richer adult-gallery metadata.
 enum MangaTaxonomyKind { tag, artist, character, parody, group, circle }
 
+/// Ordering exposed by taxonomy indexes that provide more than one view.
+enum MangaTaxonomySort { alphabetical, popular }
+
 /// A selectable tag, artist, or circle and its canonical source identifier.
 class MangaTaxonomyOption {
   final String id;
   final String name;
   final int? titleCount;
+  final Uri? imageUri;
+
+  /// Optional catalog route for the same entity ordered by popularity.
+  /// [id] always points at the regular/recent catalog.
+  final String? popularId;
 
   const MangaTaxonomyOption({
     required this.id,
     required this.name,
     this.titleCount,
+    this.imageUri,
+    this.popularId,
   });
+}
+
+/// One page from a large taxonomy index such as characters or parodies.
+class MangaTaxonomyPage {
+  final List<MangaTaxonomyOption> options;
+  final String? nextCursor;
+
+  MangaTaxonomyPage({
+    required Iterable<MangaTaxonomyOption> options,
+    this.nextCursor,
+  }) : options = List.unmodifiable(options);
+
+  bool get hasMore => nextCursor != null && nextCursor!.isNotEmpty;
 }
 
 /// A single chapter reference belonging to a manga.
@@ -607,6 +630,31 @@ abstract interface class TaxonomyBrowsableMangaSource {
   Future<MangaCatalogPage> browseTaxonomy(
     MangaTaxonomyKind kind,
     String taxonomyId, {
+    String? cursor,
+  });
+}
+
+/// Optional extension for taxonomy indexes with A-Z/popularity ordering and
+/// entities whose resulting catalog can also switch between recent/popular.
+abstract interface class SortableTaxonomyMangaSource {
+  List<MangaTaxonomySort> taxonomySorts(MangaTaxonomyKind kind);
+
+  bool taxonomyRequiresQuery(MangaTaxonomyKind kind);
+
+  Future<List<MangaTaxonomyOption>> getSortedTaxonomy(
+    MangaTaxonomyKind kind, {
+    String query = '',
+    MangaTaxonomySort sort = MangaTaxonomySort.alphabetical,
+  });
+}
+
+/// Optional capability for visual taxonomy indexes loaded progressively.
+abstract interface class PaginatedTaxonomyMangaSource {
+  bool supportsTaxonomyPagination(MangaTaxonomyKind kind);
+
+  Future<MangaTaxonomyPage> getTaxonomyPage(
+    MangaTaxonomyKind kind, {
+    MangaTaxonomySort sort = MangaTaxonomySort.alphabetical,
     String? cursor,
   });
 }
