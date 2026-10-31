@@ -18,6 +18,7 @@ import 'package:star_scrapper_app/data/sources/manga/leitura_manga_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/manga_livre_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/animy_manga_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/yomu_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/mangaflix_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/hdoujin_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/onisaga_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/nhentai_source.dart';
@@ -62,6 +63,7 @@ abstract final class SourceCatalog {
           scrolledHtmlLoader: BrowserHtmlLoader.loadScrolled,
           readerPageLoader: BrowserHtmlLoader.lazyReaderUrls,
         ),
+        MangaFlixSource(),
         HDoujinSource(),
         NHentaiSource(),
         NHentaiXxxSource(),
@@ -223,6 +225,19 @@ abstract final class SourceCatalog {
           ),
           contentType: SourceContentType.manga,
           // Catálogo misto; os formatos adultos ficam separados nos filtros.
+          isRRated: false,
+        ),
+        Fonte(
+          id: 'mangaflix',
+          image: 'https://mangaflix.net/favicon.ico',
+          name: 'MangaFlix',
+          languagePrefix: 'Pt-BR',
+          flags: [
+            'https://cdn.countryflags.com/thumbs/brazil/flag-3d-250.png',
+          ],
+          api: MangaFlixSource(),
+          contentType: SourceContentType.manga,
+          // Mixed catalog: adult releases are isolated in their own variant.
           isRRated: false,
         ),
         Fonte(

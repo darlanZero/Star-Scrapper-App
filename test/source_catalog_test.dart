@@ -105,6 +105,7 @@ void main() {
     expect(ids, contains('manga_livre'));
     expect(ids, contains('animy_manga'));
     expect(ids, contains('yomu'));
+    expect(ids, contains('mangaflix'));
     expect(ids, contains('hdoujin'));
     expect(ids, contains('xcomic'));
   });
@@ -202,5 +203,18 @@ void main() {
     expect(source.contentType, SourceContentType.manga);
     expect(source.isRRated, isFalse);
     expect(source.api, isA<FilterableMangaSource>());
+  });
+
+  test('MangaFlix is a mixed PT-BR source with catalog variants', () {
+    final source = SourceCatalog.createAll().singleWhere(
+      (source) => source.id == 'mangaflix',
+    );
+
+    expect(source.languagePrefix, 'Pt-BR');
+    expect(source.contentType, SourceContentType.manga);
+    expect(source.isRRated, isFalse);
+    expect(source.api, isA<GenreBrowsableMangaSource>());
+    expect(source.api, isA<FilterableMangaSource>());
+    expect(source.api, isA<VariantCatalogMangaSource>());
   });
 }
