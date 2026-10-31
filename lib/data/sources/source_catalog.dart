@@ -24,6 +24,7 @@ import 'package:star_scrapper_app/data/sources/manga/onisaga_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/nhentai_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/nhentai_xxx_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/xcomic_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/comick_source.dart';
 import 'package:star_scrapper_app/infrastructure/webview/browser_html_loader.dart';
 
 /// Single registry for the sources bundled with the application.
@@ -68,6 +69,14 @@ abstract final class SourceCatalog {
         NHentaiSource(),
         NHentaiXxxSource(),
         XComicSource(),
+        ComickSource(
+          browserHtmlLoader: (uri, userAgent) => BrowserHtmlLoader.loadWhen(
+            uri,
+            userAgent,
+            'pre',
+          ),
+          binaryLoader: BrowserHtmlLoader.loadBytes,
+        ),
         OniSagaSource(
           browserHtmlLoader: (uri, userAgent) => BrowserHtmlLoader.loadWhen(
             uri,
@@ -279,6 +288,24 @@ abstract final class SourceCatalog {
           api: XComicSource(),
           contentType: SourceContentType.manga,
           // Mixed catalog: adult titles coexist with general-audience works.
+          isRRated: false,
+        ),
+        Fonte(
+          id: 'comick',
+          image: 'https://comick.live/favicon.ico',
+          name: 'ComicK',
+          languagePrefix: 'All',
+          flags: ['https://cdn-icons-png.flaticon.com/512/44/44386.png'],
+          api: ComickSource(
+            browserHtmlLoader: (uri, userAgent) => BrowserHtmlLoader.loadWhen(
+              uri,
+              userAgent,
+              'pre',
+            ),
+            binaryLoader: BrowserHtmlLoader.loadBytes,
+          ),
+          contentType: SourceContentType.manga,
+          // Mixed catalog with Safe, Suggestive and Erotica rating filters.
           isRRated: false,
         ),
         Fonte(

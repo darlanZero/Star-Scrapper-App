@@ -75,6 +75,7 @@ class MangaSearchOptions {
   final List<MangaFilterOption> originalLanguages;
   final List<MangaFilterOption> translatedLanguages;
   final List<MangaFilterOption> chapterPresets;
+  final List<MangaFilterOption> createdAtPresets;
   final List<MangaSearchSort> sorts;
   final bool supportsAuthor;
   final bool supportsArtist;
@@ -96,6 +97,7 @@ class MangaSearchOptions {
     Iterable<MangaFilterOption> originalLanguages = const [],
     Iterable<MangaFilterOption> translatedLanguages = const [],
     Iterable<MangaFilterOption> chapterPresets = const [],
+    Iterable<MangaFilterOption> createdAtPresets = const [],
     Iterable<MangaSearchSort> sorts = MangaSearchSort.values,
     this.supportsAuthor = false,
     this.supportsArtist = false,
@@ -115,6 +117,7 @@ class MangaSearchOptions {
         originalLanguages = List.unmodifiable(originalLanguages),
         translatedLanguages = List.unmodifiable(translatedLanguages),
         chapterPresets = List.unmodifiable(chapterPresets),
+        createdAtPresets = List.unmodifiable(createdAtPresets),
         sorts = List.unmodifiable(sorts);
 }
 
@@ -129,6 +132,7 @@ class MangaSearchRequest {
   final Set<String> originalLanguages;
   final Set<String> translatedLanguages;
   final String chapterPreset;
+  final String createdWithin;
   final String author;
   final String artist;
   final int? minimumYear;
@@ -153,6 +157,7 @@ class MangaSearchRequest {
     Set<String> originalLanguages = const {},
     Set<String> translatedLanguages = const {},
     this.chapterPreset = '',
+    this.createdWithin = '',
     this.author = '',
     this.artist = '',
     this.minimumYear,
@@ -186,6 +191,7 @@ class MangaSearchRequest {
       originalLanguages.isNotEmpty ||
       translatedLanguages.isNotEmpty ||
       chapterPreset.isNotEmpty ||
+      createdWithin.isNotEmpty ||
       author.trim().isNotEmpty ||
       artist.trim().isNotEmpty ||
       minimumYear != null ||
@@ -210,6 +216,7 @@ class MangaSearchRequest {
       originalLanguages.length +
       translatedLanguages.length +
       (chapterPreset.isEmpty ? 0 : 1) +
+      (createdWithin.isEmpty ? 0 : 1) +
       (author.trim().isEmpty ? 0 : 1) +
       (artist.trim().isEmpty ? 0 : 1) +
       (minimumYear == null && maximumYear == null ? 0 : 1) +
@@ -749,6 +756,16 @@ extension MangaSourcePresentation on MangaSource {
         MangaCatalogFilter.added => 'Recent removals',
         MangaCatalogFilter.recent => 'Recent manga',
         MangaCatalogFilter.trending => 'Trending',
+        MangaCatalogFilter.alphabetical => 'Alphabetical',
+      };
+    }
+    if (id == 'comick') {
+      return switch (filter) {
+        MangaCatalogFilter.updated => 'Latest updated',
+        MangaCatalogFilter.added => 'Latest',
+        MangaCatalogFilter.popular => 'Popular',
+        MangaCatalogFilter.trending => 'Rating',
+        MangaCatalogFilter.recent => 'Recent',
         MangaCatalogFilter.alphabetical => 'Alphabetical',
       };
     }

@@ -1223,6 +1223,7 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
   late Set<String> _originalLanguages;
   late Set<String> _translatedLanguages;
   late String _chapterPreset;
+  late String _createdWithin;
   late MangaSearchSort _sort;
   late MangaCategoryMode _categoryMode;
   late MangaAdultMode _adultMode;
@@ -1256,6 +1257,7 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
     _originalLanguages = {...?initial?.originalLanguages};
     _translatedLanguages = {...?initial?.translatedLanguages};
     _chapterPreset = initial?.chapterPreset ?? '';
+    _createdWithin = initial?.createdWithin ?? '';
     _sort = initial?.sort ?? MangaSearchSort.recentlyAdded;
     _categoryMode = initial?.categoryMode ?? MangaCategoryMode.any;
     _adultMode = initial?.adultMode ?? MangaAdultMode.hide;
@@ -1324,6 +1326,7 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
         originalLanguages: _originalLanguages,
         translatedLanguages: _translatedLanguages,
         chapterPreset: _chapterPreset,
+        createdWithin: _createdWithin,
         author: _authorController.text.trim(),
         artist: _artistController.text.trim(),
         minimumYear: _number(_minimumYearController),
@@ -1646,6 +1649,24 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
               ],
             ),
           ],
+          if (widget.options.createdAtPresets.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              initialValue: _createdWithin.isEmpty ? null : _createdWithin,
+              decoration: const InputDecoration(labelText: 'Created within'),
+              items: [
+                const DropdownMenuItem(value: '', child: Text('Any time')),
+                for (final option in widget.options.createdAtPresets)
+                  DropdownMenuItem(
+                    value: option.value,
+                    child: Text(option.label),
+                  ),
+              ],
+              onChanged: (value) => setState(
+                () => _createdWithin = value ?? '',
+              ),
+            ),
+          ],
           if (widget.options.statuses.isNotEmpty) ...[
             const SizedBox(height: 14),
             ExpansionTile(
@@ -1716,42 +1737,13 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
               onSearch: (value) => setState(() => _themeQuery = value),
             ),
           if (widget.options.tags.isNotEmpty)
-            ExpansionTile(
-              tilePadding: EdgeInsets.zero,
-              title: const Text('Tags'),
-              subtitle: Text(
-                _tags.isEmpty ? 'Any tag' : '${_tags.length} selected',
-              ),
-              children: [
-                TextField(
-                  controller: _tagSearchController,
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search_rounded),
-                    labelText: 'Find a tag',
-                  ),
-                  onChanged: (value) => setState(() => _tagQuery = value),
-                ),
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      for (final option in visibleTags)
-                        FilterChip(
-                          label: Text(option.label),
-                          selected: _tags.contains(option.value),
-                          onSelected: (selected) => setState(() {
-                            selected
-                                ? _tags.add(option.value)
-                                : _tags.remove(option.value);
-                          }),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
+            _optionExpansion(
+              title: 'Tags',
+              searchLabel: 'Find a tag',
+              options: visibleTags,
+              selected: _tags,
+              searchController: _tagSearchController,
+              onSearch: (value) => setState(() => _tagQuery = value),
             ),
           if (widget.options.supportsCategoryMode) ...[
             const SizedBox(height: 14),

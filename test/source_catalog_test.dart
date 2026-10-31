@@ -108,6 +108,7 @@ void main() {
     expect(ids, contains('mangaflix'));
     expect(ids, contains('hdoujin'));
     expect(ids, contains('xcomic'));
+    expect(ids, contains('comick'));
   });
 
   test('Leitura Manga is a mixed PT-BR source, not an adult-only source', () {
@@ -216,5 +217,21 @@ void main() {
     expect(source.api, isA<GenreBrowsableMangaSource>());
     expect(source.api, isA<FilterableMangaSource>());
     expect(source.api, isA<VariantCatalogMangaSource>());
+  });
+
+  test('ComicK is a mixed All languages filterable manga source', () {
+    final source = SourceCatalog.createAll().singleWhere(
+      (source) => source.id == 'comick',
+    );
+
+    expect(source.languagePrefix, 'All');
+    expect(source.contentType, SourceContentType.manga);
+    expect(source.isRRated, isFalse);
+    expect(source.api, isA<FilterableMangaSource>());
+    expect(source.api, isA<VariantCatalogMangaSource>());
+    expect(
+      source.api.catalogFilterLabel(MangaCatalogFilter.trending),
+      'Rating',
+    );
   });
 }

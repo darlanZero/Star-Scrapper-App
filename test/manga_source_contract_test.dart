@@ -62,6 +62,19 @@ void main() {
     );
   });
 
+  test('structured filters track created-at spans', () {
+    final options = MangaSearchOptions(
+      createdAtPresets: const [
+        MangaFilterOption(value: '180', label: '6 months ago'),
+      ],
+    );
+    final request = MangaSearchRequest(createdWithin: '180');
+
+    expect(options.createdAtPresets.single.value, '180');
+    expect(request.hasFilters, isTrue);
+    expect(request.activeFilterCount, 1);
+  });
+
   test('reader page rejects empty sources', () {
     expect(() => MangaReaderPage.file(''), throwsArgumentError);
   });
