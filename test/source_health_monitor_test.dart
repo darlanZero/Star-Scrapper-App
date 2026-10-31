@@ -54,4 +54,63 @@ void main() {
     expect(monitor.statusForName('LuraToons'), FontHostStatus.outdated);
     monitor.dispose();
   });
+
+  test('checks anime sources alongside manga sources', () async {
+    SharedPreferences.setMockInitialValues({
+      'fontHostAutoCheckEnabled': false,
+    });
+    final checkedHosts = <String>[];
+    final monitor = SourceHealthMonitor(
+      sources: SourceCatalog.createAll(),
+      animeSources: SourceCatalog.createAnimeSources(),
+      onChanged: () {},
+      isReachable: (uri) async {
+        checkedHosts.add(uri.host);
+        return uri.host == 'anitube.online';
+      },
+    );
+
+    await monitor.initialize();
+    await monitor.checkAllNow();
+
+    expect(checkedHosts, contains('anitube.online'));
+    expect(checkedHosts, contains('mangadex.org'));
+    expect(monitor.statusForId('anitube'), FontHostStatus.online);
+    expect(monitor.statusForId('aniwave'), FontHostStatus.outdated);
+    expect(
+      monitor.entries.where(
+        (entry) => entry.contentType.name == 'anime',
+      ),
+      hasLength(SourceCatalog.createAnimeSources().length),
+    );
+    monitor.dispose();
+  });
+
+  test('automatically checks newly added source IDs', () async {
+    SharedPreferences.setMockInitialValues({
+      'fontHostAutoCheckEnabled': true,
+      'sourceHostStatusById': jsonEncode({'mangadex': 'online'}),
+    });
+    final checkedHosts = <String>[];
+    final monitor = SourceHealthMonitor(
+      sources: SourceCatalog.createAll().take(1).toList(),
+      animeSources: SourceCatalog.createAnimeSources().take(1).toList(),
+      onChanged: () {},
+      isReachable: (uri) async {
+        checkedHosts.add(uri.host);
+        return true;
+      },
+    );
+
+    await monitor.initialize();
+    for (var i = 0;
+        i < 10 && monitor.statusForId('anitube') != FontHostStatus.online;
+        i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    expect(checkedHosts, contains('anitube.online'));
+    expect(monitor.statusForId('anitube'), FontHostStatus.online);
+    monitor.dispose();
+  });
 }

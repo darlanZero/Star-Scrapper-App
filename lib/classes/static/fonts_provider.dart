@@ -44,6 +44,7 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
     _animeSourceController = AnimeSourceController(onChanged: notifyListeners);
     _sourceHealthMonitor = SourceHealthMonitor(
       sources: _sourceController.sources,
+      animeSources: _animeSourceController.sources,
       onChanged: notifyListeners,
     );
     _libraryUpdateTracker = LibraryUpdateTracker(onChanged: notifyListeners);
@@ -90,6 +91,12 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
   MangaSource? findScrapperForBook(Map<String, dynamic> book) =>
       _sourceController.findScrapperForBook(book);
 
+  Fonte? findSourceForBook(Map<String, dynamic> book) =>
+      _sourceController.findSourceForBook(book);
+
+  Fonte? findSourceForApi(MangaSource api) =>
+      _sourceController.findSourceForApi(api);
+
   Map<String, List<Map<String, String>>> get selectedChapterIds =>
       _readingProgress.selectedChapterIds;
   Map<String, Map<String, String>> get lastReadedChapterId =>
@@ -104,9 +111,14 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
   DateTime? get fontHostLastCheckedAt => _sourceHealthMonitor.lastCheckedAt;
   Map<String, FontHostStatus> get fontHostStatuses =>
       _sourceHealthMonitor.statusesByName;
+  List<SourceHealthEntry> get sourceHealthEntries =>
+      _sourceHealthMonitor.entries;
 
   FontHostStatus getFontHostStatus(String fontName) =>
       _sourceHealthMonitor.statusForName(fontName);
+
+  FontHostStatus getSourceHostStatus(String sourceId) =>
+      _sourceHealthMonitor.statusForId(sourceId);
 
   Future<void> toggleFontState(Fonte font) async {
     await _sourceController.toggle(font);
@@ -272,6 +284,23 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
       );
     }
   }
+
+  Future<int> markChaptersRead(
+    String bookId,
+    List<Map<String, String>> chapters, {
+    Map<String, String>? continueFrom,
+  }) =>
+      _readingProgress.markChaptersRead(
+        bookId,
+        chapters,
+        continueFrom: continueFrom,
+      );
+
+  Future<int> markChaptersUnread(
+    String bookId,
+    Iterable<String> chapterIds,
+  ) =>
+      _readingProgress.markChaptersUnread(bookId, chapterIds);
 
   /// Imports authenticated source history in the background. Local progress is
   /// always authoritative when it is ahead of the remote account.

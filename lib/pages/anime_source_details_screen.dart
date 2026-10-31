@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/components/Shared/anime_source_image.dart';
+import 'package:star_scrapper_app/components/Shared/source_badge.dart';
 import 'package:star_scrapper_app/application/library/anime_library_controller.dart';
 import 'package:star_scrapper_app/domain/sources/anime_source.dart';
 import 'package:star_scrapper_app/pages/anime_player_screen.dart';
@@ -778,6 +779,15 @@ class _AnimeHero extends StatelessWidget {
               ],
               stops: const [0, .45, 1],
             ),
+          ),
+        ),
+        Positioned(
+          top: 98,
+          right: 16,
+          child: SourceBadge(
+            name: source.name,
+            imageUri: source.iconUri,
+            headers: source.requestHeaders,
           ),
         ),
         Positioned(

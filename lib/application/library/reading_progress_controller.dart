@@ -164,23 +164,81 @@ class ReadingProgressController {
     String chapterTitle,
   ) async {
     final chapters = _selectedChapters.putIfAbsent(bookId, () => []);
-    if (chapters.any((chapter) => chapter.id == chapterId)) return false;
-
-    chapters.add(ChapterRecord(id: chapterId, title: chapterTitle));
-    final bookIndex = _readBooks.indexWhere((book) => book.id == bookId);
-    if (bookIndex != -1) {
-      final book = _readBooks[bookIndex].toJson();
-      book['readChapterCount'] = _maxInt(
-        _asInt(book['readChapterCount']),
-        chapters.length,
-      );
-      _readBooks[bookIndex] = BookRecord.fromJson(book);
-      await storage.saveReadBookRecords(_readBooks);
+    final chapter = ChapterRecord(id: chapterId, title: chapterTitle);
+    final isNew = !chapters.any((stored) => stored.id == chapterId);
+    if (isNew) {
+      chapters.add(chapter);
+      final bookIndex = _readBooks.indexWhere((book) => book.id == bookId);
+      if (bookIndex != -1) {
+        final book = _readBooks[bookIndex].toJson();
+        book['readChapterCount'] = _maxInt(
+          _asInt(book['readChapterCount']),
+          chapters.length,
+        );
+        _readBooks[bookIndex] = BookRecord.fromJson(book);
+        await storage.saveReadBookRecords(_readBooks);
+      }
+      await storage.saveSelectedChapterRecords(_selectedChapters);
     }
-    await storage.saveSelectedChapterRecords(_selectedChapters);
-    await rebuildLastReadChapters(notify: false);
+    _lastReadChapters[bookId] = chapter;
+    await storage.saveLastReadChapterRecords(_lastReadChapters);
     onChanged();
-    return true;
+    return isNew;
+  }
+
+  Future<int> markChaptersRead(
+    String bookId,
+    List<Map<String, String>> chapters, {
+    Map<String, String>? continueFrom,
+  }) async {
+    final selected = _selectedChapters.putIfAbsent(bookId, () => []);
+    var changed = 0;
+    for (final rawChapter in chapters) {
+      final chapter = ChapterRecord.fromJson(rawChapter);
+      if (chapter.id.isEmpty) continue;
+      final index = selected.indexWhere((stored) => stored.id == chapter.id);
+      if (index == -1) {
+        selected.add(chapter);
+        changed++;
+      } else if (selected[index].title != chapter.title) {
+        selected[index] = chapter;
+      }
+    }
+
+    final continueChapter =
+        continueFrom == null ? null : ChapterRecord.fromJson(continueFrom);
+    if (continueChapter != null && continueChapter.id.isNotEmpty) {
+      _lastReadChapters[bookId] = continueChapter;
+    } else if (selected.isNotEmpty && !_lastReadChapters.containsKey(bookId)) {
+      _lastReadChapters[bookId] = _latestChapter(selected);
+    }
+    await _persistManualProgress(bookId);
+    return changed;
+  }
+
+  Future<int> markChaptersUnread(
+    String bookId,
+    Iterable<String> chapterIds,
+  ) async {
+    final selected = _selectedChapters[bookId];
+    if (selected == null || selected.isEmpty) return 0;
+    final ids = chapterIds.where((id) => id.isNotEmpty).toSet();
+    final previousLength = selected.length;
+    selected.removeWhere((chapter) => ids.contains(chapter.id));
+    final changed = previousLength - selected.length;
+    if (changed == 0) return 0;
+
+    if (selected.isEmpty) {
+      _selectedChapters.remove(bookId);
+      _lastReadChapters.remove(bookId);
+    } else {
+      final last = _lastReadChapters[bookId];
+      if (last == null || ids.contains(last.id)) {
+        _lastReadChapters[bookId] = _latestChapter(selected);
+      }
+    }
+    await _persistManualProgress(bookId);
+    return changed;
   }
 
   Future<void> clearSelectedChapters() async {
@@ -246,5 +304,24 @@ class ReadingProgressController {
     if (match == null) return double.negativeInfinity;
     return double.tryParse(match.group(0)!.replaceAll(',', '.')) ??
         double.negativeInfinity;
+  }
+
+  ChapterRecord _latestChapter(List<ChapterRecord> chapters) =>
+      chapters.reduce((left, right) =>
+          _chapterOrder(left) >= _chapterOrder(right) ? left : right);
+
+  Future<void> _persistManualProgress(String bookId) async {
+    final bookIndex = _readBooks.indexWhere((book) => book.id == bookId);
+    if (bookIndex != -1) {
+      final book = _readBooks[bookIndex].toJson();
+      book['readChapterCount'] = _selectedChapters[bookId]?.length ?? 0;
+      _readBooks[bookIndex] = BookRecord.fromJson(book);
+    }
+    await Future.wait([
+      storage.saveReadBookRecords(_readBooks),
+      storage.saveSelectedChapterRecords(_selectedChapters),
+      storage.saveLastReadChapterRecords(_lastReadChapters),
+    ]);
+    onChanged();
   }
 }

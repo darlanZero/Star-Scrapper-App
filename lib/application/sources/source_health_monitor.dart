@@ -3,11 +3,28 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:star_scrapper_app/domain/sources/anime_source.dart';
 import 'package:star_scrapper_app/domain/sources/source.dart';
 
 enum FontHostStatus { unknown, checking, online, outdated }
 
 typedef SourceReachabilityCheck = Future<bool> Function(Uri uri);
+
+class SourceHealthEntry {
+  final String id;
+  final String name;
+  final SourceContentType contentType;
+  final Uri healthUri;
+  final Uri? imageUri;
+
+  const SourceHealthEntry({
+    required this.id,
+    required this.name,
+    required this.contentType,
+    required this.healthUri,
+    required this.imageUri,
+  });
+}
 
 /// Owns source availability checks, scheduling, and persisted health state.
 class SourceHealthMonitor {
@@ -15,6 +32,7 @@ class SourceHealthMonitor {
   static const _legacyStatusByNameKey = 'fontHostStatusByName';
 
   final List<Fonte> sources;
+  final List<AnimeSource> animeSources;
   final void Function() onChanged;
   final SourceReachabilityCheck _isReachable;
 
@@ -27,6 +45,7 @@ class SourceHealthMonitor {
 
   SourceHealthMonitor({
     required this.sources,
+    this.animeSources = const [],
     required this.onChanged,
     SourceReachabilityCheck? isReachable,
   }) : _isReachable = isReachable ?? _defaultReachabilityCheck;
@@ -37,13 +56,40 @@ class SourceHealthMonitor {
       ? null
       : DateTime.fromMillisecondsSinceEpoch(_lastCheckedAtMs);
 
-  Map<String, FontHostStatus> get statusesByName => {
+  List<SourceHealthEntry> get entries => [
         for (final source in sources)
+          SourceHealthEntry(
+            id: source.id,
+            name: source.name,
+            contentType: SourceContentType.manga,
+            healthUri: _resolveMangaHealthUri(source) ?? source.api.baseUri,
+            imageUri: Uri.tryParse(source.image),
+          ),
+        for (final source in animeSources)
+          SourceHealthEntry(
+            id: source.id,
+            name: source.name,
+            contentType: SourceContentType.anime,
+            healthUri: source.baseUri,
+            imageUri: source.iconUri,
+          ),
+      ];
+
+  Map<String, FontHostStatus> get statusesByName => {
+        for (final source in entries)
           source.name: _statusById[source.id] ?? FontHostStatus.unknown,
       };
 
+  Map<String, FontHostStatus> get statusesById => {
+        for (final source in entries)
+          source.id: _statusById[source.id] ?? FontHostStatus.unknown,
+      };
+
+  FontHostStatus statusForId(String sourceId) =>
+      _statusById[sourceId] ?? FontHostStatus.unknown;
+
   FontHostStatus statusForName(String sourceName) {
-    for (final source in sources) {
+    for (final source in entries) {
       if (source.name == sourceName) {
         return _statusById[source.id] ?? FontHostStatus.unknown;
       }
@@ -63,7 +109,7 @@ class SourceHealthMonitor {
     if (_statusById.isEmpty) {
       final legacyStatuses =
           _decodeStatuses(prefs.getString(_legacyStatusByNameKey));
-      for (final source in sources) {
+      for (final source in entries) {
         final legacyStatus = legacyStatuses[source.name];
         if (legacyStatus != null) {
           _statusById[source.id] = legacyStatus;
@@ -76,7 +122,9 @@ class SourceHealthMonitor {
 
     _applyStatusesToSources();
     _scheduleChecks();
-    if (_autoCheckEnabled && _statusById.isEmpty) {
+    final hasUncheckedSource =
+        entries.any((source) => !_statusById.containsKey(source.id));
+    if (_autoCheckEnabled && hasUncheckedSource) {
       unawaited(checkAllNow());
     }
     _notifyChanged();
@@ -98,17 +146,18 @@ class SourceHealthMonitor {
   }
 
   Future<void> checkAllNow() async {
-    for (final source in sources) {
+    for (final source in entries) {
       _statusById[source.id] = FontHostStatus.checking;
     }
     _notifyChanged();
 
-    for (final source in sources) {
-      final uri = _resolveHealthUri(source);
-      final isOnline = uri != null && await _isReachable(uri);
+    for (final source in entries) {
+      final isOnline = await _isReachable(source.healthUri);
       _statusById[source.id] =
           isOnline ? FontHostStatus.online : FontHostStatus.outdated;
-      source.isOutdated = !isOnline;
+      for (final mangaSource in sources) {
+        if (mangaSource.id == source.id) mangaSource.isOutdated = !isOnline;
+      }
     }
 
     _lastCheckedAtMs = DateTime.now().millisecondsSinceEpoch;
@@ -173,7 +222,7 @@ class SourceHealthMonitor {
     }
   }
 
-  Uri? _resolveHealthUri(Fonte source) {
+  Uri? _resolveMangaHealthUri(Fonte source) {
     final fromBase = source.api.baseUri;
     if (fromBase.hasScheme && fromBase.host.isNotEmpty) return fromBase;
 

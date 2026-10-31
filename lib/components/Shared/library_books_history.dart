@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
+import 'package:star_scrapper_app/components/Shared/source_badge.dart';
 import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.dart';
 
 class LibraryBooksHistory extends StatefulWidget {
@@ -60,6 +61,7 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                       (book['coverImageUrl'] ?? book['imageurl'] ?? '')
                           .toString();
                   final imageHeaders = scrapper.coverImageHeaders;
+                  final source = fontProvider.findSourceForApi(scrapper);
 
                   return InkWell(
                     onTap: () => Navigator.push(
@@ -95,6 +97,17 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                                   Color.fromARGB(200, 0, 0, 0)
                                 ],
                               ),
+                            ),
+                          ),
+                          Positioned(
+                            top: 10,
+                            left: 10,
+                            child: SourceBadge(
+                              name: source?.name ?? scrapper.name,
+                              imageUri: Uri.tryParse(source?.image ?? '') ??
+                                  scrapper.baseUri.resolve('/favicon.ico'),
+                              headers: imageHeaders,
+                              showLabel: false,
                             ),
                           ),
                           Positioned(
@@ -154,6 +167,7 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                       (book['coverImageUrl'] ?? book['imageurl'] ?? '')
                           .toString();
                   final imageHeaders = scrapper.coverImageHeaders;
+                  final source = fontProvider.findSourceForApi(scrapper);
 
                   return InkWell(
                     onTap: () => Navigator.push(
@@ -221,6 +235,16 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                                   child: const Icon(Icons.broken_image_outlined,
                                       size: 16, color: Colors.grey),
                                 ),
+                              ),
+                            ),
+                            Positioned(
+                              right: 14,
+                              bottom: 14,
+                              child: SourceBadge(
+                                name: source?.name ?? scrapper.name,
+                                imageUri: Uri.tryParse(source?.image ?? '') ??
+                                    scrapper.baseUri.resolve('/favicon.ico'),
+                                headers: imageHeaders,
                               ),
                             ),
                             Positioned(

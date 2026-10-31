@@ -50,6 +50,13 @@ class SourceController {
   }
 
   MangaSource? findScrapperForBook(Map<String, dynamic> book) {
+    final storedSourceId = book['sourceId']?.toString().trim() ?? '';
+    if (storedSourceId.isNotEmpty) {
+      for (final source in sources) {
+        if (source.id == storedSourceId) return source.api;
+      }
+    }
+
     final coverUrl = (book['coverImageUrl'] ?? book['link'] ?? '').toString();
     if (coverUrl.isEmpty) return null;
     final coverHost = Uri.tryParse(coverUrl)?.host;
@@ -61,6 +68,19 @@ class SourceController {
 
       final imageHost = Uri.tryParse(source.image)?.host ?? '';
       if (_hostsMatch(coverHost, imageHost)) return source.api;
+    }
+    return null;
+  }
+
+  Fonte? findSourceForBook(Map<String, dynamic> book) {
+    final api = findScrapperForBook(book);
+    if (api == null) return null;
+    return findSourceForApi(api);
+  }
+
+  Fonte? findSourceForApi(MangaSource api) {
+    for (final source in sources) {
+      if (source.id == api.id) return source;
     }
     return null;
   }

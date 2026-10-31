@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:star_scrapper_app/data/library/manga_reminder_store.dart';
 import 'package:star_scrapper_app/domain/library/reader_progress.dart';
 import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -49,6 +50,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
   static const int _preloadWindowSize = 4;
   static const MethodChannel _readerImageChannel =
       MethodChannel('starslibrary/reader_images');
+  final MangaReminderStore _reminderStore = MangaReminderStore();
 
   bool _showControls = false;
   int _currentPage = 0;
@@ -985,6 +987,69 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
     }
   }
 
+  Future<void> _saveStoryReminder(MangaReaderPage page) async {
+    var reminderNote = '';
+    final note = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Save story reminder'),
+        content: TextField(
+          autofocus: true,
+          minLines: 2,
+          maxLines: 5,
+          maxLength: 500,
+          onChanged: (value) => reminderNote = value,
+          decoration: const InputDecoration(
+            labelText: 'What happened here?',
+            hintText: 'Add a short note about this key moment',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(
+              dialogContext,
+              reminderNote,
+            ),
+            icon: const Icon(Icons.bookmark_add_outlined),
+            label: const Text('Save reminder'),
+          ),
+        ],
+      ),
+    );
+    if (note == null || !mounted) return;
+
+    try {
+      _showImageActionMessage('Saving story reminder…');
+      final image = await _materializeReaderImage(page);
+      final pageNumber = _chapterImages.indexOf(page) + 1;
+      await _reminderStore.save(
+        sourceFile: image.file,
+        sourceId: _activeScrapper.id,
+        mangaId: widget.mangaID,
+        mangaTitle: widget.bookTitle,
+        chapterId: widget.chapterId,
+        chapterNumber: widget.chapterNumber ?? '',
+        chapterTitle: widget.chapterTitle ?? '',
+        pageNumber: pageNumber.clamp(1, 99999),
+        mimeType: image.mimeType,
+        note: note,
+      );
+      _showImageActionMessage(
+        'Reminder saved. You can review it in the manga details.',
+      );
+    } catch (error) {
+      _showImageActionMessage(
+        'Could not save reminder: $error',
+        isError: true,
+      );
+    }
+  }
+
   Future<_MaterializedReaderImage> _materializeReaderImage(
     MangaReaderPage page,
   ) async {
@@ -1072,6 +1137,15 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
                   onTap: () {
                     _downloadImage(page);
                     Navigator.of(context).pop();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.bookmark_add_outlined),
+                  title: const Text('Save as Story Reminder'),
+                  subtitle: const Text('Keep this image with a chapter note'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _saveStoryReminder(page);
                   },
                 ),
                 ListTile(

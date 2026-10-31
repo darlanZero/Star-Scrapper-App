@@ -379,6 +379,8 @@ abstract interface class AnimeSource {
 extension AnimeSourcePresentation on AnimeSource {
   bool get isRRated => id == 'hentai_haven';
 
+  Uri get iconUri => baseUri.resolve('/favicon.ico');
+
   /// Compact label used to group providers in source-management screens.
   String get languageGroupLabel => switch (id) {
         'goyabu' || 'smart_animes' || 'animeq' || 'animy_anime' => 'PT-BR',

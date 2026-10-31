@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart'
@@ -6,6 +8,9 @@ import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/application/trackers/tracker_controller.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
+import 'package:star_scrapper_app/components/Shared/source_badge.dart';
+import 'package:star_scrapper_app/data/library/manga_reminder_store.dart';
+import 'package:star_scrapper_app/domain/library/manga_reminder.dart';
 import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 import 'package:star_scrapper_app/pages/library_books_pages/chapter_book_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -30,6 +35,13 @@ class BookDetailsScreen extends StatefulWidget {
   State<BookDetailsScreen> createState() => _BookDetailsScreenState();
 }
 
+enum _ChapterProgressAction {
+  markOne,
+  markThrough,
+  unmarkOne,
+  unmarkThrough,
+}
+
 class _BookDetailsScreenState extends State<BookDetailsScreen> {
   late Map<String, dynamic> bookDetails;
   bool _isChapterReversed = false;
@@ -39,6 +51,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   bool _isLoadingChapter = false;
   String? _selectedChapterId;
   bool _syncingTrackers = false;
+  final MangaReminderStore _reminderStore = MangaReminderStore();
+  Future<List<MangaReminder>>? _remindersFuture;
 
   Future<void>? _updateFuture;
 
@@ -214,10 +228,12 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    bookDetails = widget.bookDetails;
+    bookDetails = Map<String, dynamic>.from(widget.bookDetails);
+    if (widget.scrapper != null) {
+      bookDetails['sourceId'] ??= widget.scrapper!.id;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final fontProvider = Provider.of<FontProvider>(context, listen: false);
-      fontProvider.addBookToReadBooks(bookDetails);
 
       // Se o livro veio da busca online (sem capítulos), busca os detalhes completos.
       // Usa o scrapper explícito, ou tenta detectá-lo pelo domínio da capa.
@@ -225,6 +241,10 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           (bookDetails['chapters'] as List?)?.isNotEmpty == true;
       final effectiveScrapper =
           widget.scrapper ?? fontProvider.findScrapperForBook(bookDetails);
+      if (effectiveScrapper != null) {
+        bookDetails['sourceId'] ??= effectiveScrapper.id;
+      }
+      fontProvider.addBookToReadBooks(bookDetails);
       if (!hasChapters && effectiveScrapper != null) {
         setState(() {
           _updateFuture = fontProvider
@@ -245,6 +265,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           });
         });
       }
+      _refreshReminders();
     });
     Provider.of<FontProvider>(context, listen: false).loadSelectedChapterId();
   }
@@ -259,6 +280,330 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     setState(() {
       _selectedLanguagePrefix = languagePrefix;
     });
+  }
+
+  MangaSource _effectiveScrapper() {
+    final fontProvider = Provider.of<FontProvider>(context, listen: false);
+    return widget.scrapper ??
+        fontProvider.findScrapperForBook(bookDetails) ??
+        fontProvider.selectedFontApi;
+  }
+
+  void _refreshReminders() {
+    if (!mounted) return;
+    final source = _effectiveScrapper();
+    final mangaId = bookDetails['id']?.toString() ?? '';
+    setState(() {
+      _remindersFuture = mangaId.isEmpty
+          ? Future.value(const <MangaReminder>[])
+          : _reminderStore.loadForManga(
+              sourceId: source.id,
+              mangaId: mangaId,
+            );
+    });
+  }
+
+  Widget _buildContinueCard(
+    List<dynamic> chapters,
+    FontProvider fontProvider,
+  ) {
+    final mangaId = bookDetails['id']?.toString() ?? '';
+    final lastRead = fontProvider.lastReadedChapterId[mangaId];
+    if (lastRead == null) return const SizedBox.shrink();
+    final chapterId = lastRead['id']?.toString() ?? '';
+    Map<dynamic, dynamic>? chapter;
+    for (final candidate in chapters) {
+      if (candidate is Map && candidate['id']?.toString() == chapterId) {
+        chapter = Map<dynamic, dynamic>.from(candidate);
+        break;
+      }
+    }
+    if (chapter == null) return const SizedBox.shrink();
+
+    final rawNumber =
+        (chapter['chapter'] ?? lastRead['title'] ?? '').toString().trim();
+    final number = rawNumber
+        .replaceFirst(
+          RegExp(
+            r'^(?:chapter|cap[ií]tulo|cap\.?)\s*',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .trim();
+    final label = number.isEmpty ? _buildChapterLabel(chapter) : number;
+    final colors = Theme.of(context).colorScheme;
+    return Card(
+      margin: const EdgeInsets.only(top: 14, bottom: 10),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _openChapter(chapter!),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: colors.primaryContainer,
+                foregroundColor: colors.onPrimaryContainer,
+                child: const Icon(Icons.play_arrow_rounded),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Continue from chapter $label',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Resume from your saved reading position',
+                      style: TextStyle(color: colors.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReminderSection() {
+    return FutureBuilder<List<MangaReminder>>(
+      future: _remindersFuture,
+      builder: (context, snapshot) {
+        final reminders = snapshot.data ?? const <MangaReminder>[];
+        final grouped = <String, List<MangaReminder>>{};
+        for (final reminder in reminders) {
+          grouped.putIfAbsent(reminder.chapterId, () => []).add(reminder);
+        }
+        final subtitle = snapshot.connectionState == ConnectionState.waiting
+            ? 'Loading saved moments…'
+            : reminders.isEmpty
+                ? 'Save key images from the reader to remember the story'
+                : '${reminders.length} saved ${reminders.length == 1 ? 'moment' : 'moments'}';
+        return Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          clipBehavior: Clip.antiAlias,
+          child: ExpansionTile(
+            leading: const Icon(Icons.collections_bookmark_outlined),
+            title: const Text(
+              'Story reminders',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: Text(subtitle),
+            childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            children: [
+              if (snapshot.hasError)
+                ListTile(
+                  leading: const Icon(Icons.error_outline),
+                  title: const Text('Could not load story reminders'),
+                  subtitle: Text(snapshot.error.toString()),
+                  trailing: IconButton(
+                    tooltip: 'Try again',
+                    onPressed: _refreshReminders,
+                    icon: const Icon(Icons.refresh),
+                  ),
+                )
+              else if (snapshot.connectionState == ConnectionState.waiting)
+                const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: CircularProgressIndicator(),
+                )
+              else if (reminders.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(12, 8, 12, 16),
+                  child: Text(
+                    'Long-press an image in the reader and choose '
+                    '“Save as Story Reminder”.',
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              else
+                for (final entry in grouped.entries)
+                  _buildReminderChapter(entry.value),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildReminderChapter(List<MangaReminder> reminders) {
+    final first = reminders.first;
+    final chapterName = first.chapterNumber.trim().isNotEmpty
+        ? 'Chapter ${first.chapterNumber}'
+        : first.chapterTitle.trim().isNotEmpty
+            ? first.chapterTitle
+            : 'Chapter';
+    return ExpansionTile(
+      tilePadding: const EdgeInsets.symmetric(horizontal: 8),
+      childrenPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.menu_book_outlined),
+      title: Text(chapterName),
+      subtitle: Text(
+        '${reminders.length} ${reminders.length == 1 ? 'reminder' : 'reminders'}',
+      ),
+      children: [
+        for (final reminder in reminders) _buildReminderTile(reminder),
+      ],
+    );
+  }
+
+  Widget _buildReminderTile(MangaReminder reminder) {
+    return FutureBuilder<File>(
+      future: _reminderStore.imageFile(reminder),
+      builder: (context, snapshot) {
+        final file = snapshot.data;
+        final note = reminder.note.trim();
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+          child: InkWell(
+            onTap: file == null ? null : () => _showReminder(reminder, file),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
+                      width: 76,
+                      height: 96,
+                      child: file == null
+                          ? const ColoredBox(
+                              color: Colors.black12,
+                              child: Center(
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            )
+                          : Image.file(
+                              file,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const ColoredBox(
+                                color: Colors.black12,
+                                child: Icon(Icons.broken_image_outlined),
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          note.isEmpty ? 'Saved key moment' : note,
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Page ${reminder.pageNumber} • '
+                          '${DateFormat.yMMMd().format(reminder.createdAt.toLocal())}',
+                          style: TextStyle(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Delete reminder',
+                    onPressed: () => _deleteReminder(reminder),
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showReminder(MangaReminder reminder, File file) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 720,
+            maxHeight: MediaQuery.sizeOf(dialogContext).height * .88,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppBar(
+                automaticallyImplyLeading: false,
+                title: Text(
+                  reminder.chapterNumber.isEmpty
+                      ? 'Story reminder'
+                      : 'Chapter ${reminder.chapterNumber} • '
+                          'Page ${reminder.pageNumber}',
+                ),
+                actions: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              Flexible(
+                child: InteractiveViewer(
+                  minScale: 0.8,
+                  maxScale: 5,
+                  child: Image.file(file, fit: BoxFit.contain),
+                ),
+              ),
+              if (reminder.note.trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(reminder.note),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteReminder(MangaReminder reminder) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete reminder?'),
+        content: const Text(
+          'The saved image and its annotation will be removed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _reminderStore.delete(reminder);
+    _refreshReminders();
   }
 
   @override
@@ -321,6 +666,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                 try {
                   await fontProvider.updateBookDetails(bookId,
                       scrapper: effectiveScrapper);
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).hideCurrentSnackBar();
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: Text('Book details updated successfully!'),
@@ -340,6 +686,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     bookDetails = updatedBook;
                   }); // Refresh the screen
                 } catch (e) {
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).hideCurrentSnackBar();
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: Text('Failed to update book details: $e'),
@@ -368,7 +715,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
   Widget _reactiveDetailsBook(BuildContext context, bool isDesktop,
       ThemeProvider theme, Map<String, dynamic> bookDetails) {
-    List<dynamic> chapters = List.from(bookDetails['chapters'] ?? []);
+    final allChapters = List<dynamic>.from(bookDetails['chapters'] ?? []);
+    List<dynamic> chapters = List.from(allChapters);
 
     if (_isChapterReversed) {
       chapters = chapters.reversed.toList();
@@ -384,9 +732,12 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
     String imageUrl = bookDetails['coverImageUrl'] ??
         'https://static.thenounproject.com/png/482114-200.png';
-    final effectiveScrapper = widget.scrapper ??
-        Provider.of<FontProvider>(context, listen: false)
-            .findScrapperForBook(bookDetails);
+    final fontProvider = context.watch<FontProvider>();
+    final effectiveScrapper =
+        widget.scrapper ?? fontProvider.findScrapperForBook(bookDetails);
+    final sourceDefinition = effectiveScrapper == null
+        ? fontProvider.findSourceForBook(bookDetails)
+        : fontProvider.findSourceForApi(effectiveScrapper);
     final usesScanCards = effectiveScrapper?.id == 'xcomic';
     final trackers = context.watch<TrackerController>();
 
@@ -651,7 +1002,18 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                               color: Colors.grey),
                         )
                       ]),
-                )
+                ),
+                if (effectiveScrapper != null)
+                  Positioned(
+                    right: 16,
+                    bottom: 16,
+                    child: SourceBadge(
+                      name: sourceDefinition?.name ?? effectiveScrapper.name,
+                      imageUri: Uri.tryParse(sourceDefinition?.image ?? '') ??
+                          effectiveScrapper.baseUri.resolve('/favicon.ico'),
+                      headers: effectiveScrapper.coverImageHeaders,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -771,6 +1133,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                         color:
                             theme.selectedTheme.textTheme.displayMedium?.color),
                   ),
+                _buildContinueCard(allChapters, fontProvider),
+                _buildReminderSection(),
                 if (isDesktop) _buildScrollableTags(),
                 Text(
                   'Chapters',
@@ -792,7 +1156,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         ),
         if (usesScanCards)
           SliverToBoxAdapter(
-            child: _buildXComicScanCarousel(chapters, theme),
+            child: _buildXComicScanCarousel(chapters, allChapters, theme),
           )
         else
           SliverList(
@@ -803,8 +1167,6 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
               }
 
               final chapter = chapters[index];
-              final fontProvider =
-                  Provider.of<FontProvider>(context, listen: false);
               final readChapterIds =
                   (fontProvider.selectedChapterIds[bookDetails['id']] ?? [])
                       .map((c) => c['id'] as String)
@@ -892,7 +1254,9 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                       )
                     ],
                   ),
-                  onTap: () => _openChapter(chapter));
+                  onTap: () => _openChapter(chapter),
+                  onLongPress: () =>
+                      _showChapterProgressActions(chapter, allChapters));
             },
             childCount: chapters.length,
           ))
@@ -902,6 +1266,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
   Widget _buildXComicScanCarousel(
     List<dynamic> chapters,
+    List<dynamic> allChapters,
     ThemeProvider theme,
   ) {
     final grouped = <String, List<Map<dynamic, dynamic>>>{};
@@ -1035,6 +1400,10 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                           selectedTileColor:
                               const Color(0xFF483D8B).withAlpha(90),
                           onTap: () => _openChapter(chapter),
+                          onLongPress: () => _showChapterProgressActions(
+                            chapter,
+                            allChapters,
+                          ),
                         );
                       },
                     ),
@@ -1086,6 +1455,168 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     final fontProvider = Provider.of<FontProvider>(context, listen: false);
     return (fontProvider.selectedChapterIds[bookDetails['id']] ?? [])
         .any((chapter) => chapter['id']?.toString() == chapterId);
+  }
+
+  Future<void> _showChapterProgressActions(
+    Map<dynamic, dynamic> chapter,
+    List<dynamic> allChapters,
+  ) async {
+    final chapterId = chapter['id']?.toString() ?? '';
+    if (chapterId.isEmpty) return;
+    final through = _chaptersThrough(chapter, allChapters);
+    final isRead = _isChapterRead(chapterId);
+    final readThrough = through
+        .where((candidate) => _isChapterRead(candidate['id']?.toString() ?? ''))
+        .length;
+    final label = _buildChapterLabel(chapter);
+
+    final action = await showModalBottomSheet<_ChapterProgressAction>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            ListTile(
+              title: Text(label),
+              subtitle: const Text('Reading progress'),
+            ),
+            ListTile(
+              enabled: !isRead,
+              leading: const Icon(Icons.check_circle_outline_rounded),
+              title: const Text('Mark chapter as read'),
+              onTap: () => Navigator.pop(
+                sheetContext,
+                _ChapterProgressAction.markOne,
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.done_all_rounded),
+              title: const Text('Mark this and previous chapters as read'),
+              subtitle: Text('${through.length} chapters in this sequence'),
+              onTap: () => Navigator.pop(
+                sheetContext,
+                _ChapterProgressAction.markThrough,
+              ),
+            ),
+            ListTile(
+              enabled: isRead,
+              leading: const Icon(Icons.remove_circle_outline_rounded),
+              title: const Text('Mark chapter as unread'),
+              onTap: () => Navigator.pop(
+                sheetContext,
+                _ChapterProgressAction.unmarkOne,
+              ),
+            ),
+            ListTile(
+              enabled: readThrough > 0,
+              leading: const Icon(Icons.playlist_remove_rounded),
+              title: const Text('Remove read marks through this chapter'),
+              subtitle: Text('$readThrough marked chapters will be affected'),
+              onTap: () => Navigator.pop(
+                sheetContext,
+                _ChapterProgressAction.unmarkThrough,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (action == null || !mounted) return;
+
+    final provider = context.read<FontProvider>();
+    final bookId = bookDetails['id']?.toString() ?? '';
+    if (bookId.isEmpty) return;
+    final selectedRecord = _chapterProgressRecord(chapter);
+    late final int changed;
+    switch (action) {
+      case _ChapterProgressAction.markOne:
+        changed = await provider.markChaptersRead(
+          bookId,
+          [selectedRecord],
+          continueFrom: selectedRecord,
+        );
+        break;
+      case _ChapterProgressAction.markThrough:
+        changed = await provider.markChaptersRead(
+          bookId,
+          through.map(_chapterProgressRecord).toList(),
+          continueFrom: selectedRecord,
+        );
+        break;
+      case _ChapterProgressAction.unmarkOne:
+        changed = await provider.markChaptersUnread(bookId, [chapterId]);
+        break;
+      case _ChapterProgressAction.unmarkThrough:
+        changed = await provider.markChaptersUnread(
+          bookId,
+          through.map((item) => item['id']?.toString() ?? ''),
+        );
+        break;
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          changed == 0
+              ? 'Reading progress was already up to date.'
+              : '$changed chapter${changed == 1 ? '' : 's'} updated.',
+        ),
+      ),
+    );
+  }
+
+  List<Map<dynamic, dynamic>> _chaptersThrough(
+    Map<dynamic, dynamic> selected,
+    List<dynamic> allChapters,
+  ) {
+    final selectedNumber = _chapterNumber(selected);
+    final language = selected['translatedLanguage']?.toString() ?? '';
+    final explicitScanId = selected['scanId']?.toString() ?? '';
+    final hasLegacyScanId = [selected['uploader'], selected['title']]
+        .any((value) => RegExp(r'#[a-zA-Z0-9_-]+').hasMatch('$value'));
+    final scanId = explicitScanId.isNotEmpty
+        ? explicitScanId
+        : hasLegacyScanId
+            ? _xComicScanId(selected)
+            : '';
+    final candidates = allChapters
+        .whereType<Map>()
+        .map((chapter) => Map<dynamic, dynamic>.from(chapter))
+        .where((chapter) {
+      if (language.isNotEmpty &&
+          chapter['translatedLanguage']?.toString() != language) {
+        return false;
+      }
+      if (scanId.isNotEmpty && _xComicScanId(chapter) != scanId) {
+        return false;
+      }
+      final number = _chapterNumber(chapter);
+      return selectedNumber == null || number == null
+          ? chapter['id']?.toString() == selected['id']?.toString()
+          : number <= selectedNumber;
+    }).toList();
+    candidates.sort((left, right) {
+      final leftNumber = _chapterNumber(left) ?? double.infinity;
+      final rightNumber = _chapterNumber(right) ?? double.infinity;
+      return leftNumber.compareTo(rightNumber);
+    });
+    return candidates.isEmpty ? [selected] : candidates;
+  }
+
+  Map<String, String> _chapterProgressRecord(Map<dynamic, dynamic> chapter) {
+    final id = chapter['id']?.toString() ?? '';
+    final number = chapter['chapter']?.toString().trim() ?? '';
+    final title = chapter['title']?.toString().trim() ?? '';
+    return {'id': id, 'title': number.isNotEmpty ? number : title};
+  }
+
+  double? _chapterNumber(Map<dynamic, dynamic> chapter) {
+    final value = (chapter['chapter'] ?? chapter['title'])?.toString() ?? '';
+    final match = RegExp(r'\d+(?:[.,]\d+)?').firstMatch(value);
+    return match == null
+        ? null
+        : double.tryParse(match.group(0)!.replaceAll(',', '.'));
   }
 
   Future<void> _openChapter(Map<dynamic, dynamic> chapter) async {
@@ -1142,6 +1673,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           ),
         ),
       );
+      if (mounted) _refreshReminders();
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();

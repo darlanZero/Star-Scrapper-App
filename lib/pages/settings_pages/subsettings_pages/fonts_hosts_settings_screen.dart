@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
+import 'package:star_scrapper_app/components/Shared/source_badge.dart';
+import 'package:star_scrapper_app/domain/sources/source.dart';
 
 class FontsHostsSettingsScreen extends StatefulWidget {
   const FontsHostsSettingsScreen({super.key});
@@ -48,7 +50,7 @@ class _FontsHostsSettingsScreenState extends State<FontsHostsSettingsScreen> {
       backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: theme.selectedTheme.appBarTheme.backgroundColor,
-        title: const Text('Fonts Host Monitor'),
+        title: const Text('Source Host Monitor'),
         centerTitle: true,
         elevation: 0,
       ),
@@ -65,7 +67,7 @@ class _FontsHostsSettingsScreenState extends State<FontsHostsSettingsScreen> {
                 onChanged: fontProvider.setFontHostAutoCheckEnabled,
                 title: const Text('Automatic host checks'),
                 subtitle:
-                    const Text('Detect if each source host is online/outdated'),
+                    const Text('Monitor manga and anime source availability'),
               ),
               ListTile(
                 title: const Text('Auto-check interval'),
@@ -103,34 +105,54 @@ class _FontsHostsSettingsScreenState extends State<FontsHostsSettingsScreen> {
                 label: const Text('Check now'),
               ),
               const SizedBox(height: 16),
-              ...fontProvider.fonts.map((font) {
-                final status = fontProvider.getFontHostStatus(font.name);
-                Color statusColor;
-                String statusText;
-                switch (status) {
-                  case FontHostStatus.online:
-                    statusColor = Colors.green;
-                    statusText = 'online';
-                    break;
-                  case FontHostStatus.outdated:
-                    statusColor = Colors.redAccent;
-                    statusText = 'outdated';
-                    break;
-                  case FontHostStatus.checking:
-                    statusColor = Colors.orangeAccent;
-                    statusText = 'checking';
-                    break;
-                  case FontHostStatus.unknown:
-                    statusColor = Colors.grey;
-                    statusText = 'unknown';
-                    break;
-                }
-                return ListTile(
-                  leading: Icon(Icons.circle, size: 10, color: statusColor),
-                  title: Text(font.name),
-                  subtitle: Text(statusText),
-                );
-              }),
+              for (final type in SourceContentType.values) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+                  child: Text(
+                    type == SourceContentType.manga
+                        ? 'Manga sources'
+                        : 'Anime sources',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+                ...fontProvider.sourceHealthEntries
+                    .where((entry) => entry.contentType == type)
+                    .map((entry) {
+                  final status = fontProvider.getSourceHostStatus(entry.id);
+                  Color statusColor;
+                  String statusText;
+                  switch (status) {
+                    case FontHostStatus.online:
+                      statusColor = Colors.green;
+                      statusText = 'online';
+                      break;
+                    case FontHostStatus.outdated:
+                      statusColor = Colors.redAccent;
+                      statusText = 'outdated';
+                      break;
+                    case FontHostStatus.checking:
+                      statusColor = Colors.orangeAccent;
+                      statusText = 'checking';
+                      break;
+                    case FontHostStatus.unknown:
+                      statusColor = Colors.grey;
+                      statusText = 'unknown';
+                      break;
+                  }
+                  return ListTile(
+                    leading: SourceBadge(
+                      name: entry.name,
+                      imageUri: entry.imageUri,
+                      showLabel: false,
+                    ),
+                    title: Text(entry.name),
+                    subtitle: Text(statusText),
+                    trailing: Icon(Icons.circle, size: 10, color: statusColor),
+                  );
+                }),
+              ],
             ],
           );
         },

@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/application/library/anime_library_controller.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
+import 'package:star_scrapper_app/components/Shared/source_badge.dart';
 import 'package:star_scrapper_app/domain/library/anime_library_record.dart';
+import 'package:star_scrapper_app/domain/sources/anime_source.dart';
 import 'package:star_scrapper_app/pages/anime_source_details_screen.dart';
 
 class AnimeLibraryGrid extends StatelessWidget {
@@ -91,6 +93,7 @@ class AnimeLibraryGrid extends StatelessWidget {
         );
         return _AnimeLibraryCard(
           record: record,
+          source: source,
           progress: progress,
           onTap: source == null
               ? null
@@ -160,12 +163,14 @@ Future<void> _moveAnime(
 
 class _AnimeLibraryCard extends StatelessWidget {
   final AnimeLibraryRecord record;
+  final AnimeSource? source;
   final AnimeEpisodeProgress? progress;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
 
   const _AnimeLibraryCard({
     required this.record,
+    required this.source,
     required this.progress,
     required this.onTap,
     required this.onLongPress,
@@ -209,6 +214,17 @@ class _AnimeLibraryCard extends StatelessWidget {
                 ),
               ),
             ),
+            if (source != null)
+              Positioned(
+                top: 10,
+                left: 10,
+                child: SourceBadge(
+                  name: source!.name,
+                  imageUri: source!.iconUri,
+                  headers: source!.requestHeaders,
+                  showLabel: false,
+                ),
+              ),
             if (progress != null)
               Positioned(
                 top: 10,

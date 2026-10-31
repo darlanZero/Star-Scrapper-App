@@ -65,6 +65,93 @@ void main() {
     expect((await storage.loadSelectedChapterIds())['book-1'], hasLength(2));
   });
 
+  test('reopening a read chapter makes it the continue target', () async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = LibraryStorage();
+    final controller = ReadingProgressController(
+      storage: storage,
+      onChanged: () {},
+    );
+    await controller.initialize();
+    await controller.addReadChapter('book-1', 'chapter-1', '1');
+    await controller.addReadChapter('book-1', 'chapter-2', '2');
+
+    expect(
+      await controller.addReadChapter('book-1', 'chapter-1', '1'),
+      isFalse,
+    );
+
+    expect(controller.lastReadChapterIds['book-1'], {
+      'id': 'chapter-1',
+      'title': '1',
+    });
+    expect((await storage.loadSelectedChapterIds())['book-1'], hasLength(2));
+    expect(
+        (await storage.loadLastReadChapterIds())['book-1']?['id'], 'chapter-1');
+  });
+
+  test('marks a chapter sequence read and keeps the selected continue target',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = LibraryStorage();
+    final controller = ReadingProgressController(
+      storage: storage,
+      onChanged: () {},
+    );
+    await controller.initialize();
+    await controller.addBookToHistory({'id': 'book-1', 'title': 'Book'});
+
+    final changed = await controller.markChaptersRead(
+      'book-1',
+      const [
+        {'id': 'chapter-1', 'title': '1'},
+        {'id': 'chapter-2', 'title': '2'},
+        {'id': 'chapter-3', 'title': '3'},
+      ],
+      continueFrom: const {'id': 'chapter-3', 'title': '3'},
+    );
+
+    expect(changed, 3);
+    expect(controller.selectedChapterIds['book-1'], hasLength(3));
+    expect(controller.lastReadChapterIds['book-1']?['id'], 'chapter-3');
+    expect(controller.readBooks.single['readChapterCount'], 3);
+    expect((await storage.loadSelectedChapterIds())['book-1'], hasLength(3));
+  });
+
+  test('removes read marks and rebuilds the continue target', () async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = LibraryStorage();
+    final controller = ReadingProgressController(
+      storage: storage,
+      onChanged: () {},
+    );
+    await controller.initialize();
+    await controller.addBookToHistory({'id': 'book-1', 'title': 'Book'});
+    await controller.markChaptersRead(
+      'book-1',
+      const [
+        {'id': 'chapter-1', 'title': '1'},
+        {'id': 'chapter-2', 'title': '2'},
+        {'id': 'chapter-3', 'title': '3'},
+      ],
+      continueFrom: const {'id': 'chapter-3', 'title': '3'},
+    );
+
+    expect(
+      await controller.markChaptersUnread(
+        'book-1',
+        const ['chapter-2', 'chapter-3'],
+      ),
+      2,
+    );
+
+    expect(controller.selectedChapterIds['book-1'], [
+      {'id': 'chapter-1', 'title': '1'},
+    ]);
+    expect(controller.lastReadChapterIds['book-1']?['id'], 'chapter-1');
+    expect(controller.readBooks.single['readChapterCount'], 1);
+  });
+
   test('deduplicates history and replaces stored book details', () async {
     SharedPreferences.setMockInitialValues({});
     final storage = LibraryStorage();

@@ -65,4 +65,23 @@ void main() {
         controller.findScrapperForBook({'coverImageUrl': 'invalid'}), isNull);
     expect(controller.selected, same(sources.first));
   });
+
+  test('prefers the stored source ID when cover host is ambiguous', () async {
+    SharedPreferences.setMockInitialValues({});
+    final sources = SourceCatalog.createAll();
+    final controller = SourceController(
+      sources: sources,
+      onChanged: () {},
+    );
+    await controller.initialize();
+
+    final target = sources.firstWhere((source) => source.id == 'mediocrescan');
+    final resolved = controller.findScrapperForBook({
+      'sourceId': target.id,
+      'coverImageUrl': 'https://shared-cdn.example/cover.jpg',
+    });
+
+    expect(resolved, same(target.api));
+    expect(controller.findSourceForBook({'sourceId': target.id}), same(target));
+  });
 }

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
+import 'package:star_scrapper_app/components/Shared/source_badge.dart';
 import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.dart';
 import 'package:star_scrapper_app/pages/anime_library_grid.dart';
 import 'package:star_scrapper_app/application/library/anime_library_controller.dart';
@@ -551,7 +552,9 @@ class _HomePageScreenState extends State<HomePageScreen> {
                 final scrapper = fontProvider.findScrapperForBook(book) ??
                     fontProvider.selectedFontApi;
                 final coverUrl =
-                    (book['coverImageUrl'] ?? book['imageurl'] ?? '').toString();
+                    (book['coverImageUrl'] ?? book['imageurl'] ?? '')
+                        .toString();
+                final source = fontProvider.findSourceForApi(scrapper);
                 return InkWell(
                   onTap: () {
                     Navigator.push(
@@ -591,6 +594,17 @@ class _HomePageScreenState extends State<HomePageScreen> {
                                   Color.fromARGB(185, 0, 0, 0),
                                 ],
                               ),
+                            ),
+                          ),
+                          Positioned(
+                            top: 10,
+                            left: 10,
+                            child: SourceBadge(
+                              name: source?.name ?? scrapper.name,
+                              imageUri: Uri.tryParse(source?.image ?? '') ??
+                                  scrapper.baseUri.resolve('/favicon.ico'),
+                              headers: scrapper.coverImageHeaders,
+                              showLabel: false,
                             ),
                           ),
                           Positioned(
