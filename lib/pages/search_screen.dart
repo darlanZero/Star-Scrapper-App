@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
@@ -23,7 +25,10 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
+  static const _queryDelay = Duration(milliseconds: 350);
+
   late final TextEditingController _searchController;
+  late final SearchQueryDebouncer _queryDebouncer;
 
   List<Map<String, dynamic>> _libraryResults = [];
   Map<String, List<dynamic>> _onlineResults = {};
@@ -38,6 +43,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    _queryDebouncer = SearchQueryDebouncer(_queryDelay);
     final initial =
         widget.initialQueries.isEmpty ? '' : widget.initialQueries.first.trim();
     _searchController = TextEditingController(text: initial);
@@ -54,15 +60,29 @@ class _SearchScreenState extends State<SearchScreen> {
     String query, {
     bool preserveSourceQueries = false,
   }) {
+    if (!preserveSourceQueries) _sourceQueries = [query.trim()];
+
+    // Invalidate requests from the previous text immediately. Their network
+    // operations may still finish, but they can no longer rebuild this screen.
+    _onlineSearchGeneration++;
+    _queryDebouncer.cancel();
+    if (query.trim().isEmpty) {
+      _applyQuery(query);
+      return;
+    }
+    _queryDebouncer.schedule(() {
+      if (mounted) _applyQuery(query);
+    });
+  }
+
+  void _applyQuery(String query) {
     final fontProvider = Provider.of<FontProvider>(context, listen: false);
     final q = query.trim().toLowerCase();
 
     if (q == _lastQuery) return;
     _lastQuery = q;
-    if (!preserveSourceQueries) _sourceQueries = [query.trim()];
 
     if (q.isEmpty) {
-      _onlineSearchGeneration++;
       setState(() {
         _libraryResults = [];
         _onlineResults = {};
@@ -148,11 +168,18 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _onToggleOnlineSearch(bool value) {
+    _queryDebouncer.cancel();
+    _onlineSearchGeneration++;
     setState(() => _searchOnline = value);
-    if (value && _lastQuery.isNotEmpty) {
-      _runOnlineSearch(_sourceQueries);
+    final currentQuery = _searchController.text;
+    final normalizedCurrent = currentQuery.trim().toLowerCase();
+    if (value && normalizedCurrent.isNotEmpty) {
+      if (normalizedCurrent != _lastQuery) {
+        _applyQuery(currentQuery);
+      } else {
+        _runOnlineSearch(_sourceQueries);
+      }
     } else if (!value) {
-      _onlineSearchGeneration++;
       setState(() {
         _onlineResults = {};
         _onlinePendingSources = {};
@@ -293,15 +320,18 @@ class _SearchScreenState extends State<SearchScreen> {
                     OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 labelText: 'Search titles...',
                 prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          _onQueryChanged('');
-                        },
-                      )
-                    : null,
+                suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _searchController,
+                  builder: (context, value, _) => value.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            _onQueryChanged('');
+                          },
+                        )
+                      : const SizedBox.shrink(),
+                ),
               ),
               style: TextStyle(
                   color: theme.selectedTheme.textTheme.displayMedium?.color),
@@ -368,9 +398,31 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   void dispose() {
+    _queryDebouncer.dispose();
     _searchController.dispose();
     super.dispose();
   }
+}
+
+/// Coalesces rapid text edits so expensive search work runs only after the
+/// user pauses typing. Kept independently testable from the widget tree.
+class SearchQueryDebouncer {
+  final Duration delay;
+  Timer? _timer;
+
+  SearchQueryDebouncer(this.delay);
+
+  void schedule(void Function() action) {
+    cancel();
+    _timer = Timer(delay, action);
+  }
+
+  void cancel() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  void dispose() => cancel();
 }
 
 class _BookListTile extends StatelessWidget {
