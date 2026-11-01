@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/services/backup_service.dart';
 import 'package:star_scrapper_app/application/library/anime_library_controller.dart';
+import 'package:star_scrapper_app/application/trackers/tracker_controller.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/application/notifications/app_notification_service.dart';
 
@@ -36,9 +37,11 @@ class _LibraryBackupRestoreScreenState
   }
 
   Future<void> _createBackup() async {
+    final password = await _requestBackupPassword(confirm: true);
+    if (password == null || !mounted) return;
     setState(() => _isBusy = true);
     try {
-      final path = await _backupService.createBackup();
+      final path = await _backupService.createBackup(password: password);
       await _notifications.notifyBackupCreated(_fileName(path));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -77,17 +80,34 @@ class _LibraryBackupRestoreScreenState
     );
     if (allow != true || !mounted) return;
 
+    String? password;
+    if (await _backupService.backupRequiresPassword(filePath)) {
+      if (!mounted) return;
+      password = await _requestBackupPassword();
+      if (password == null || !mounted) return;
+    }
+    if (!mounted) return;
+
     final tabsState = Provider.of<TabsState>(context, listen: false);
+    final animeTabsState = Provider.of<AnimeTabsState>(context, listen: false);
     final fontProvider = Provider.of<FontProvider>(context, listen: false);
     final animeLibrary =
         Provider.of<AnimeLibraryController>(context, listen: false);
+    final trackerController =
+        Provider.of<TrackerController>(context, listen: false);
 
     setState(() => _isBusy = true);
     try {
-      await _backupService.restoreBackup(filePath);
-      await tabsState.reloadLibraryStructure();
-      await fontProvider.refreshFromStorage();
-      await animeLibrary.initialize();
+      await _backupService.restoreBackup(filePath, password: password);
+      await Future.wait([
+        tabsState.reloadLibraryStructure(),
+        animeTabsState.reloadLibraryStructure(),
+      ]);
+      await Future.wait([
+        fontProvider.refreshFromStorage(),
+        animeLibrary.initialize(),
+        trackerController.initialize(),
+      ]);
       await _notifications.notifyBackupRestored(_fileName(filePath));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -106,6 +126,14 @@ class _LibraryBackupRestoreScreenState
   String _fileName(String filePath) =>
       filePath.split(Platform.pathSeparator).last;
 
+  Future<String?> _requestBackupPassword({bool confirm = false}) async {
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _BackupPasswordDialog(confirm: confirm),
+    );
+  }
+
   Future<void> _deleteBackup(String filePath) async {
     await _backupService.deleteBackup(filePath);
     await _reloadBackupList();
@@ -114,10 +142,11 @@ class _LibraryBackupRestoreScreenState
   Future<void> _downloadBackup(String filePath) async {
     setState(() => _isBusy = true);
     try {
-      final outputPath = await _backupService.copyBackupToDownloads(filePath);
+      final outputPath = await _backupService.exportBackup(filePath);
       if (!mounted) return;
+      if (outputPath == null) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Backup copiado para: $outputPath')),
+        const SnackBar(content: Text('Backup saved successfully.')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -206,6 +235,19 @@ class _LibraryBackupRestoreScreenState
       ),
       body: Column(
         children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Card(
+              child: ListTile(
+                leading: Icon(Icons.lock_rounded),
+                title: Text('Encrypted complete backup'),
+                subtitle: Text(
+                  'Includes manga and anime history, favorites, tabs, stored '
+                  'logins, and enabled sources. Keep the password safe.',
+                ),
+              ),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -275,4 +317,104 @@ class _LibraryBackupRestoreScreenState
       ),
     );
   }
+}
+
+class _BackupPasswordDialog extends StatefulWidget {
+  const _BackupPasswordDialog({required this.confirm});
+
+  final bool confirm;
+
+  @override
+  State<_BackupPasswordDialog> createState() => _BackupPasswordDialogState();
+}
+
+class _BackupPasswordDialogState extends State<_BackupPasswordDialog> {
+  final _passwordController = TextEditingController();
+  final _confirmationController = TextEditingController();
+  bool _obscurePassword = true;
+  String? _validationMessage;
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    _confirmationController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final password = _passwordController.text;
+    final message = password.length < 8
+        ? 'Use at least 8 characters.'
+        : widget.confirm && password != _confirmationController.text
+            ? 'The passwords do not match.'
+            : null;
+    if (message != null) {
+      setState(() => _validationMessage = message);
+      return;
+    }
+    Navigator.of(context).pop(password);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: Text(widget.confirm ? 'Protect your backup' : 'Unlock backup'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.confirm
+                    ? 'This password encrypts your library and stored logins. '
+                        'It cannot be recovered if you forget it.'
+                    : 'Enter the password used when this backup was created.',
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _passwordController,
+                autofocus: true,
+                obscureText: _obscurePassword,
+                onSubmitted: (_) {
+                  if (!widget.confirm) _submit();
+                },
+                decoration: InputDecoration(
+                  labelText: 'Backup password',
+                  errorText: _validationMessage,
+                  suffixIcon: IconButton(
+                    onPressed: () => setState(
+                      () => _obscurePassword = !_obscurePassword,
+                    ),
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_rounded
+                          : Icons.visibility_off_rounded,
+                    ),
+                  ),
+                ),
+              ),
+              if (widget.confirm) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _confirmationController,
+                  obscureText: _obscurePassword,
+                  onSubmitted: (_) => _submit(),
+                  decoration: const InputDecoration(
+                    labelText: 'Confirm password',
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: _submit,
+            child: Text(widget.confirm ? 'Create backup' : 'Unlock'),
+          ),
+        ],
+      );
 }

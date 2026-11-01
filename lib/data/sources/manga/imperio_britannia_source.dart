@@ -155,8 +155,8 @@ class ImperioBritanniaSource
   }
 
   @override
-  Future<void> restoreSession() async {
-    if (_session.isNotEmpty) return;
+  Future<void> restoreSession({bool force = false}) async {
+    if (_session.isNotEmpty && !force) return;
     _session = await SessionManager.loadCookies(sessionKey);
     _bearerToken = _session['token'] ?? _session['access_token'];
   }

@@ -412,7 +412,8 @@ class AnimyMangaSource
   Future<void> updateBrowserSession(Map<String, String> cookies) =>
       _session.update(cookies);
   @override
-  Future<void> restoreSession() => _session.restore();
+  Future<void> restoreSession({bool force = false}) =>
+      _session.restore(force: force);
   @override
   Future<void> logout() => _session.clear();
 

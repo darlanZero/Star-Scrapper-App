@@ -834,7 +834,7 @@ abstract interface class BrowserSessionMangaSource {
 
   Future<void> updateBrowserSession(Map<String, String> cookies);
 
-  Future<void> restoreSession();
+  Future<void> restoreSession({bool force = false});
 
   Future<void> logout();
 

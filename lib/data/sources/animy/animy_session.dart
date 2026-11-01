@@ -13,8 +13,8 @@ class AnimySession {
   String? get token => _token;
   bool get isAuthenticated => _token != null && _token!.isNotEmpty;
 
-  Future<String?> restore() async {
-    if (isAuthenticated) return _token;
+  Future<String?> restore({bool force = false}) async {
+    if (isAuthenticated && !force) return _token;
     final values = await SessionManager.loadCookies(key);
     _token =
         values['token'] ?? values['aniume.token'] ?? values['access_token'];

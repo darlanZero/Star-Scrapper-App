@@ -440,8 +440,8 @@ class YomuSource
   }
 
   @override
-  Future<void> restoreSession() async {
-    if (_cookies.isEmpty) {
+  Future<void> restoreSession({bool force = false}) async {
+    if (_cookies.isEmpty || force) {
       _cookies = await SessionManager.loadCookies(sessionKey);
     }
   }

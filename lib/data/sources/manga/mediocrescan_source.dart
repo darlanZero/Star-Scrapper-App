@@ -201,7 +201,8 @@ class MediocrescanSource
   }
 
   @override
-  Future<void> restoreSession() => _ensureSession();
+  Future<void> restoreSession({bool force = false}) =>
+      _ensureSession(force: force);
 
   @override
   Future<void> logout() async {
@@ -210,8 +211,8 @@ class MediocrescanSource
     await SessionManager.clearSession('mediocrescan');
   }
 
-  Future<void> _ensureSession() async {
-    if (_cookies.isEmpty) {
+  Future<void> _ensureSession({bool force = false}) async {
+    if (_cookies.isEmpty || force) {
       _cookies = await SessionManager.loadCookies('mediocrescan');
       _bearerToken = _cookies['token'] ?? _cookies['access_token'];
     }

@@ -350,6 +350,13 @@ class FontProvider with ChangeNotifier implements LibraryOrganizationUpdater {
   Future<void> refreshFromStorage() async {
     await _sourceController.initialize();
     await _animeSourceController.initialize();
+    await Future.wait([
+      for (final source in _sourceController.sources)
+        if (source.api is BrowserSessionMangaSource)
+          (source.api as BrowserSessionMangaSource)
+              .restoreSession(force: true)
+              .catchError((Object _) {}),
+    ]);
     await _loadLibraryState();
     await _chapterUpdateScheduler.initialize();
     await _libraryUpdateTracker.initialize();

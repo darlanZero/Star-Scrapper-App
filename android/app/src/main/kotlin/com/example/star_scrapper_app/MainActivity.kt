@@ -1,5 +1,6 @@
 package com.example.star_scrapper_app
 
+import android.app.Activity
 import android.content.ContentValues
 import android.content.Intent
 import android.graphics.Bitmap
@@ -39,6 +40,8 @@ class MainActivity: FlutterActivity() {
     private var readerWebView: WebView? = null
     private val readerHandler = Handler(Looper.getMainLooper())
     private var readerActive = false
+    private var pendingBackupExport: MethodChannel.Result? = null
+    private var pendingBackupSourcePath: String? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -58,6 +61,19 @@ class MainActivity: FlutterActivity() {
                     fileName = call.argument<String>("fileName"),
                     mimeType = call.argument<String>("mimeType"),
                     text = call.argument<String>("text"),
+                    result = result,
+                )
+                else -> result.notImplemented()
+            }
+        }
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "starslibrary/backup_files",
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "exportBackup" -> exportBackupWithDocumentPicker(
+                    sourcePath = call.argument<String>("sourcePath"),
+                    fileName = call.argument<String>("fileName"),
                     result = result,
                 )
                 else -> result.notImplemented()
@@ -201,6 +217,64 @@ class MainActivity: FlutterActivity() {
             result.success("Pictures/StarsLibrary/$fileName")
         } catch (error: Exception) {
             result.error("save_failed", error.message ?: "Could not save image.", null)
+        }
+    }
+
+    private fun exportBackupWithDocumentPicker(
+        sourcePath: String?,
+        fileName: String?,
+        result: MethodChannel.Result,
+    ) {
+        if (sourcePath.isNullOrBlank() || !File(sourcePath).isFile) {
+            result.error("missing_backup", "The backup file no longer exists.", null)
+            return
+        }
+        if (pendingBackupExport != null) {
+            result.error("export_in_progress", "Another backup export is already open.", null)
+            return
+        }
+
+        pendingBackupExport = result
+        pendingBackupSourcePath = sourcePath
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/octet-stream"
+            putExtra(Intent.EXTRA_TITLE, fileName ?: File(sourcePath).name)
+        }
+        try {
+            startActivityForResult(intent, CREATE_BACKUP_DOCUMENT_REQUEST)
+        } catch (error: Exception) {
+            pendingBackupExport = null
+            pendingBackupSourcePath = null
+            result.error("picker_unavailable", error.message, null)
+        }
+    }
+
+    @Deprecated("Deprecated in Android, retained for the Flutter activity result bridge.")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != CREATE_BACKUP_DOCUMENT_REQUEST) return
+
+        val result = pendingBackupExport
+        val sourcePath = pendingBackupSourcePath
+        pendingBackupExport = null
+        pendingBackupSourcePath = null
+
+        if (result == null) return
+        if (resultCode != Activity.RESULT_OK || data?.data == null) {
+            result.success(null)
+            return
+        }
+
+        val destination = data.data!!
+        try {
+            contentResolver.openOutputStream(destination, "w").use { output ->
+                requireNotNull(output) { "The selected destination could not be opened." }
+                File(sourcePath!!).inputStream().use { input -> input.copyTo(output) }
+            }
+            result.success(destination.toString())
+        } catch (error: Exception) {
+            result.error("export_failed", error.message, null)
         }
     }
 
@@ -544,6 +618,7 @@ class MainActivity: FlutterActivity() {
     }
 
     companion object {
+        private const val CREATE_BACKUP_DOCUMENT_REQUEST = 4107
         private const val MAX_READER_TILE_HEIGHT = 8192
     }
 

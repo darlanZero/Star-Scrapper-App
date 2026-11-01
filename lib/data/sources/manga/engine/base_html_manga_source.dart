@@ -56,10 +56,11 @@ abstract class BaseHtmlMangaSource
   bool get isAuthenticated => _cookies.isNotEmpty;
 
   @override
-  Future<void> restoreSession() => _ensureSession();
+  Future<void> restoreSession({bool force = false}) =>
+      _ensureSession(force: force);
 
-  Future<void> _ensureSession() async {
-    if (_cookies.isEmpty) {
+  Future<void> _ensureSession({bool force = false}) async {
+    if (_cookies.isEmpty || force) {
       _cookies = await SessionManager.loadCookies(siteKey);
     }
   }
