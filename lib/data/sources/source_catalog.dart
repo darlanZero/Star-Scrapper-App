@@ -8,6 +8,7 @@ import 'package:star_scrapper_app/data/sources/anime/goyabu_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/hentai_haven_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/animeq_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/animy_anime_source.dart';
+import 'package:star_scrapper_app/data/sources/anime/porn_comic_video_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/mangadex_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/seita_celestial_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/luratoons_source.dart';
@@ -25,6 +26,7 @@ import 'package:star_scrapper_app/data/sources/manga/nhentai_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/nhentai_xxx_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/xcomic_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/comick_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/porn_comic_source.dart';
 import 'package:star_scrapper_app/infrastructure/webview/browser_html_loader.dart';
 
 /// Single registry for the sources bundled with the application.
@@ -42,6 +44,7 @@ abstract final class SourceCatalog {
         HentaiHavenSource(),
         AnimeQSource(),
         AnimyAnimeSource(),
+        PornComicVideoSource(),
       ];
 
   /// Manga/comic providers using the typed [MangaSource] contract (replaces the
@@ -97,6 +100,7 @@ abstract final class SourceCatalog {
             maxClicks: maxClicks,
           ),
         ),
+        PornComicMangaSource(),
       ];
 
   static List<Fonte> createAll() => [
@@ -307,6 +311,16 @@ abstract final class SourceCatalog {
           contentType: SourceContentType.manga,
           // Mixed catalog with Safe, Suggestive and Erotica rating filters.
           isRRated: false,
+        ),
+        Fonte(
+          id: 'porn_comic',
+          image: 'https://porn-comic.com/favicon.ico',
+          name: 'Porn-Comic',
+          languagePrefix: 'All',
+          flags: ['https://cdn-icons-png.flaticon.com/512/44/44386.png'],
+          api: PornComicMangaSource(),
+          contentType: SourceContentType.manga,
+          isRRated: true,
         ),
         Fonte(
           id: 'onisaga',

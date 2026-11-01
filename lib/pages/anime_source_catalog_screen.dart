@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:star_scrapper_app/components/Shared/anime_source_image.dart';
 import 'package:star_scrapper_app/domain/sources/anime_source.dart';
+import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 import 'package:star_scrapper_app/pages/anime_source_details_screen.dart';
 import 'package:star_scrapper_app/pages/anime_source_webview_screen.dart';
+import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.dart';
 
 class AnimeSourceCatalogScreen extends StatefulWidget {
   final AnimeSource source;
   final AnimeCatalogFilter initialFilter;
   final String? initialQuery;
+  final AnimeTaxonomyKind? initialTaxonomyKind;
+  final String? initialTaxonomyId;
 
   const AnimeSourceCatalogScreen({
     super.key,
     required this.source,
     this.initialFilter = AnimeCatalogFilter.recent,
     this.initialQuery,
+    this.initialTaxonomyKind,
+    this.initialTaxonomyId,
   });
 
   @override
@@ -32,6 +38,8 @@ class _AnimeSourceCatalogScreenState extends State<AnimeSourceCatalogScreen> {
   bool _loading = false;
   int _requestGeneration = 0;
   AnimeSearchRequest? _advancedRequest;
+  late AnimeTaxonomyKind? _taxonomyKind;
+  late String? _taxonomyId;
   bool _sessionPromptOpen = false;
 
   @override
@@ -40,6 +48,8 @@ class _AnimeSourceCatalogScreenState extends State<AnimeSourceCatalogScreen> {
     _filter = widget.initialFilter;
     _query = widget.initialQuery?.trim();
     _searchController = TextEditingController(text: _query);
+    _taxonomyKind = widget.initialTaxonomyKind;
+    _taxonomyId = widget.initialTaxonomyId;
     _scrollController.addListener(_onScroll);
     _load(reset: true);
   }
@@ -75,6 +85,13 @@ class _AnimeSourceCatalogScreenState extends State<AnimeSourceCatalogScreen> {
     try {
       final cursor = reset ? null : _nextCursor;
       final page = switch (widget.source) {
+        final TaxonomyBrowsableAnimeSource source
+            when _taxonomyKind != null && _taxonomyId != null =>
+          await source.browseTaxonomy(
+            _taxonomyKind!,
+            _taxonomyId!,
+            cursor: cursor,
+          ),
         final FilterableAnimeSource source when _advancedRequest != null =>
           await source.filter(
             _advancedRequest!.copyWith(query: _query ?? ''),
@@ -122,7 +139,11 @@ class _AnimeSourceCatalogScreenState extends State<AnimeSourceCatalogScreen> {
 
   void _search(String value) {
     final query = value.trim();
-    setState(() => _query = query.isEmpty ? null : query);
+    setState(() {
+      _query = query.isEmpty ? null : query;
+      _taxonomyKind = null;
+      _taxonomyId = null;
+    });
     _load(reset: true);
   }
 
@@ -133,8 +154,76 @@ class _AnimeSourceCatalogScreenState extends State<AnimeSourceCatalogScreen> {
       _filter = filter;
       _query = null;
       _advancedRequest = null;
+      _taxonomyKind = null;
+      _taxonomyId = null;
     });
     _load(reset: true);
+  }
+
+  void _openTaxonomy(AnimeTaxonomyLink link) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AnimeSourceCatalogScreen(
+          source: widget.source,
+          initialTaxonomyKind: link.kind,
+          initialTaxonomyId: link.id,
+        ),
+      ),
+    );
+  }
+
+  AnimeTaxonomyKind _animeKind(MangaTaxonomyKind kind) => switch (kind) {
+        MangaTaxonomyKind.tag => AnimeTaxonomyKind.tag,
+        MangaTaxonomyKind.artist => AnimeTaxonomyKind.artist,
+        MangaTaxonomyKind.character => AnimeTaxonomyKind.character,
+        MangaTaxonomyKind.parody => AnimeTaxonomyKind.parody,
+        MangaTaxonomyKind.group ||
+        MangaTaxonomyKind.circle =>
+          AnimeTaxonomyKind.topic,
+      };
+
+  Future<void> _openItem(AnimeCatalogItem item) async {
+    final source = widget.source;
+    if (source is ReaderBackedAnimeSource) {
+      final hybridSource = source as ReaderBackedAnimeSource;
+      try {
+        final details = await hybridSource.getReaderDetails(item.id);
+        if (!mounted) return;
+        if (details != null) {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => BookDetailsScreen(
+                bookDetails: details.toJson(),
+                scrapper: hybridSource.readerSource,
+                onTaxonomySelected: (kind, id, name) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!mounted) return;
+                    _openTaxonomy(AnimeTaxonomyLink(
+                      kind: _animeKind(kind),
+                      id: id,
+                      name: name,
+                    ));
+                  });
+                },
+              ),
+            ),
+          );
+          return;
+        }
+      } catch (_) {
+        // The regular details screen will surface the provider error.
+      }
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AnimeSourceDetailsScreen(
+          source: source,
+          item: item,
+          onTaxonomySelected: _openTaxonomy,
+        ),
+      ),
+    );
   }
 
   Future<void> _showAdvancedFilters() async {
@@ -267,14 +356,7 @@ class _AnimeSourceCatalogScreenState extends State<AnimeSourceCatalogScreen> {
                   itemBuilder: (context, index) => _AnimeCatalogCard(
                     item: _items[index],
                     source: widget.source,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => AnimeSourceDetailsScreen(
-                          source: widget.source,
-                          item: _items[index],
-                        ),
-                      ),
-                    ),
+                    onTap: () => _openItem(_items[index]),
                   ),
                 ),
               ),
@@ -623,6 +705,15 @@ String _catalogFilterLabel(
   AnimeCatalogFilter filter,
   AnimeSource source,
 ) {
+  if (source.id == 'porn_comic_video') {
+    return switch (filter) {
+      AnimeCatalogFilter.recent => 'Animation · Latest',
+      AnimeCatalogFilter.updated => 'Cosplay · Latest',
+      AnimeCatalogFilter.popular => 'Animation · Popular',
+      AnimeCatalogFilter.popularMonth => 'Cosplay · Popular',
+      _ => _defaultCatalogFilterLabel(filter),
+    };
+  }
   if (source.id == 'goyabu') {
     return switch (filter) {
       AnimeCatalogFilter.popular => 'Today',

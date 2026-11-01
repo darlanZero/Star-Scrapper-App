@@ -56,12 +56,37 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
   Future<void>? _updateFuture;
 
+  List<MangaTaxonomyLink> get _taxonomyLinks =>
+      ((bookDetails['taxonomyLinks'] as List?) ?? const [])
+          .whereType<Map>()
+          .map(MangaTaxonomyLink.fromJson)
+          .where((link) => link.id.isNotEmpty && link.name.isNotEmpty)
+          .toList(growable: false);
+
+  MangaTaxonomyLink? _taxonomyLink(String name, {MangaTaxonomyKind? kind}) {
+    final normalized = name.trim().toLowerCase();
+    for (final link in _taxonomyLinks) {
+      if ((kind == null || link.kind == kind) &&
+          link.name.trim().toLowerCase() == normalized) {
+        return link;
+      }
+    }
+    return null;
+  }
+
+  void _selectTaxonomy(MangaTaxonomyLink link) {
+    widget.onTaxonomySelected?.call(link.kind, link.id, link.name);
+    Navigator.of(context).pop();
+  }
+
   Widget _buildTagChip(String rawTag, TextStyle? style) {
     final tag = rawTag.trim();
-    final canSearch =
-        {'nhentai', 'nhentai_xxx'}.contains(widget.scrapper?.id) &&
-            widget.onTaxonomySelected != null &&
-            tag.isNotEmpty;
+    final taxonomyLink = _taxonomyLink(tag);
+    final legacyTagSearch =
+        {'nhentai', 'nhentai_xxx'}.contains(widget.scrapper?.id);
+    final canSearch = widget.onTaxonomySelected != null &&
+        tag.isNotEmpty &&
+        (taxonomyLink != null || legacyTagSearch);
     final chip = Chip(
       label: Text(tag, style: style),
       backgroundColor: Colors.black.withValues(alpha: .62),
@@ -75,9 +100,39 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     );
     if (!canSearch) return chip;
     return GestureDetector(
-      onTap: () => _applyTagSearch([tag]),
-      onLongPress: _showCombinedTagSearch,
+      onTap: () => taxonomyLink == null
+          ? _applyTagSearch([tag])
+          : _selectTaxonomy(taxonomyLink),
+      onLongPress: legacyTagSearch ? _showCombinedTagSearch : null,
       child: chip,
+    );
+  }
+
+  Widget _buildPersonLabel(
+    dynamic rawName,
+    String fallback, {
+    required double fontSize,
+    MangaTaxonomyKind kind = MangaTaxonomyKind.artist,
+  }) {
+    final name = _extractPersonName(rawName);
+    final link = name == null ? null : _taxonomyLink(name, kind: kind);
+    final text = Text(
+      name ?? fallback,
+      style: TextStyle(
+        fontSize: fontSize,
+        fontWeight: FontWeight.bold,
+        color:
+            link == null ? Colors.grey : Theme.of(context).colorScheme.primary,
+      ),
+    );
+    if (link == null || widget.onTaxonomySelected == null) return text;
+    return InkWell(
+      onTap: () => _selectTaxonomy(link),
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
+        child: text,
+      ),
     );
   }
 
@@ -985,21 +1040,16 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          _extractPersonName(bookDetails['author']) ??
-                              'No author available',
-                          style: TextStyle(
-                              fontSize: isDesktop ? 16.0 : 8.0,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey),
+                        _buildPersonLabel(
+                          bookDetails['author'],
+                          'No author available',
+                          fontSize: isDesktop ? 16.0 : 8.0,
                         ),
                         const SizedBox(width: 8.0),
-                        Text(
-                          _extractPersonName(bookDetails['artist']) ??
-                              'No artist available',
-                          style: TextStyle(
-                              fontSize: isDesktop ? 16.0 : 8.0,
-                              color: Colors.grey),
+                        _buildPersonLabel(
+                          bookDetails['artist'],
+                          'No artist available',
+                          fontSize: isDesktop ? 16.0 : 8.0,
                         )
                       ]),
                 ),

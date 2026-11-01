@@ -372,6 +372,35 @@ class MangaGenre {
 /// Taxonomy groups exposed by sources with richer adult-gallery metadata.
 enum MangaTaxonomyKind { tag, artist, character, parody, group, circle }
 
+/// A taxonomy value attached to one title with its canonical browse route.
+class MangaTaxonomyLink {
+  final MangaTaxonomyKind kind;
+  final String id;
+  final String name;
+
+  const MangaTaxonomyLink({
+    required this.kind,
+    required this.id,
+    required this.name,
+  });
+
+  factory MangaTaxonomyLink.fromJson(Map<dynamic, dynamic> json) =>
+      MangaTaxonomyLink(
+        kind: MangaTaxonomyKind.values.firstWhere(
+          (value) => value.name == json['kind']?.toString(),
+          orElse: () => MangaTaxonomyKind.tag,
+        ),
+        id: json['id']?.toString() ?? '',
+        name: json['name']?.toString() ?? '',
+      );
+
+  Map<String, String> toJson() => {
+        'kind': kind.name,
+        'id': id,
+        'name': name,
+      };
+}
+
 /// Ordering exposed by taxonomy indexes that provide more than one view.
 enum MangaTaxonomySort { alphabetical, popular }
 
@@ -484,6 +513,7 @@ class MangaDetails {
   /// `altTitles` shape the UI already renders.
   final List<Map<String, String>> alternativeTitles;
   final List<String> genres;
+  final List<MangaTaxonomyLink> taxonomyLinks;
   final String? author;
   final String? artist;
   final MangaStatus status;
@@ -497,6 +527,7 @@ class MangaDetails {
     this.description = '',
     Iterable<Map<String, String>> alternativeTitles = const [],
     Iterable<String> genres = const [],
+    Iterable<MangaTaxonomyLink> taxonomyLinks = const [],
     this.author,
     this.artist,
     this.status = MangaStatus.unknown,
@@ -504,6 +535,7 @@ class MangaDetails {
     Iterable<MangaChapter> chapters = const [],
   })  : alternativeTitles = List.unmodifiable(alternativeTitles),
         genres = List.unmodifiable(genres),
+        taxonomyLinks = List.unmodifiable(taxonomyLinks),
         chapters = List.unmodifiable(chapters);
 
   factory MangaDetails.fromJson(Map<dynamic, dynamic> json) {
@@ -512,6 +544,9 @@ class MangaDetails {
       description: (json['description'] ?? '').toString(),
       alternativeTitles: _parseAltTitles(json['altTitles']),
       genres: _parseStringList(json['tags']),
+      taxonomyLinks: ((json['taxonomyLinks'] as List?) ?? const [])
+          .whereType<Map>()
+          .map(MangaTaxonomyLink.fromJson),
       author: _parsePersonName(json['author']),
       artist: _parsePersonName(json['artist']),
       status: mangaStatusFromString(json['status']),
@@ -529,6 +564,8 @@ class MangaDetails {
             .map((entry) => Map<String, String>.from(entry))
             .toList(),
         'tags': List<String>.from(genres),
+        if (taxonomyLinks.isNotEmpty)
+          'taxonomyLinks': taxonomyLinks.map((link) => link.toJson()).toList(),
         if (author != null) 'author': author,
         if (artist != null) 'artist': artist,
         'status': status.name,

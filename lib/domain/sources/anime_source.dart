@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:star_scrapper_app/domain/sources/manga_source.dart';
+
 /// Sort options that an anime catalog source can expose.
 enum AnimeCatalogFilter {
   featured,
@@ -197,6 +199,20 @@ class AnimeCatalogItem {
   });
 }
 
+enum AnimeTaxonomyKind { tag, artist, character, parody, model, topic }
+
+class AnimeTaxonomyLink {
+  final AnimeTaxonomyKind kind;
+  final String id;
+  final String name;
+
+  const AnimeTaxonomyLink({
+    required this.kind,
+    required this.id,
+    required this.name,
+  });
+}
+
 /// One page of catalog results.
 ///
 /// [nextCursor] is intentionally opaque. Sources can use a page number, token,
@@ -219,6 +235,7 @@ class AnimeDetails {
   final String description;
   final List<String> alternativeTitles;
   final List<String> genres;
+  final List<AnimeTaxonomyLink> taxonomyLinks;
   final AnimeStatus status;
   final Uri? bannerUri;
   final Map<String, String> externalIds;
@@ -230,6 +247,7 @@ class AnimeDetails {
     this.description = '',
     Iterable<String> alternativeTitles = const [],
     Iterable<String> genres = const [],
+    Iterable<AnimeTaxonomyLink> taxonomyLinks = const [],
     this.status = AnimeStatus.unknown,
     this.bannerUri,
     Map<String, String> externalIds = const {},
@@ -237,6 +255,7 @@ class AnimeDetails {
     Iterable<String> producers = const [],
   })  : alternativeTitles = List.unmodifiable(alternativeTitles),
         genres = List.unmodifiable(genres),
+        taxonomyLinks = List.unmodifiable(taxonomyLinks),
         externalIds = Map.unmodifiable(externalIds),
         studios = List.unmodifiable(studios),
         producers = List.unmodifiable(producers);
@@ -372,12 +391,30 @@ abstract interface class AnimeSource {
   });
 }
 
+/// Optional capability for hybrid catalogs where some entries are image/GIF
+/// galleries and must be opened by the native reader instead of the player.
+abstract interface class ReaderBackedAnimeSource {
+  MangaSource get readerSource;
+
+  /// Returns reader details for image media, or null when [itemId] is video.
+  Future<MangaDetails?> getReaderDetails(String itemId);
+}
+
+/// Optional capability for canonical metadata links shown on anime details.
+abstract interface class TaxonomyBrowsableAnimeSource {
+  Future<AnimeCatalogPage> browseTaxonomy(
+    AnimeTaxonomyKind kind,
+    String taxonomyId, {
+    String? cursor,
+  });
+}
+
 /// Presentation metadata shared by the source-management screens.
 ///
 /// Keeping this mapping next to the typed source contract prevents individual
 /// screens from disagreeing about a source's language.
 extension AnimeSourcePresentation on AnimeSource {
-  bool get isRRated => id == 'hentai_haven';
+  bool get isRRated => id == 'hentai_haven' || id == 'porn_comic_video';
 
   Uri get iconUri => baseUri.resolve('/favicon.ico');
 
@@ -411,6 +448,7 @@ extension AnimeSourcePresentation on AnimeSource {
         'animeq' => '$languageLabel · $audioLabel · MP4',
         'animy_anime' => '$languageLabel · $audioLabel · HLS/MP4',
         'hentai_haven' => 'R-rated · $audioLabel · Native/WebView',
+        'porn_comic_video' => 'R-rated · Animation/Cosplay · HLS',
         _ => '$languageLabel · $audioLabel · HLS · Subtitles',
       };
 }

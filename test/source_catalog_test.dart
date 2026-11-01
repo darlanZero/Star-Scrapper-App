@@ -67,6 +67,10 @@ void main() {
         sources.singleWhere((source) => source.id == 'hentai_haven');
     expect(hentaiHaven.isRRated, isTrue);
     expect(hentaiHaven.capabilityLabel, startsWith('R-rated'));
+    final pornComic =
+        sources.singleWhere((source) => source.id == 'porn_comic_video');
+    expect(pornComic.isRRated, isTrue);
+    expect(pornComic.capabilityLabel, contains('Animation/Cosplay'));
   });
 
   test('anime sources are grouped by language in display order', () {
@@ -75,7 +79,7 @@ void main() {
     expect(groups.keys, ['All Languages', 'PT-BR']);
     expect(
       groups['All Languages']!.map((source) => source.id),
-      ['anitube', 'aniwave', 'hentai_haven'],
+      ['anitube', 'aniwave', 'hentai_haven', 'porn_comic_video'],
     );
     expect(
       groups['PT-BR']!.map((source) => source.id),

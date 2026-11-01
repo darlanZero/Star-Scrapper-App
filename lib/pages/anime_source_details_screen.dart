@@ -14,11 +14,13 @@ import 'package:star_scrapper_app/pages/anime_source_webview_screen.dart';
 class AnimeSourceDetailsScreen extends StatefulWidget {
   final AnimeSource source;
   final AnimeCatalogItem item;
+  final ValueChanged<AnimeTaxonomyLink>? onTaxonomySelected;
 
   const AnimeSourceDetailsScreen({
     super.key,
     required this.source,
     required this.item,
+    this.onTaxonomySelected,
   });
 
   @override
@@ -587,6 +589,7 @@ class _AnimeSourceDetailsScreenState extends State<AnimeSourceDetailsScreen> {
                 title: displayTitle,
                 background: image,
                 source: widget.source,
+                onTaxonomySelected: widget.onTaxonomySelected,
               ),
             ),
           ),
@@ -615,6 +618,30 @@ class _AnimeSourceDetailsScreenState extends State<AnimeSourceDetailsScreen> {
                     Text(
                       details.description,
                       style: const TextStyle(height: 1.45),
+                    ),
+                  ],
+                  if (details.taxonomyLinks.isNotEmpty) ...[
+                    const SizedBox(height: 18),
+                    Text(
+                      'Tags & metadata',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 7,
+                      runSpacing: 7,
+                      children: details.taxonomyLinks
+                          .map(
+                            (link) => ActionChip(
+                              label: Text(link.name),
+                              onPressed: widget.onTaxonomySelected == null
+                                  ? null
+                                  : () => widget.onTaxonomySelected!(link),
+                            ),
+                          )
+                          .toList(growable: false),
                     ),
                   ],
                   if (lastProgress != null && lastEpisode != null) ...[
@@ -740,12 +767,14 @@ class _AnimeHero extends StatelessWidget {
   final String title;
   final Uri? background;
   final AnimeSource source;
+  final ValueChanged<AnimeTaxonomyLink>? onTaxonomySelected;
 
   const _AnimeHero({
     required this.details,
     required this.title,
     required this.background,
     required this.source,
+    this.onTaxonomySelected,
   });
 
   @override
@@ -847,9 +876,19 @@ class _AnimeHero extends StatelessWidget {
                 runSpacing: 6,
                 children: [
                   _HeroChip(label: _statusLabel(details.status)),
-                  ...details.genres
-                      .take(4)
-                      .map((genre) => _HeroChip(label: genre)),
+                  ...details.genres.take(4).map((genre) {
+                    final normalized = genre.trim().toLowerCase();
+                    final link = details.taxonomyLinks
+                        .where((item) =>
+                            item.name.trim().toLowerCase() == normalized)
+                        .firstOrNull;
+                    return _HeroChip(
+                      label: genre,
+                      onTap: link == null || onTaxonomySelected == null
+                          ? null
+                          : () => onTaxonomySelected!(link),
+                    );
+                  }),
                 ],
               ),
             ],
@@ -862,26 +901,35 @@ class _AnimeHero extends StatelessWidget {
 
 class _HeroChip extends StatelessWidget {
   final String label;
+  final VoidCallback? onTap;
 
-  const _HeroChip({required this.label});
+  const _HeroChip({required this.label, this.onTap});
 
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: .62),
-          borderRadius: BorderRadius.circular(99),
-          border: Border.all(color: Colors.white24),
+  Widget build(BuildContext context) {
+    final chip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: .62),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
         ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      );
+      ),
+    );
+    if (onTap == null) return chip;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(99),
+      child: chip,
+    );
+  }
 }
 
 String _statusLabel(AnimeStatus status) => switch (status) {
