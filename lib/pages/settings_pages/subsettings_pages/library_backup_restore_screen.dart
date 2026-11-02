@@ -159,56 +159,14 @@ class _LibraryBackupRestoreScreenState
   }
 
   Future<void> _loadBackupFromDevice() async {
-    setState(() => _isBusy = true);
     try {
-      final files = await _backupService.listImportableBackups();
-      if (!mounted) return;
-      setState(() => _isBusy = false);
-
-      if (files.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No .starsbackup found in Downloads/Documents.'),
-          ),
-        );
-        return;
-      }
-
-      final selectedPath = await showDialog<String>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Load Backup'),
-          content: SizedBox(
-            width: 560,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: files.length,
-              itemBuilder: (context, index) {
-                final file = files[index] as File;
-                final name = file.path.split(Platform.pathSeparator).last;
-                return ListTile(
-                  title: Text(name),
-                  subtitle: Text(file.path),
-                  onTap: () => Navigator.of(context).pop(file.path),
-                );
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-          ],
-        ),
-      );
-
+      final selectedPath = await _backupService.selectBackupForImport();
       if (selectedPath == null || selectedPath.isEmpty) return;
+      if (!mounted) return;
       await _restoreBackup(selectedPath);
       await _reloadBackupList();
     } catch (e) {
       if (!mounted) return;
-      setState(() => _isBusy = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to load backup: $e')),
       );

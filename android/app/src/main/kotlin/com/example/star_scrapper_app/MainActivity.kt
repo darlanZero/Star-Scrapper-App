@@ -18,12 +18,14 @@ import android.os.Looper
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.util.Base64
 import android.util.Log
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.core.content.FileProvider
-import io.flutter.embedding.android.FlutterActivity
+import androidx.activity.result.contract.ActivityResultContracts
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
@@ -36,12 +38,17 @@ import java.net.URL
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicBoolean
 
-class MainActivity: FlutterActivity() {
+class MainActivity: FlutterFragmentActivity() {
+    private val backupImportPicker = registerForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { source -> completeBackupImport(source) }
+
     private var readerWebView: WebView? = null
     private val readerHandler = Handler(Looper.getMainLooper())
     private var readerActive = false
     private var pendingBackupExport: MethodChannel.Result? = null
     private var pendingBackupSourcePath: String? = null
+    private var pendingBackupImport: MethodChannel.Result? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -76,6 +83,7 @@ class MainActivity: FlutterActivity() {
                     fileName = call.argument<String>("fileName"),
                     result = result,
                 )
+                "importBackup" -> importBackupWithDocumentPicker(result)
                 else -> result.notImplemented()
             }
         }
@@ -250,11 +258,30 @@ class MainActivity: FlutterActivity() {
         }
     }
 
+    private fun importBackupWithDocumentPicker(result: MethodChannel.Result) {
+        if (pendingBackupImport != null) {
+            result.error("import_in_progress", "Another backup picker is already open.", null)
+            return
+        }
+
+        pendingBackupImport = result
+        try {
+            backupImportPicker.launch(arrayOf("*/*"))
+        } catch (error: Exception) {
+            pendingBackupImport = null
+            result.error("picker_unavailable", error.message, null)
+        }
+    }
+
     @Deprecated("Deprecated in Android, retained for the Flutter activity result bridge.")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != CREATE_BACKUP_DOCUMENT_REQUEST) return
+        when (requestCode) {
+            CREATE_BACKUP_DOCUMENT_REQUEST -> completeBackupExport(resultCode, data)
+        }
+    }
 
+    private fun completeBackupExport(resultCode: Int, data: Intent?) {
         val result = pendingBackupExport
         val sourcePath = pendingBackupSourcePath
         pendingBackupExport = null
@@ -275,6 +302,55 @@ class MainActivity: FlutterActivity() {
             result.success(destination.toString())
         } catch (error: Exception) {
             result.error("export_failed", error.message, null)
+        }
+    }
+
+    private fun completeBackupImport(source: android.net.Uri?) {
+        val result = pendingBackupImport
+        pendingBackupImport = null
+
+        if (result == null) return
+        if (source == null) {
+            result.success(null)
+            return
+        }
+
+        try {
+            val displayName = contentResolver.query(
+                source,
+                arrayOf(OpenableColumns.DISPLAY_NAME),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            }
+            if (displayName != null &&
+                !displayName.endsWith(".starsbackup", ignoreCase = true)
+            ) {
+                result.error(
+                    "invalid_backup_extension",
+                    "Choose a .starsbackup file.",
+                    null,
+                )
+                return
+            }
+
+            val importDirectory = File(cacheDir, "backup_imports").apply {
+                mkdirs()
+                listFiles()?.forEach { it.delete() }
+            }
+            val destination = File(
+                importDirectory,
+                "selected_${System.currentTimeMillis()}.starsbackup",
+            )
+            contentResolver.openInputStream(source).use { input ->
+                requireNotNull(input) { "The selected backup could not be opened." }
+                destination.outputStream().use { output -> input.copyTo(output) }
+            }
+            result.success(destination.absolutePath)
+        } catch (error: Exception) {
+            result.error("import_failed", error.message, null)
         }
     }
 

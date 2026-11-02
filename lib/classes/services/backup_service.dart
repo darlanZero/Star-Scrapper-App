@@ -342,6 +342,15 @@ class BackupService {
     return copyBackupToDownloads(filePath);
   }
 
+  Future<String?> selectBackupForImport() async {
+    if (!Platform.isAndroid) {
+      throw UnsupportedError(
+        'The native backup picker is currently available on Android.',
+      );
+    }
+    return _backupFilesChannel.invokeMethod<String>('importBackup');
+  }
+
   Future<List<FileSystemEntity>> listImportableBackups() async {
     final dirs = <Directory>[];
     final downloads = await getDownloadsDirectory();
