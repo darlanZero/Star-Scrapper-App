@@ -9,6 +9,7 @@ import 'package:star_scrapper_app/data/sources/anime/hentai_haven_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/animeq_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/animy_anime_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/porn_comic_video_source.dart';
+import 'package:star_scrapper_app/data/sources/anime/hanime1_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/mangadex_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/seita_celestial_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/luratoons_source.dart';
@@ -45,6 +46,18 @@ abstract final class SourceCatalog {
         AnimeQSource(),
         AnimyAnimeSource(),
         PornComicVideoSource(),
+        Hanime1Source(
+          browserHtmlLoader: (uri, userAgent) => BrowserHtmlLoader.loadRawWhen(
+            uri,
+            userAgent,
+            uri.path == '/watch'
+                ? '#shareBtn-title, video#player'
+                : uri.path == '/download'
+                    ? '.download-table a[data-url]'
+                    : '.video-item-container, .genre-option',
+          ),
+          browserImageLoader: BrowserHtmlLoader.loadImage,
+        ),
       ];
 
   /// Manga/comic providers using the typed [MangaSource] contract (replaces the

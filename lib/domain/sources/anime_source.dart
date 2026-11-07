@@ -57,6 +57,7 @@ class AnimeSearchOptions {
   final List<AnimeFilterOption> ratings;
   final List<AnimeFilterOption> studios;
   final List<AnimeSearchSort> sorts;
+  final Map<String, String> labels;
 
   AnimeSearchOptions({
     Iterable<AnimeFilterOption> genres = const [],
@@ -68,6 +69,7 @@ class AnimeSearchOptions {
     Iterable<AnimeFilterOption> ratings = const [],
     Iterable<AnimeFilterOption> studios = const [],
     Iterable<AnimeSearchSort> sorts = AnimeSearchSort.values,
+    Map<String, String> labels = const {},
   })  : genres = List.unmodifiable(genres),
         seasons = List.unmodifiable(seasons),
         years = List.unmodifiable(years),
@@ -76,7 +78,10 @@ class AnimeSearchOptions {
         languages = List.unmodifiable(languages),
         ratings = List.unmodifiable(ratings),
         studios = List.unmodifiable(studios),
-        sorts = List.unmodifiable(sorts);
+        sorts = List.unmodifiable(sorts),
+        labels = Map.unmodifiable(labels);
+
+  String labelFor(String field, String fallback) => labels[field] ?? fallback;
 }
 
 class AnimeSearchRequest {
@@ -391,6 +396,17 @@ abstract interface class AnimeSource {
   });
 }
 
+/// Optional, source-scoped translation for providers whose catalog metadata is
+/// not available in the user's language. Implementations must keep raw values
+/// for requests and only translate presentation text.
+abstract interface class StaticMetadataTranslationAnimeSource {
+  String get staticTranslationLabel;
+
+  Future<bool> isStaticTranslationEnabled();
+
+  Future<void> setStaticTranslationEnabled(bool enabled);
+}
+
 /// Optional capability for hybrid catalogs where some entries are image/GIF
 /// galleries and must be opened by the native reader instead of the player.
 abstract interface class ReaderBackedAnimeSource {
@@ -414,13 +430,15 @@ abstract interface class TaxonomyBrowsableAnimeSource {
 /// Keeping this mapping next to the typed source contract prevents individual
 /// screens from disagreeing about a source's language.
 extension AnimeSourcePresentation on AnimeSource {
-  bool get isRRated => id == 'hentai_haven' || id == 'porn_comic_video';
+  bool get isRRated =>
+      id == 'hentai_haven' || id == 'porn_comic_video' || id == 'hanime1';
 
   Uri get iconUri => baseUri.resolve('/favicon.ico');
 
   /// Compact label used to group providers in source-management screens.
   String get languageGroupLabel => switch (id) {
         'goyabu' || 'smart_animes' || 'animeq' || 'animy_anime' => 'PT-BR',
+        'hanime1' => 'Chinese',
         _ => 'All Languages',
       };
 
@@ -430,6 +448,7 @@ extension AnimeSourcePresentation on AnimeSource {
         'animeq' ||
         'animy_anime' =>
           'Português (Brasil)',
+        'hanime1' => 'Chinese (Traditional)',
         _ => 'All languages',
       };
 
@@ -449,6 +468,8 @@ extension AnimeSourcePresentation on AnimeSource {
         'animy_anime' => '$languageLabel · $audioLabel · HLS/MP4',
         'hentai_haven' => 'R-rated · $audioLabel · Native/WebView',
         'porn_comic_video' => 'R-rated · Animation/Cosplay · HLS',
+        'hanime1' =>
+          'R-rated · Chinese (Traditional) · MP4 · Static English opt-in',
         _ => '$languageLabel · $audioLabel · HLS · Subtitles',
       };
 }
@@ -466,6 +487,7 @@ extension AnimeSourceGrouping on Iterable<AnimeSource> {
       'All Languages': 0,
       'English': 1,
       'PT-BR': 2,
+      'Chinese': 3,
     };
     final entries = grouped.entries.toList()
       ..sort((left, right) {

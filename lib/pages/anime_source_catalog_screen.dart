@@ -41,6 +41,7 @@ class _AnimeSourceCatalogScreenState extends State<AnimeSourceCatalogScreen> {
   late AnimeTaxonomyKind? _taxonomyKind;
   late String? _taxonomyId;
   bool _sessionPromptOpen = false;
+  bool? _staticTranslationEnabled;
 
   @override
   void initState() {
@@ -51,7 +52,39 @@ class _AnimeSourceCatalogScreenState extends State<AnimeSourceCatalogScreen> {
     _taxonomyKind = widget.initialTaxonomyKind;
     _taxonomyId = widget.initialTaxonomyId;
     _scrollController.addListener(_onScroll);
+    _loadStaticTranslationPreference();
     _load(reset: true);
+  }
+
+  Future<void> _loadStaticTranslationPreference() async {
+    final source = widget.source is StaticMetadataTranslationAnimeSource
+        ? widget.source as StaticMetadataTranslationAnimeSource
+        : null;
+    if (source == null) return;
+    final enabled = await source.isStaticTranslationEnabled();
+    if (mounted) setState(() => _staticTranslationEnabled = enabled);
+  }
+
+  Future<void> _toggleStaticTranslation() async {
+    final source = widget.source is StaticMetadataTranslationAnimeSource
+        ? widget.source as StaticMetadataTranslationAnimeSource
+        : null;
+    if (source == null) return;
+    final enabled = !(_staticTranslationEnabled ?? false);
+    await source.setStaticTranslationEnabled(enabled);
+    if (!mounted) return;
+    setState(() => _staticTranslationEnabled = enabled);
+    await _load(reset: true);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          enabled
+              ? '${source.staticTranslationLabel} enabled'
+              : '${source.staticTranslationLabel} disabled',
+        ),
+      ),
+    );
   }
 
   @override
@@ -249,7 +282,25 @@ class _AnimeSourceCatalogScreenState extends State<AnimeSourceCatalogScreen> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(widget.source.name)),
+      appBar: AppBar(
+        title: Text(widget.source.name),
+        actions: [
+          if (widget.source is StaticMetadataTranslationAnimeSource)
+            IconButton(
+              tooltip: (_staticTranslationEnabled ?? false)
+                  ? 'Show original metadata'
+                  : 'Translate metadata to English',
+              onPressed: _staticTranslationEnabled == null
+                  ? null
+                  : _toggleStaticTranslation,
+              icon: Icon(
+                (_staticTranslationEnabled ?? false)
+                    ? Icons.translate_rounded
+                    : Icons.g_translate_rounded,
+              ),
+            ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () => _load(reset: true),
         child: CustomScrollView(
@@ -559,56 +610,58 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
             const SizedBox(height: 12),
             if (widget.options.seasons.isNotEmpty)
               _optionDropdown(
-                label: 'Season',
+                label: widget.options.labelFor('seasons', 'Season'),
                 value: _season,
                 options: widget.options.seasons,
                 onChanged: (value) => setState(() => _season = value),
               ),
             if (widget.options.years.isNotEmpty)
               _optionDropdown(
-                label: 'Year',
+                label: widget.options.labelFor('years', 'Year'),
                 value: _year,
                 options: widget.options.years,
                 onChanged: (value) => setState(() => _year = value),
               ),
             if (widget.options.types.isNotEmpty)
               _optionDropdown(
-                label: 'Type',
+                label: widget.options.labelFor('types', 'Type'),
                 value: _type,
                 options: widget.options.types,
                 onChanged: (value) => setState(() => _type = value),
               ),
             if (widget.options.studios.isNotEmpty)
               _optionDropdown(
-                label: 'Studio',
+                label: widget.options.labelFor('studios', 'Studio'),
                 value: _studio,
                 options: widget.options.studios,
                 onChanged: (value) => setState(() => _studio = value),
               ),
             if (widget.options.statuses.isNotEmpty)
               _optionDropdown(
-                label: 'Status',
+                label: widget.options.labelFor('statuses', 'Status'),
                 value: _status,
                 options: widget.options.statuses,
                 onChanged: (value) => setState(() => _status = value),
               ),
             if (widget.options.languages.isNotEmpty)
               _optionDropdown(
-                label: 'Language',
+                label: widget.options.labelFor('languages', 'Language'),
                 value: _language,
                 options: widget.options.languages,
                 onChanged: (value) => setState(() => _language = value),
               ),
             if (widget.options.ratings.isNotEmpty)
               _optionDropdown(
-                label: 'Rating',
+                label: widget.options.labelFor('ratings', 'Rating'),
                 value: _rating,
                 options: widget.options.ratings,
                 onChanged: (value) => setState(() => _rating = value),
               ),
             DropdownButtonFormField<AnimeSearchSort>(
               initialValue: _sort,
-              decoration: const InputDecoration(labelText: 'Order by'),
+              decoration: InputDecoration(
+                labelText: widget.options.labelFor('sorts', 'Order by'),
+              ),
               items: widget.options.sorts
                   .map(
                     (sort) => DropdownMenuItem(
@@ -624,9 +677,11 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
             const SizedBox(height: 12),
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
-              title: const Text('Genres'),
+              title: Text(widget.options.labelFor('genres', 'Genres')),
               subtitle: Text(
-                _genres.isEmpty ? 'Any genre' : '${_genres.length} selected',
+                _genres.isEmpty
+                    ? widget.options.labelFor('genresAny', 'Any genre')
+                    : '${_genres.length} selected',
               ),
               children: [
                 Align(
@@ -711,6 +766,20 @@ String _catalogFilterLabel(
       AnimeCatalogFilter.updated => 'Cosplay · Latest',
       AnimeCatalogFilter.popular => 'Animation · Popular',
       AnimeCatalogFilter.popularMonth => 'Cosplay · Popular',
+      _ => _defaultCatalogFilterLabel(filter),
+    };
+  }
+  if (source.id == 'hanime1') {
+    return switch (filter) {
+      AnimeCatalogFilter.recent => 'Latest upload',
+      AnimeCatalogFilter.added => 'Latest release',
+      AnimeCatalogFilter.popular => 'Daily ranking',
+      AnimeCatalogFilter.popularWeek => 'Weekly ranking',
+      AnimeCatalogFilter.popularMonth => 'Monthly ranking',
+      AnimeCatalogFilter.episodeMostViewed => 'Most viewed',
+      AnimeCatalogFilter.seriesMostViewed => 'Like ratio',
+      AnimeCatalogFilter.seriesNewest => 'Longest',
+      AnimeCatalogFilter.updated => 'Watching now',
       _ => _defaultCatalogFilterLabel(filter),
     };
   }

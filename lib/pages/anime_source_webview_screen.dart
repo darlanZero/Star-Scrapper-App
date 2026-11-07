@@ -45,7 +45,8 @@ class _AnimeSourceSessionScreenState extends State<AnimeSourceSessionScreen> {
     if (_saving) return;
     final ready = await _controller.runJavaScriptReturningResult(
       "Boolean(document.querySelector('article.bs, .bsx, .boxAN, .boxEP, "
-      ".list-item, .streamer-content, .postbody'))",
+      ".list-item, .streamer-content, .postbody, .video-item-container, "
+      ".genre-option, video#player, main'))",
     );
     if (ready != true && ready.toString() != 'true') return;
     _saving = true;

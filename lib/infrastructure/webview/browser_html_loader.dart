@@ -38,6 +38,27 @@ abstract final class BrowserHtmlLoader {
     return operation;
   }
 
+  /// Loads the complete rendered DOM as soon as [readySelector] is present.
+  ///
+  /// Unlike [loadWhen], this keeps the original HTML instead of reducing it to
+  /// manga cards. It is intended for protected video pages whose media or
+  /// metadata lives in source-specific attributes.
+  static Future<String> loadRawWhen(
+    Uri uri,
+    String userAgent,
+    String readySelector,
+  ) {
+    final operation = _pending.then(
+      (_) => _loadNow(
+        uri,
+        userAgent,
+        readySelector: readySelector,
+      ),
+    );
+    _pending = operation.then<void>((_) {}, onError: (_) {});
+    return operation;
+  }
+
   /// Loads a JavaScript-rendered page after walking through its lazy content.
   ///
   /// Readers such as Yomu only attach page image URLs when each page slot
