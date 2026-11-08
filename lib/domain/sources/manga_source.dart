@@ -761,6 +761,21 @@ abstract interface class PaginatedTaxonomyMangaSource {
   });
 }
 
+/// Optional capability for taxonomy result pages with source-defined ordering.
+///
+/// Unlike [SortableTaxonomyMangaSource], which orders the taxonomy index itself,
+/// this capability controls the works returned after selecting an artist, tag,
+/// character, or parody.
+abstract interface class VariantTaxonomyMangaSource {
+  List<MangaCatalogVariant> taxonomyCatalogVariants(MangaTaxonomyKind kind);
+
+  String taxonomyVariantId(
+    MangaTaxonomyKind kind,
+    String taxonomyId,
+    String variantId,
+  );
+}
+
 /// Optional capability for a shared catalog chip with source-defined child
 /// listings, such as MediocreScan's Recent section split by work format.
 abstract interface class VariantCatalogMangaSource {
@@ -814,6 +829,16 @@ extension MangaSourcePresentation on MangaSource {
         MangaCatalogFilter.trending => 'Trending',
         MangaCatalogFilter.alphabetical => 'Alphabetical',
         MangaCatalogFilter.popular => 'Popular',
+      };
+    }
+    if (id == 'eahentai') {
+      return switch (filter) {
+        MangaCatalogFilter.recent => 'Latest',
+        MangaCatalogFilter.popular => 'Popular',
+        MangaCatalogFilter.trending => 'Discover',
+        MangaCatalogFilter.added => 'Most saved',
+        MangaCatalogFilter.updated => 'Updated',
+        MangaCatalogFilter.alphabetical => 'Alphabetical',
       };
     }
     return switch (filter) {

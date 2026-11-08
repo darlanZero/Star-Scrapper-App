@@ -301,4 +301,21 @@ void main() {
       'Newest',
     );
   });
+
+  test('EAHentai is an adult English taxonomy manga source', () {
+    final source = SourceCatalog.createAll().singleWhere(
+      (source) => source.id == 'eahentai',
+    );
+
+    expect(source.languagePrefix, 'EN-US');
+    expect(source.contentType, SourceContentType.manga);
+    expect(source.isRRated, isTrue);
+    expect(source.api, isA<TaxonomyBrowsableMangaSource>());
+    expect(source.api, isA<VariantCatalogMangaSource>());
+    expect(source.api, isA<VariantTaxonomyMangaSource>());
+    expect(
+      source.api.catalogFilterLabel(MangaCatalogFilter.added),
+      'Most saved',
+    );
+  });
 }

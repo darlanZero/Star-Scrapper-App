@@ -34,6 +34,7 @@ import 'package:star_scrapper_app/data/sources/manga/xcomic_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/comick_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/porn_comic_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/bato_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/eahentai_source.dart';
 import 'package:star_scrapper_app/infrastructure/webview/browser_html_loader.dart';
 
 /// Single registry for the sources bundled with the application.
@@ -143,6 +144,7 @@ abstract final class SourceCatalog {
         ),
         PornComicMangaSource(),
         BatoSource(),
+        EAHentaiSource(),
       ];
 
   static List<Fonte> createAll() => [
@@ -408,6 +410,18 @@ abstract final class SourceCatalog {
           contentType: SourceContentType.manga,
           // Mixed catalog: adult works exist, but are not the source focus.
           isRRated: false,
+        ),
+        Fonte(
+          id: 'eahentai',
+          image: 'https://eahentai.com/favicon.ico',
+          name: 'EAHentai',
+          languagePrefix: 'EN-US',
+          flags: [
+            'https://cdn.countryflags.com/thumbs/united-states-of-america/flag-3d-250.png',
+          ],
+          api: EAHentaiSource(),
+          contentType: SourceContentType.manga,
+          isRRated: true,
         ),
       ];
 }

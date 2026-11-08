@@ -1898,6 +1898,7 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
   int _generation = 0;
   MangaTaxonomySort _taxonomySort = MangaTaxonomySort.alphabetical;
   bool _popularResults = false;
+  String? _taxonomyResultVariantId;
   late final ScrollController _taxonomyScrollController;
   String? _nextTaxonomyCursor;
   bool _loadingMore = false;
@@ -1912,6 +1913,14 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
           ? widget.source as PaginatedTaxonomyMangaSource
           : null;
 
+  VariantTaxonomyMangaSource? get _variantTaxonomySource =>
+      widget.source is VariantTaxonomyMangaSource
+          ? widget.source as VariantTaxonomyMangaSource
+          : null;
+
+  List<MangaCatalogVariant> get _taxonomyResultVariants =>
+      _variantTaxonomySource?.taxonomyCatalogVariants(_kind) ?? const [];
+
   bool get _usesPaginatedVisualIndex =>
       (_paginatedSource?.supportsTaxonomyPagination(_kind) ?? false) &&
       _queryController.text.trim().isEmpty;
@@ -1921,7 +1930,9 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
       _kind != MangaTaxonomyKind.tag;
 
   bool get _supportsResultOrdering =>
-      _kind == MangaTaxonomyKind.character || _kind == MangaTaxonomyKind.parody;
+      _taxonomyResultVariants.isEmpty &&
+      (_kind == MangaTaxonomyKind.character ||
+          _kind == MangaTaxonomyKind.parody);
 
   @override
   void initState() {
@@ -1929,6 +1940,7 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
     _kind = widget.initialKind ?? widget.source.taxonomyKinds.first;
     _selectedId = widget.initialId;
     _selectedName = widget.initialName;
+    _taxonomyResultVariantId = _taxonomyResultVariants.firstOrNull?.id;
     final initialIds = widget.initialId?.split('|') ?? const [];
     final initialNames = widget.initialName?.split(', ') ?? const [];
     for (var index = 0; index < initialIds.length; index++) {
@@ -1974,6 +1986,7 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
       _queryController.clear();
       _taxonomySort = MangaTaxonomySort.alphabetical;
       _popularResults = false;
+      _taxonomyResultVariantId = _taxonomyResultVariants.firstOrNull?.id;
       _nextTaxonomyCursor = null;
       _loadingMore = false;
     });
@@ -2151,6 +2164,24 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
               ),
               onChanged: _onQueryChanged,
             ),
+            if (_taxonomyResultVariants.length > 1) ...[
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: _taxonomyResultVariantId,
+                decoration: const InputDecoration(labelText: 'Order works'),
+                items: [
+                  for (final variant in _taxonomyResultVariants)
+                    DropdownMenuItem(
+                      value: variant.id,
+                      child: Text(variant.label),
+                    ),
+                ],
+                onChanged: (value) => setState(() {
+                  _taxonomyResultVariantId = value;
+                  _selectedOptions.clear();
+                }),
+              ),
+            ],
             if (_supportsResultOrdering) ...[
               const SizedBox(height: 8),
               SegmentedButton<bool>(
@@ -2227,9 +2258,7 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
       itemCount: _options.length,
       itemBuilder: (context, index) {
         final option = _options[index];
-        final optionId = _popularResults && option.popularId != null
-            ? option.popularId!
-            : option.id;
+        final optionId = _resultOptionId(option);
         final selected = _selectedOptions.containsKey(optionId);
         return ListTile(
           selected: selected,
@@ -2312,9 +2341,7 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
   }
 
   Widget _buildVisualOption(MangaTaxonomyOption option) {
-    final optionId = _popularResults && option.popularId != null
-        ? option.popularId!
-        : option.id;
+    final optionId = _resultOptionId(option);
     final selected = _selectedOptions.containsKey(optionId);
     final imageHeaders = widget.source is MangaSource
         ? (widget.source as MangaSource).coverImageHeaders
@@ -2420,6 +2447,17 @@ class _MangaTaxonomyDialogState extends State<_MangaTaxonomyDialog> {
         ),
       ),
     );
+  }
+
+  String _resultOptionId(MangaTaxonomyOption option) {
+    final variantSource = _variantTaxonomySource;
+    final variantId = _taxonomyResultVariantId;
+    if (variantSource != null && variantId != null) {
+      return variantSource.taxonomyVariantId(_kind, option.id, variantId);
+    }
+    return _popularResults && option.popularId != null
+        ? option.popularId!
+        : option.id;
   }
 }
 
