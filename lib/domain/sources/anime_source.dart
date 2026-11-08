@@ -25,6 +25,7 @@ enum AnimeCatalogFilter {
   updated,
   added,
   airing,
+  upcoming,
   completed,
 }
 
@@ -494,7 +495,12 @@ extension AnimeSourcePresentation on AnimeSource {
 
   /// Compact label used to group providers in source-management screens.
   String get languageGroupLabel => switch (id) {
-        'goyabu' || 'smart_animes' || 'animeq' || 'animy_anime' => 'PT-BR',
+        'goyabu' ||
+        'smart_animes' ||
+        'animeq' ||
+        'animy_anime' ||
+        'animefire' =>
+          'PT-BR',
         'anikage' => 'English',
         'hanime1' => 'Chinese',
         _ => 'All Languages',
@@ -504,7 +510,8 @@ extension AnimeSourcePresentation on AnimeSource {
         'goyabu' ||
         'smart_animes' ||
         'animeq' ||
-        'animy_anime' =>
+        'animy_anime' ||
+        'animefire' =>
           'Português (Brasil)',
         'hanime1' => 'Chinese (Traditional)',
         'anikage' => 'English (US)',
@@ -515,7 +522,8 @@ extension AnimeSourcePresentation on AnimeSource {
         'goyabu' ||
         'smart_animes' ||
         'animeq' ||
-        'animy_anime' =>
+        'animy_anime' ||
+        'animefire' =>
           'Legendado/Dublado',
         _ => 'Sub/Dub',
       };
@@ -525,6 +533,7 @@ extension AnimeSourcePresentation on AnimeSource {
         'goyabu' => '$languageLabel · $audioLabel · Blogger',
         'animeq' => '$languageLabel · $audioLabel · MP4',
         'animy_anime' => '$languageLabel · $audioLabel · HLS/MP4',
+        'animefire' => '$languageLabel · $audioLabel · HLS',
         'anikage' => '$languageLabel · $audioLabel · HLS · AniList metadata',
         'hentai_haven' => 'R-rated · $audioLabel · Native/WebView',
         'porn_comic_video' => 'R-rated · Animation/Cosplay · HLS',

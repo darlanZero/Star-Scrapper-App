@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:star_scrapper_app/application/playback/playback_preferences.dart';
 import 'package:star_scrapper_app/domain/sources/anime_source.dart';
+import 'package:star_scrapper_app/infrastructure/playback/hls_extension_proxy.dart';
 import 'package:volume_controller/volume_controller.dart';
 
 class AnimePlayerScreen extends StatefulWidget {
@@ -38,6 +39,7 @@ enum _VerticalGestureMode { volume, brightness }
 class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
   Player? _player;
   VideoController? _videoController;
+  HlsExtensionProxy? _hlsProxy;
   final List<StreamSubscription<dynamic>> _subscriptions = [];
   final Set<AnimeSkipSegment> _automaticallySkipped = {};
   Timer? _controlsTimer;
@@ -137,10 +139,13 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
       _error = null;
     });
     try {
+      final mediaUri = await _prepareMediaUri(stream);
       await _player!.open(
         Media(
-          stream.uri.toString(),
-          httpHeaders: stream.headers.isEmpty ? null : stream.headers,
+          mediaUri.toString(),
+          httpHeaders: mediaUri == stream.uri && stream.headers.isNotEmpty
+              ? stream.headers
+              : null,
         ),
         play: play,
       );
@@ -152,6 +157,20 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     }
+  }
+
+  Future<Uri> _prepareMediaUri(AnimeVideoStream stream) async {
+    await _hlsProxy?.close();
+    _hlsProxy = null;
+    final disguisedHls = stream.protocol == VideoProtocol.hls &&
+        !stream.uri.path.toLowerCase().endsWith('.m3u8');
+    if (!disguisedHls) return stream.uri;
+    final proxy = await HlsExtensionProxy.start(
+      manifestUri: stream.uri,
+      headers: stream.headers,
+    );
+    _hlsProxy = proxy;
+    return proxy.entryUri;
   }
 
   Future<void> _selectPreferredSubtitle() async {
@@ -847,6 +866,8 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
     }
     _subscriptions.clear();
     await _player?.dispose();
+    await _hlsProxy?.close();
+    _hlsProxy = null;
     _player = null;
     _videoController = null;
   }

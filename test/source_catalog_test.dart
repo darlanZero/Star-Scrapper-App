@@ -43,6 +43,7 @@ void main() {
     expect(ids, contains('animy_anime'));
     expect(ids, contains('hanime1'));
     expect(ids, contains('anikage'));
+    expect(ids, contains('animefire'));
   });
 
   test('anime source presentation localizes audio labels by language', () {
@@ -81,6 +82,10 @@ void main() {
     expect(anikage.isRRated, isFalse);
     expect(anikage.languageLabel, 'English (US)');
     expect(anikage.capabilityLabel, contains('AniList metadata'));
+    final animeFire = sources.singleWhere((source) => source.id == 'animefire');
+    expect(animeFire.isRRated, isFalse);
+    expect(animeFire.languageLabel, 'Português (Brasil)');
+    expect(animeFire.capabilityLabel, contains('HLS'));
   });
 
   test('anime sources are grouped by language in display order', () {
@@ -93,7 +98,7 @@ void main() {
     );
     expect(
       groups['PT-BR']!.map((source) => source.id),
-      ['smart_animes', 'goyabu', 'animeq', 'animy_anime'],
+      ['smart_animes', 'goyabu', 'animeq', 'animy_anime', 'animefire'],
     );
     expect(groups['English']!.map((source) => source.id), ['anikage']);
     expect(groups['Chinese']!.map((source) => source.id), ['hanime1']);

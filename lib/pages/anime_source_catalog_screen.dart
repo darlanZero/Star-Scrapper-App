@@ -926,6 +926,19 @@ String _catalogFilterLabel(
       _ => _defaultCatalogFilterLabel(filter),
     };
   }
+  if (source.id == 'animefire') {
+    return switch (filter) {
+      AnimeCatalogFilter.recent => 'Novos episódios',
+      AnimeCatalogFilter.popular => 'Mais curtidos',
+      AnimeCatalogFilter.dubbed => 'Novos dublados',
+      AnimeCatalogFilter.added => 'Novidades',
+      AnimeCatalogFilter.catalog => 'Animes',
+      AnimeCatalogFilter.movies => 'Filmes',
+      AnimeCatalogFilter.airing => 'Lançamentos',
+      AnimeCatalogFilter.upcoming => 'Em breve',
+      _ => _defaultCatalogFilterLabel(filter),
+    };
+  }
   return _defaultCatalogFilterLabel(filter);
 }
 
@@ -952,6 +965,7 @@ String _defaultCatalogFilterLabel(AnimeCatalogFilter filter) =>
       AnimeCatalogFilter.updated => 'Updated',
       AnimeCatalogFilter.added => 'Recently added',
       AnimeCatalogFilter.airing => 'Airing',
+      AnimeCatalogFilter.upcoming => 'Upcoming',
       AnimeCatalogFilter.completed => 'Completed',
     };
 
@@ -978,6 +992,7 @@ IconData _catalogFilterIcon(AnimeCatalogFilter filter) => switch (filter) {
       AnimeCatalogFilter.updated => Icons.update_rounded,
       AnimeCatalogFilter.added => Icons.fiber_new_rounded,
       AnimeCatalogFilter.airing => Icons.live_tv_rounded,
+      AnimeCatalogFilter.upcoming => Icons.upcoming_rounded,
       AnimeCatalogFilter.completed => Icons.task_alt_rounded,
     };
 
