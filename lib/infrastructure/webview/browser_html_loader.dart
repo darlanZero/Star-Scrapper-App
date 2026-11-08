@@ -9,7 +9,8 @@ abstract final class BrowserHtmlLoader {
   static final Map<String, Future<Uint8List>> _imageCache = {};
   static const _defaultReadySelector =
       'article.bs, .bsx, .boxAN, .cardAN, .boxEP, .list-item, '
-      '.streamer-content, .postbody, .listupd, .bixbox, .filter, main, pre';
+      '.streamer-content, .postbody, .listupd, .bixbox, .filter, '
+      '.video-img-box, video#player, main, pre';
 
   static Future<String> load(Uri uri, String userAgent) {
     final operation = _pending.then(

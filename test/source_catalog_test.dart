@@ -44,6 +44,7 @@ void main() {
     expect(ids, contains('hanime1'));
     expect(ids, contains('anikage'));
     expect(ids, contains('animefire'));
+    expect(ids, contains('jable'));
   });
 
   test('anime source presentation localizes audio labels by language', () {
@@ -91,12 +92,19 @@ void main() {
     expect(animesOnline.isRRated, isFalse);
     expect(animesOnline.languageLabel, 'Português (Brasil)');
     expect(animesOnline.capabilityLabel, contains('HLS/WebView'));
+    final jable = sources.singleWhere((source) => source.id == 'jable');
+    expect(jable.isRRated, isTrue);
+    expect(jable.languageLabel, 'Japanese');
+    expect(jable.capabilityLabel, contains('Static English opt-in'));
   });
 
   test('anime sources are grouped by language in display order', () {
     final groups = SourceCatalog.createAnimeSources().groupedByLanguage;
 
-    expect(groups.keys, ['All Languages', 'English', 'PT-BR', 'Chinese']);
+    expect(
+      groups.keys,
+      ['All Languages', 'English', 'PT-BR', 'Chinese', 'Japanese'],
+    );
     expect(
       groups['All Languages']!.map((source) => source.id),
       ['anitube', 'aniwave', 'hentai_haven', 'porn_comic_video'],
@@ -114,6 +122,7 @@ void main() {
     );
     expect(groups['English']!.map((source) => source.id), ['anikage']);
     expect(groups['Chinese']!.map((source) => source.id), ['hanime1']);
+    expect(groups['Japanese']!.map((source) => source.id), ['jable']);
     expect(
       () => groups['PT-BR']!.add(SourceCatalog.createAnimeSources().first),
       throwsUnsupportedError,

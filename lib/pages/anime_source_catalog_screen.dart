@@ -896,6 +896,16 @@ String _catalogFilterLabel(
       _ => _defaultCatalogFilterLabel(filter),
     };
   }
+  if (source.id == 'jable') {
+    return switch (filter) {
+      AnimeCatalogFilter.recent => 'New releases',
+      AnimeCatalogFilter.popular => 'All-time hits',
+      AnimeCatalogFilter.popularMonth => 'Top hits this month',
+      AnimeCatalogFilter.popularWeek => 'Top hits this week',
+      AnimeCatalogFilter.popularToday => "Today's hits",
+      _ => _defaultCatalogFilterLabel(filter),
+    };
+  }
   if (source.id == 'goyabu') {
     return switch (filter) {
       AnimeCatalogFilter.popular => 'Today',
@@ -975,6 +985,7 @@ String _defaultCatalogFilterLabel(AnimeCatalogFilter filter) =>
       AnimeCatalogFilter.dubbedMovies => 'Dubbed movies',
       AnimeCatalogFilter.adult => 'Adult',
       AnimeCatalogFilter.popular => 'Most viewed',
+      AnimeCatalogFilter.popularToday => 'Today',
       AnimeCatalogFilter.popularWeek => 'This week',
       AnimeCatalogFilter.popularMonth => 'This month',
       AnimeCatalogFilter.recent => 'Latest',
@@ -1009,6 +1020,7 @@ IconData _catalogFilterIcon(AnimeCatalogFilter filter) => switch (filter) {
       AnimeCatalogFilter.dubbedMovies => Icons.spatial_audio_rounded,
       AnimeCatalogFilter.adult => Icons.eighteen_up_rating_rounded,
       AnimeCatalogFilter.popular => Icons.trending_up_rounded,
+      AnimeCatalogFilter.popularToday => Icons.today_rounded,
       AnimeCatalogFilter.popularWeek => Icons.date_range_rounded,
       AnimeCatalogFilter.popularMonth => Icons.calendar_month_rounded,
       AnimeCatalogFilter.recent => Icons.schedule_rounded,

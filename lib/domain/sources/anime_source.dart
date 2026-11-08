@@ -15,6 +15,7 @@ enum AnimeCatalogFilter {
   dubbedMovies,
   adult,
   popular,
+  popularToday,
   popularWeek,
   popularMonth,
   recent,
@@ -503,7 +504,10 @@ abstract interface class TaxonomyBrowsableAnimeSource {
 /// screens from disagreeing about a source's language.
 extension AnimeSourcePresentation on AnimeSource {
   bool get isRRated =>
-      id == 'hentai_haven' || id == 'porn_comic_video' || id == 'hanime1';
+      id == 'hentai_haven' ||
+      id == 'porn_comic_video' ||
+      id == 'hanime1' ||
+      id == 'jable';
 
   Uri get iconUri => baseUri.resolve('/favicon.ico');
 
@@ -518,6 +522,7 @@ extension AnimeSourcePresentation on AnimeSource {
           'PT-BR',
         'anikage' => 'English',
         'hanime1' => 'Chinese',
+        'jable' => 'Japanese',
         _ => 'All Languages',
       };
 
@@ -530,6 +535,7 @@ extension AnimeSourcePresentation on AnimeSource {
         'animes_online' =>
           'Português (Brasil)',
         'hanime1' => 'Chinese (Traditional)',
+        'jable' => 'Japanese',
         'anikage' => 'English (US)',
         _ => 'All languages',
       };
@@ -542,6 +548,7 @@ extension AnimeSourcePresentation on AnimeSource {
         'animefire' ||
         'animes_online' =>
           'Legendado/Dublado',
+        'jable' => 'Japanese',
         _ => 'Sub/Dub',
       };
 
@@ -557,6 +564,7 @@ extension AnimeSourcePresentation on AnimeSource {
         'porn_comic_video' => 'R-rated · Animation/Cosplay · HLS',
         'hanime1' =>
           'R-rated · Chinese (Traditional) · MP4 · Static English opt-in',
+        'jable' => 'R-rated · Japanese · HLS · Static English opt-in',
         _ => '$languageLabel · $audioLabel · HLS · Subtitles',
       };
 }
@@ -575,6 +583,7 @@ extension AnimeSourceGrouping on Iterable<AnimeSource> {
       'English': 1,
       'PT-BR': 2,
       'Chinese': 3,
+      'Japanese': 4,
     };
     final entries = grouped.entries.toList()
       ..sort((left, right) {

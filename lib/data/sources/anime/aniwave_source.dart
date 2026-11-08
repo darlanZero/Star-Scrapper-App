@@ -63,6 +63,7 @@ class AniwaveSource implements AnimeSource, FilterableAnimeSource {
   }) {
     final path = switch (filter) {
       AnimeCatalogFilter.popular ||
+      AnimeCatalogFilter.popularToday ||
       AnimeCatalogFilter.popularWeek ||
       AnimeCatalogFilter.popularMonth =>
         'most-viewed',

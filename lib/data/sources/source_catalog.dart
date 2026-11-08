@@ -10,6 +10,7 @@ import 'package:star_scrapper_app/data/sources/anime/animeq_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/animy_anime_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/porn_comic_video_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/hanime1_source.dart';
+import 'package:star_scrapper_app/data/sources/anime/jable_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/anikage_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/animefire_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/animes_online_source.dart';
@@ -59,6 +60,24 @@ abstract final class SourceCatalog {
                     ? '.download-table a[data-url]'
                     : '.video-item-container, .genre-option',
           ),
+          browserImageLoader: BrowserHtmlLoader.loadImage,
+        ),
+        JableSource(
+          browserHtmlLoader: (uri, userAgent, clickSelector, maxClicks) =>
+              clickSelector == null
+                  ? BrowserHtmlLoader.loadRawWhen(
+                      uri,
+                      userAgent,
+                      uri.path.contains('/videos/')
+                          ? 'video#player'
+                          : '.video-img-box',
+                    )
+                  : BrowserHtmlLoader.loadInteracted(
+                      uri,
+                      userAgent,
+                      clickSelector,
+                      maxClicks: maxClicks,
+                    ),
           browserImageLoader: BrowserHtmlLoader.loadImage,
         ),
         AnikageSource(),
