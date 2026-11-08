@@ -45,6 +45,7 @@ void main() {
     expect(ids, contains('anikage'));
     expect(ids, contains('animefire'));
     expect(ids, contains('jable'));
+    expect(ids, contains('hentai_img'));
   });
 
   test('anime source presentation localizes audio labels by language', () {
@@ -96,6 +97,11 @@ void main() {
     expect(jable.isRRated, isTrue);
     expect(jable.languageLabel, 'Japanese');
     expect(jable.capabilityLabel, contains('Static English opt-in'));
+    final hentaiImg =
+        sources.singleWhere((source) => source.id == 'hentai_img');
+    expect(hentaiImg.isRRated, isTrue);
+    expect(hentaiImg.languageLabel, 'English');
+    expect(hentaiImg.capabilityLabel, contains('Images/HLS'));
   });
 
   test('anime sources are grouped by language in display order', () {
@@ -120,7 +126,10 @@ void main() {
         'animes_online',
       ],
     );
-    expect(groups['English']!.map((source) => source.id), ['anikage']);
+    expect(
+      groups['English']!.map((source) => source.id),
+      ['hentai_img', 'anikage'],
+    );
     expect(groups['Chinese']!.map((source) => source.id), ['hanime1']);
     expect(groups['Japanese']!.map((source) => source.id), ['jable']);
     expect(

@@ -906,6 +906,21 @@ String _catalogFilterLabel(
       _ => _defaultCatalogFilterLabel(filter),
     };
   }
+  if (source.id == 'hentai_img') {
+    return switch (filter) {
+      AnimeCatalogFilter.recent => 'New images',
+      AnimeCatalogFilter.added => 'Recent downloads',
+      AnimeCatalogFilter.updated => 'Recent likes',
+      AnimeCatalogFilter.completed => 'Recent bookmarks',
+      AnimeCatalogFilter.popular => 'Popular posts',
+      AnimeCatalogFilter.featured => 'Download ranking',
+      AnimeCatalogFilter.seriesPopular => 'Like ranking',
+      AnimeCatalogFilter.seriesMostViewed => 'Bookmark ranking',
+      AnimeCatalogFilter.movies => 'Videos',
+      AnimeCatalogFilter.episodeMostViewed => 'Video ranking',
+      _ => _defaultCatalogFilterLabel(filter),
+    };
+  }
   if (source.id == 'goyabu') {
     return switch (filter) {
       AnimeCatalogFilter.popular => 'Today',
