@@ -556,6 +556,9 @@ class _AdvancedFilterSheet extends StatefulWidget {
 
 class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
   late Set<String> _genres;
+  late Set<String> _tags;
+  late Set<String> _formats;
+  late Set<String> _sources;
   String? _season;
   String? _year;
   String? _type;
@@ -563,6 +566,10 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
   String? _language;
   String? _rating;
   String? _studio;
+  String? _origin;
+  String? _score;
+  String? _episodeRange;
+  String? _audio;
   AnimeSearchSort _sort = AnimeSearchSort.defaultOrder;
 
   @override
@@ -570,6 +577,9 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
     super.initState();
     final initial = widget.initial;
     _genres = {...?initial?.genres};
+    _tags = {...?initial?.tags};
+    _formats = {...?initial?.formats};
+    _sources = {...?initial?.sources};
     _season = initial?.season;
     _year = initial?.year;
     _type = initial?.type;
@@ -577,6 +587,10 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
     _language = initial?.language;
     _rating = initial?.rating;
     _studio = initial?.studio;
+    _origin = initial?.origin;
+    _score = initial?.score;
+    _episodeRange = initial?.episodeRange;
+    _audio = initial?.audio;
     _sort = initial?.sort ?? AnimeSearchSort.defaultOrder;
   }
 
@@ -629,6 +643,13 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
                 options: widget.options.types,
                 onChanged: (value) => setState(() => _type = value),
               ),
+            if (widget.options.formats.isNotEmpty)
+              _multiOptionExpansion(
+                label: widget.options.labelFor('formats', 'Format'),
+                anyLabel: widget.options.labelFor('formatsAny', 'Any format'),
+                options: widget.options.formats,
+                selected: _formats,
+              ),
             if (widget.options.studios.isNotEmpty)
               _optionDropdown(
                 label: widget.options.labelFor('studios', 'Studio'),
@@ -656,6 +677,41 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
                 value: _rating,
                 options: widget.options.ratings,
                 onChanged: (value) => setState(() => _rating = value),
+              ),
+            if (widget.options.sources.isNotEmpty)
+              _multiOptionExpansion(
+                label: widget.options.labelFor('sources', 'Source'),
+                anyLabel: widget.options.labelFor('sourcesAny', 'Any source'),
+                options: widget.options.sources,
+                selected: _sources,
+              ),
+            if (widget.options.origins.isNotEmpty)
+              _optionDropdown(
+                label: widget.options.labelFor('origins', 'Origin'),
+                value: _origin,
+                options: widget.options.origins,
+                onChanged: (value) => setState(() => _origin = value),
+              ),
+            if (widget.options.scores.isNotEmpty)
+              _optionDropdown(
+                label: widget.options.labelFor('scores', 'Score'),
+                value: _score,
+                options: widget.options.scores,
+                onChanged: (value) => setState(() => _score = value),
+              ),
+            if (widget.options.episodeRanges.isNotEmpty)
+              _optionDropdown(
+                label: widget.options.labelFor('episodeRanges', 'Episodes'),
+                value: _episodeRange,
+                options: widget.options.episodeRanges,
+                onChanged: (value) => setState(() => _episodeRange = value),
+              ),
+            if (widget.options.audioOptions.isNotEmpty)
+              _optionDropdown(
+                label: widget.options.labelFor('audioOptions', 'Audio'),
+                value: _audio,
+                options: widget.options.audioOptions,
+                onChanged: (value) => setState(() => _audio = value),
               ),
             DropdownButtonFormField<AnimeSearchSort>(
               initialValue: _sort,
@@ -708,19 +764,33 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
                 ),
               ],
             ),
+            if (widget.options.tags.isNotEmpty)
+              _multiOptionExpansion(
+                label: widget.options.labelFor('tags', 'Tags'),
+                anyLabel: widget.options.labelFor('tagsAny', 'Any tag'),
+                options: widget.options.tags,
+                selected: _tags,
+              ),
             const SizedBox(height: 20),
             FilledButton.icon(
               onPressed: () => Navigator.pop(
                 context,
                 AnimeSearchRequest(
                   genres: _genres,
+                  tags: _tags,
                   season: _season,
                   year: _year,
                   type: _type,
+                  formats: _formats,
                   status: _status,
                   language: _language,
                   rating: _rating,
                   studio: _studio,
+                  sources: _sources,
+                  origin: _origin,
+                  score: _score,
+                  episodeRange: _episodeRange,
+                  audio: _audio,
                   sort: _sort,
                 ),
               ),
@@ -729,6 +799,44 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
             ),
           ],
         ),
+      );
+
+  Widget _multiOptionExpansion({
+    required String label,
+    required String anyLabel,
+    required List<AnimeFilterOption> options,
+    required Set<String> selected,
+  }) =>
+      ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        title: Text(label),
+        subtitle: Text(
+          selected.isEmpty ? anyLabel : '${selected.length} selected',
+        ),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: options
+                  .map(
+                    (option) => FilterChip(
+                      label: Text(option.label),
+                      selected: selected.contains(option.value),
+                      onSelected: (enabled) => setState(() {
+                        if (enabled) {
+                          selected.add(option.value);
+                        } else {
+                          selected.remove(option.value);
+                        }
+                      }),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          ),
+        ],
       );
 
   Widget _optionDropdown({
@@ -875,6 +983,11 @@ IconData _catalogFilterIcon(AnimeCatalogFilter filter) => switch (filter) {
 
 String _searchSortLabel(AnimeSearchSort sort) => switch (sort) {
       AnimeSearchSort.defaultOrder => 'Default',
+      AnimeSearchSort.popularity => 'Popularity',
+      AnimeSearchSort.averageScore => 'Average score',
+      AnimeSearchSort.trending => 'Trending',
+      AnimeSearchSort.favorites => 'Favorites',
+      AnimeSearchSort.dateAdded => 'Date added',
       AnimeSearchSort.latestUpdated => 'Latest updated',
       AnimeSearchSort.latestAdded => 'Latest added',
       AnimeSearchSort.score => 'Score',

@@ -10,6 +10,7 @@ import 'package:star_scrapper_app/data/sources/anime/animeq_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/animy_anime_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/porn_comic_video_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/hanime1_source.dart';
+import 'package:star_scrapper_app/data/sources/anime/anikage_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/mangadex_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/seita_celestial_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/luratoons_source.dart';
@@ -58,6 +59,7 @@ abstract final class SourceCatalog {
           ),
           browserImageLoader: BrowserHtmlLoader.loadImage,
         ),
+        AnikageSource(),
       ];
 
   /// Manga/comic providers using the typed [MangaSource] contract (replaces the

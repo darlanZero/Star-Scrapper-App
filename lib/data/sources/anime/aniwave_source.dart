@@ -518,6 +518,12 @@ class AniwaveSource implements AnimeSource, FilterableAnimeSource {
 
   static String _sortValue(AnimeSearchSort sort) => switch (sort) {
         AnimeSearchSort.defaultOrder => 'default',
+        AnimeSearchSort.popularity ||
+        AnimeSearchSort.trending ||
+        AnimeSearchSort.favorites =>
+          'most-viewed',
+        AnimeSearchSort.averageScore => 'score',
+        AnimeSearchSort.dateAdded => 'latest-added',
         AnimeSearchSort.latestUpdated => 'latest-updated',
         AnimeSearchSort.latestAdded => 'latest-added',
         AnimeSearchSort.score => 'score',

@@ -30,6 +30,11 @@ enum AnimeCatalogFilter {
 
 enum AnimeSearchSort {
   defaultOrder,
+  popularity,
+  averageScore,
+  trending,
+  favorites,
+  dateAdded,
   latestUpdated,
   latestAdded,
   score,
@@ -49,35 +54,56 @@ class AnimeFilterOption {
 
 class AnimeSearchOptions {
   final List<AnimeFilterOption> genres;
+  final List<AnimeFilterOption> tags;
   final List<AnimeFilterOption> seasons;
   final List<AnimeFilterOption> years;
   final List<AnimeFilterOption> types;
+  final List<AnimeFilterOption> formats;
   final List<AnimeFilterOption> statuses;
   final List<AnimeFilterOption> languages;
   final List<AnimeFilterOption> ratings;
   final List<AnimeFilterOption> studios;
+  final List<AnimeFilterOption> sources;
+  final List<AnimeFilterOption> origins;
+  final List<AnimeFilterOption> scores;
+  final List<AnimeFilterOption> episodeRanges;
+  final List<AnimeFilterOption> audioOptions;
   final List<AnimeSearchSort> sorts;
   final Map<String, String> labels;
 
   AnimeSearchOptions({
     Iterable<AnimeFilterOption> genres = const [],
+    Iterable<AnimeFilterOption> tags = const [],
     Iterable<AnimeFilterOption> seasons = const [],
     Iterable<AnimeFilterOption> years = const [],
     Iterable<AnimeFilterOption> types = const [],
+    Iterable<AnimeFilterOption> formats = const [],
     Iterable<AnimeFilterOption> statuses = const [],
     Iterable<AnimeFilterOption> languages = const [],
     Iterable<AnimeFilterOption> ratings = const [],
     Iterable<AnimeFilterOption> studios = const [],
+    Iterable<AnimeFilterOption> sources = const [],
+    Iterable<AnimeFilterOption> origins = const [],
+    Iterable<AnimeFilterOption> scores = const [],
+    Iterable<AnimeFilterOption> episodeRanges = const [],
+    Iterable<AnimeFilterOption> audioOptions = const [],
     Iterable<AnimeSearchSort> sorts = AnimeSearchSort.values,
     Map<String, String> labels = const {},
   })  : genres = List.unmodifiable(genres),
+        tags = List.unmodifiable(tags),
         seasons = List.unmodifiable(seasons),
         years = List.unmodifiable(years),
         types = List.unmodifiable(types),
+        formats = List.unmodifiable(formats),
         statuses = List.unmodifiable(statuses),
         languages = List.unmodifiable(languages),
         ratings = List.unmodifiable(ratings),
         studios = List.unmodifiable(studios),
+        sources = List.unmodifiable(sources),
+        origins = List.unmodifiable(origins),
+        scores = List.unmodifiable(scores),
+        episodeRanges = List.unmodifiable(episodeRanges),
+        audioOptions = List.unmodifiable(audioOptions),
         sorts = List.unmodifiable(sorts),
         labels = Map.unmodifiable(labels);
 
@@ -87,49 +113,80 @@ class AnimeSearchOptions {
 class AnimeSearchRequest {
   final String query;
   final Set<String> genres;
+  final Set<String> tags;
   final String? season;
   final String? year;
   final String? type;
+  final Set<String> formats;
   final String? status;
   final String? language;
   final String? rating;
   final String? studio;
+  final Set<String> sources;
+  final String? origin;
+  final String? score;
+  final String? episodeRange;
+  final String? audio;
   final AnimeSearchSort sort;
 
   AnimeSearchRequest({
     this.query = '',
     Set<String> genres = const {},
+    Set<String> tags = const {},
     this.season,
     this.year,
     this.type,
+    Set<String> formats = const {},
     this.status,
     this.language,
     this.rating,
     this.studio,
+    Set<String> sources = const {},
+    this.origin,
+    this.score,
+    this.episodeRange,
+    this.audio,
     this.sort = AnimeSearchSort.defaultOrder,
-  }) : genres = Set.unmodifiable(genres);
+  })  : genres = Set.unmodifiable(genres),
+        tags = Set.unmodifiable(tags),
+        formats = Set.unmodifiable(formats),
+        sources = Set.unmodifiable(sources);
 
   bool get hasFilters =>
       genres.isNotEmpty ||
+      tags.isNotEmpty ||
       season != null ||
       year != null ||
       type != null ||
+      formats.isNotEmpty ||
       status != null ||
       language != null ||
       rating != null ||
       studio != null ||
+      sources.isNotEmpty ||
+      origin != null ||
+      score != null ||
+      episodeRange != null ||
+      audio != null ||
       sort != AnimeSearchSort.defaultOrder;
 
   AnimeSearchRequest copyWith({String? query}) => AnimeSearchRequest(
         query: query ?? this.query,
         genres: genres,
+        tags: tags,
         season: season,
         year: year,
         type: type,
+        formats: formats,
         status: status,
         language: language,
         rating: rating,
         studio: studio,
+        sources: sources,
+        origin: origin,
+        score: score,
+        episodeRange: episodeRange,
+        audio: audio,
         sort: sort,
       );
 }
@@ -438,6 +495,7 @@ extension AnimeSourcePresentation on AnimeSource {
   /// Compact label used to group providers in source-management screens.
   String get languageGroupLabel => switch (id) {
         'goyabu' || 'smart_animes' || 'animeq' || 'animy_anime' => 'PT-BR',
+        'anikage' => 'English',
         'hanime1' => 'Chinese',
         _ => 'All Languages',
       };
@@ -449,6 +507,7 @@ extension AnimeSourcePresentation on AnimeSource {
         'animy_anime' =>
           'Português (Brasil)',
         'hanime1' => 'Chinese (Traditional)',
+        'anikage' => 'English (US)',
         _ => 'All languages',
       };
 
@@ -466,6 +525,7 @@ extension AnimeSourcePresentation on AnimeSource {
         'goyabu' => '$languageLabel · $audioLabel · Blogger',
         'animeq' => '$languageLabel · $audioLabel · MP4',
         'animy_anime' => '$languageLabel · $audioLabel · HLS/MP4',
+        'anikage' => '$languageLabel · $audioLabel · HLS · AniList metadata',
         'hentai_haven' => 'R-rated · $audioLabel · Native/WebView',
         'porn_comic_video' => 'R-rated · Animation/Cosplay · HLS',
         'hanime1' =>

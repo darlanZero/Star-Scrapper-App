@@ -478,6 +478,12 @@ class SmartAnimesSource
   }
 
   static String _sortValue(AnimeSearchSort sort) => switch (sort) {
+        AnimeSearchSort.popularity ||
+        AnimeSearchSort.trending ||
+        AnimeSearchSort.favorites =>
+          'popular',
+        AnimeSearchSort.averageScore => 'rating',
+        AnimeSearchSort.dateAdded => 'latest',
         AnimeSearchSort.latestUpdated => 'update',
         AnimeSearchSort.latestAdded => 'latest',
         AnimeSearchSort.score => 'rating',
