@@ -159,7 +159,10 @@ class _AnimePlaybackResolverScreenState
         await _controller.setUserAgent(userAgent);
       }
     }
-    await _controller.loadRequest(widget.request.entryUri);
+    await _controller.loadRequest(
+      widget.request.entryUri,
+      headers: widget.request.choices.single.headers,
+    );
   }
 
   void _startProbing() {
@@ -227,6 +230,25 @@ class _AnimePlaybackResolverScreenState
               return '';
             }
           }).filter(Boolean);
+          const jwPlayer = documents.flatMap(doc => {
+            try {
+              const jw = doc.defaultView?.jwplayer?.('video_player');
+              const item = jw?.getPlaylistItem?.() || {};
+              const config = jw?.getConfig?.() || {};
+              const configItem = Array.isArray(config.playlist)
+                ? (config.playlist[0] || {}) : {};
+              return [
+                item.file,
+                ...(item.sources || []).map(source => source.file),
+                config.file,
+                ...(config.sources || []).map(source => source.file),
+                configItem.file,
+                ...(configItem.sources || []).map(source => source.file),
+              ].filter(Boolean);
+            } catch (_) {
+              return [];
+            }
+          });
           return JSON.stringify({
             videos,
             text: documents.map(doc => doc.body?.innerText || '')
@@ -234,7 +256,8 @@ class _AnimePlaybackResolverScreenState
             resources,
             links,
             blogger,
-            authorized
+            authorized,
+            jwPlayer
           });
         })()
       ''');
@@ -246,6 +269,7 @@ class _AnimePlaybackResolverScreenState
         ...((decoded['links'] as List?) ?? const []).map((e) => '$e'),
         ...((decoded['blogger'] as List?) ?? const []).map((e) => '$e'),
         ...((decoded['authorized'] as List?) ?? const []).map((e) => '$e'),
+        ...((decoded['jwPlayer'] as List?) ?? const []).map((e) => '$e'),
       ];
       final pageText = (decoded['text']?.toString() ?? '').toLowerCase();
       if (widget.request.provider == 'SEND' &&

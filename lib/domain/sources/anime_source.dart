@@ -27,6 +27,14 @@ enum AnimeCatalogFilter {
   airing,
   upcoming,
   completed,
+  scheduleSunday,
+  scheduleMonday,
+  scheduleTuesday,
+  scheduleWednesday,
+  scheduleThursday,
+  scheduleFriday,
+  scheduleSaturday,
+  scheduleUnknown,
 }
 
 enum AnimeSearchSort {
@@ -70,6 +78,7 @@ class AnimeSearchOptions {
   final List<AnimeFilterOption> episodeRanges;
   final List<AnimeFilterOption> audioOptions;
   final List<AnimeSearchSort> sorts;
+  final Map<AnimeSearchSort, String> sortLabels;
   final Map<String, String> labels;
 
   AnimeSearchOptions({
@@ -89,6 +98,7 @@ class AnimeSearchOptions {
     Iterable<AnimeFilterOption> episodeRanges = const [],
     Iterable<AnimeFilterOption> audioOptions = const [],
     Iterable<AnimeSearchSort> sorts = AnimeSearchSort.values,
+    Map<AnimeSearchSort, String> sortLabels = const {},
     Map<String, String> labels = const {},
   })  : genres = List.unmodifiable(genres),
         tags = List.unmodifiable(tags),
@@ -106,9 +116,13 @@ class AnimeSearchOptions {
         episodeRanges = List.unmodifiable(episodeRanges),
         audioOptions = List.unmodifiable(audioOptions),
         sorts = List.unmodifiable(sorts),
+        sortLabels = Map.unmodifiable(sortLabels),
         labels = Map.unmodifiable(labels);
 
   String labelFor(String field, String fallback) => labels[field] ?? fallback;
+
+  String sortLabelFor(AnimeSearchSort sort, String fallback) =>
+      sortLabels[sort] ?? fallback;
 }
 
 class AnimeSearchRequest {
@@ -499,7 +513,8 @@ extension AnimeSourcePresentation on AnimeSource {
         'smart_animes' ||
         'animeq' ||
         'animy_anime' ||
-        'animefire' =>
+        'animefire' ||
+        'animes_online' =>
           'PT-BR',
         'anikage' => 'English',
         'hanime1' => 'Chinese',
@@ -511,7 +526,8 @@ extension AnimeSourcePresentation on AnimeSource {
         'smart_animes' ||
         'animeq' ||
         'animy_anime' ||
-        'animefire' =>
+        'animefire' ||
+        'animes_online' =>
           'Português (Brasil)',
         'hanime1' => 'Chinese (Traditional)',
         'anikage' => 'English (US)',
@@ -523,7 +539,8 @@ extension AnimeSourcePresentation on AnimeSource {
         'smart_animes' ||
         'animeq' ||
         'animy_anime' ||
-        'animefire' =>
+        'animefire' ||
+        'animes_online' =>
           'Legendado/Dublado',
         _ => 'Sub/Dub',
       };
@@ -534,6 +551,7 @@ extension AnimeSourcePresentation on AnimeSource {
         'animeq' => '$languageLabel · $audioLabel · MP4',
         'animy_anime' => '$languageLabel · $audioLabel · HLS/MP4',
         'animefire' => '$languageLabel · $audioLabel · HLS',
+        'animes_online' => '$languageLabel · $audioLabel · HLS/WebView',
         'anikage' => '$languageLabel · $audioLabel · HLS · AniList metadata',
         'hentai_haven' => 'R-rated · $audioLabel · Native/WebView',
         'porn_comic_video' => 'R-rated · Animation/Cosplay · HLS',
@@ -613,12 +631,14 @@ class AnimePlaybackChoice {
   final Uri entryUri;
   final String provider;
   final String quality;
+  final Map<String, String> headers;
 
-  const AnimePlaybackChoice({
+  AnimePlaybackChoice({
     required this.entryUri,
     required this.provider,
     this.quality = 'Auto',
-  });
+    Map<String, String> headers = const {},
+  }) : headers = Map.unmodifiable(headers);
 
   String get label => quality == 'Auto' ? provider : '$provider · $quality';
 }

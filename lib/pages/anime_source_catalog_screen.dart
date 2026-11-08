@@ -722,7 +722,12 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
                   .map(
                     (sort) => DropdownMenuItem(
                       value: sort,
-                      child: Text(_searchSortLabel(sort)),
+                      child: Text(
+                        widget.options.sortLabelFor(
+                          sort,
+                          _searchSortLabel(sort),
+                        ),
+                      ),
                     ),
                   )
                   .toList(growable: false),
@@ -939,6 +944,21 @@ String _catalogFilterLabel(
       _ => _defaultCatalogFilterLabel(filter),
     };
   }
+  if (source.id == 'animes_online') {
+    return switch (filter) {
+      AnimeCatalogFilter.catalog => 'Catálogo',
+      AnimeCatalogFilter.airing => 'Lançamentos',
+      AnimeCatalogFilter.scheduleSunday => 'Domingo',
+      AnimeCatalogFilter.scheduleMonday => 'Segunda',
+      AnimeCatalogFilter.scheduleTuesday => 'Terça',
+      AnimeCatalogFilter.scheduleWednesday => 'Quarta',
+      AnimeCatalogFilter.scheduleThursday => 'Quinta',
+      AnimeCatalogFilter.scheduleFriday => 'Sexta',
+      AnimeCatalogFilter.scheduleSaturday => 'Sábado',
+      AnimeCatalogFilter.scheduleUnknown => 'Indefinido',
+      _ => _defaultCatalogFilterLabel(filter),
+    };
+  }
   return _defaultCatalogFilterLabel(filter);
 }
 
@@ -967,6 +987,14 @@ String _defaultCatalogFilterLabel(AnimeCatalogFilter filter) =>
       AnimeCatalogFilter.airing => 'Airing',
       AnimeCatalogFilter.upcoming => 'Upcoming',
       AnimeCatalogFilter.completed => 'Completed',
+      AnimeCatalogFilter.scheduleSunday => 'Sunday schedule',
+      AnimeCatalogFilter.scheduleMonday => 'Monday schedule',
+      AnimeCatalogFilter.scheduleTuesday => 'Tuesday schedule',
+      AnimeCatalogFilter.scheduleWednesday => 'Wednesday schedule',
+      AnimeCatalogFilter.scheduleThursday => 'Thursday schedule',
+      AnimeCatalogFilter.scheduleFriday => 'Friday schedule',
+      AnimeCatalogFilter.scheduleSaturday => 'Saturday schedule',
+      AnimeCatalogFilter.scheduleUnknown => 'Unscheduled',
     };
 
 IconData _catalogFilterIcon(AnimeCatalogFilter filter) => switch (filter) {
@@ -994,6 +1022,15 @@ IconData _catalogFilterIcon(AnimeCatalogFilter filter) => switch (filter) {
       AnimeCatalogFilter.airing => Icons.live_tv_rounded,
       AnimeCatalogFilter.upcoming => Icons.upcoming_rounded,
       AnimeCatalogFilter.completed => Icons.task_alt_rounded,
+      AnimeCatalogFilter.scheduleSunday ||
+      AnimeCatalogFilter.scheduleMonday ||
+      AnimeCatalogFilter.scheduleTuesday ||
+      AnimeCatalogFilter.scheduleWednesday ||
+      AnimeCatalogFilter.scheduleThursday ||
+      AnimeCatalogFilter.scheduleFriday ||
+      AnimeCatalogFilter.scheduleSaturday =>
+        Icons.calendar_today_rounded,
+      AnimeCatalogFilter.scheduleUnknown => Icons.event_busy_rounded,
     };
 
 String _searchSortLabel(AnimeSearchSort sort) => switch (sort) {

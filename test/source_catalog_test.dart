@@ -86,6 +86,11 @@ void main() {
     expect(animeFire.isRRated, isFalse);
     expect(animeFire.languageLabel, 'Português (Brasil)');
     expect(animeFire.capabilityLabel, contains('HLS'));
+    final animesOnline =
+        sources.singleWhere((source) => source.id == 'animes_online');
+    expect(animesOnline.isRRated, isFalse);
+    expect(animesOnline.languageLabel, 'Português (Brasil)');
+    expect(animesOnline.capabilityLabel, contains('HLS/WebView'));
   });
 
   test('anime sources are grouped by language in display order', () {
@@ -98,7 +103,14 @@ void main() {
     );
     expect(
       groups['PT-BR']!.map((source) => source.id),
-      ['smart_animes', 'goyabu', 'animeq', 'animy_anime', 'animefire'],
+      [
+        'smart_animes',
+        'goyabu',
+        'animeq',
+        'animy_anime',
+        'animefire',
+        'animes_online',
+      ],
     );
     expect(groups['English']!.map((source) => source.id), ['anikage']);
     expect(groups['Chinese']!.map((source) => source.id), ['hanime1']);

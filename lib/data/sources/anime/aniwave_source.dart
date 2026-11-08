@@ -85,7 +85,15 @@ class AniwaveSource implements AnimeSource, FilterableAnimeSource {
       AnimeCatalogFilter.seriesNewest ||
       AnimeCatalogFilter.seriesPopular ||
       AnimeCatalogFilter.seriesMostViewed ||
-      AnimeCatalogFilter.upcoming =>
+      AnimeCatalogFilter.upcoming ||
+      AnimeCatalogFilter.scheduleSunday ||
+      AnimeCatalogFilter.scheduleMonday ||
+      AnimeCatalogFilter.scheduleTuesday ||
+      AnimeCatalogFilter.scheduleWednesday ||
+      AnimeCatalogFilter.scheduleThursday ||
+      AnimeCatalogFilter.scheduleFriday ||
+      AnimeCatalogFilter.scheduleSaturday ||
+      AnimeCatalogFilter.scheduleUnknown =>
         'latest-updated',
     };
     return _catalog(_pageUri(path, cursor));
