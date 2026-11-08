@@ -806,6 +806,16 @@ extension MangaSourcePresentation on MangaSource {
         MangaCatalogFilter.alphabetical => 'Alphabetical',
       };
     }
+    if (id == 'bato') {
+      return switch (filter) {
+        MangaCatalogFilter.recent => 'Newest',
+        MangaCatalogFilter.updated => 'Updated',
+        MangaCatalogFilter.added => 'Added',
+        MangaCatalogFilter.trending => 'Trending',
+        MangaCatalogFilter.alphabetical => 'Alphabetical',
+        MangaCatalogFilter.popular => 'Popular',
+      };
+    }
     return switch (filter) {
       MangaCatalogFilter.updated => 'Latest',
       MangaCatalogFilter.added => 'Recently added',

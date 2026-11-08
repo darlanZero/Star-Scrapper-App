@@ -160,6 +160,7 @@ void main() {
     expect(ids, contains('hdoujin'));
     expect(ids, contains('xcomic'));
     expect(ids, contains('comick'));
+    expect(ids, contains('bato'));
   });
 
   test('Leitura Manga is a mixed PT-BR source, not an adult-only source', () {
@@ -283,6 +284,21 @@ void main() {
     expect(
       source.api.catalogFilterLabel(MangaCatalogFilter.trending),
       'Rating',
+    );
+  });
+
+  test('Bato is a mixed English filterable manga source', () {
+    final source = SourceCatalog.createAll().singleWhere(
+      (source) => source.id == 'bato',
+    );
+
+    expect(source.languagePrefix, 'EN-US');
+    expect(source.contentType, SourceContentType.manga);
+    expect(source.isRRated, isFalse);
+    expect(source.api, isA<FilterableMangaSource>());
+    expect(
+      source.api.catalogFilterLabel(MangaCatalogFilter.recent),
+      'Newest',
     );
   });
 }
