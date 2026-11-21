@@ -36,6 +36,7 @@ import 'package:star_scrapper_app/data/sources/manga/porn_comic_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/bato_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/eahentai_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/rawkuma_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/apcomics_source.dart';
 import 'package:star_scrapper_app/infrastructure/webview/browser_html_loader.dart';
 
 /// Single registry for the sources bundled with the application.
@@ -147,6 +148,7 @@ abstract final class SourceCatalog {
         BatoSource(),
         EAHentaiSource(),
         RawkumaSource(),
+        APComicsSource(),
       ];
 
   static List<Fonte> createAll() => [
@@ -438,6 +440,19 @@ abstract final class SourceCatalog {
           contentType: SourceContentType.manga,
           // Mixed catalog: adult genres exist, but are not the source focus.
           isRRated: false,
+        ),
+        Fonte(
+          id: 'apcomics',
+          image:
+              'https://apcomics.org/wp-content/uploads/2024/06/cropped-cropped-diana-prince-superman-comic-book-superhero-batman--32x32.png',
+          name: 'APComics',
+          languagePrefix: 'EN-US',
+          flags: [
+            'https://cdn.countryflags.com/thumbs/united-states-of-america/flag-3d-250.png',
+          ],
+          api: APComicsSource(),
+          contentType: SourceContentType.manga,
+          isRRated: true,
         ),
       ];
 }

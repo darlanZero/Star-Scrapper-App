@@ -162,6 +162,7 @@ void main() {
     expect(ids, contains('comick'));
     expect(ids, contains('bato'));
     expect(ids, contains('rawkuma'));
+    expect(ids, contains('apcomics'));
   });
 
   test('Leitura Manga is a mixed PT-BR source, not an adult-only source', () {
@@ -332,6 +333,21 @@ void main() {
     expect(
       source.api.catalogFilterLabel(MangaCatalogFilter.updated),
       'Latest updates',
+    );
+  });
+
+  test('APComics is an adult English taxonomy manga source', () {
+    final source = SourceCatalog.createAll().singleWhere(
+      (source) => source.id == 'apcomics',
+    );
+
+    expect(source.languagePrefix, 'EN-US');
+    expect(source.contentType, SourceContentType.manga);
+    expect(source.isRRated, isTrue);
+    expect(source.api, isA<TaxonomyBrowsableMangaSource>());
+    expect(
+      source.api.catalogFilterLabel(MangaCatalogFilter.updated),
+      'Most views',
     );
   });
 }

@@ -881,6 +881,16 @@ extension MangaSourcePresentation on MangaSource {
         MangaCatalogFilter.alphabetical => 'Alphabetical',
       };
     }
+    if (id == 'apcomics') {
+      return switch (filter) {
+        MangaCatalogFilter.recent => 'Latest',
+        MangaCatalogFilter.alphabetical => 'A-Z',
+        MangaCatalogFilter.popular => 'Rating',
+        MangaCatalogFilter.trending => 'Trending',
+        MangaCatalogFilter.updated => 'Most views',
+        MangaCatalogFilter.added => 'New',
+      };
+    }
     return switch (filter) {
       MangaCatalogFilter.updated => 'Latest',
       MangaCatalogFilter.added => 'Recently added',
