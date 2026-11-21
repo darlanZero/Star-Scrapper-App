@@ -1218,6 +1218,9 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
   late Set<String> _statuses;
   late Set<String> _tags;
   late Set<String> _genres;
+  late Set<String> _excludedGenres;
+  late Set<String> _authorValues;
+  late Set<String> _artistValues;
   late Set<String> _themes;
   late Set<String> _demographics;
   late Set<String> _originalLanguages;
@@ -1226,6 +1229,7 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
   late String _createdWithin;
   late MangaSearchSort _sort;
   late MangaCategoryMode _categoryMode;
+  late MangaCategoryMode _exclusionCategoryMode;
   late MangaAdultMode _adultMode;
   late MangaSortDirection _sortDirection;
   late final TextEditingController _authorController;
@@ -1238,9 +1242,16 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
   late final TextEditingController _maximumController;
   final TextEditingController _tagSearchController = TextEditingController();
   final TextEditingController _genreSearchController = TextEditingController();
+  final TextEditingController _excludedGenreSearchController =
+      TextEditingController();
+  final TextEditingController _authorSearchController = TextEditingController();
+  final TextEditingController _artistSearchController = TextEditingController();
   final TextEditingController _themeSearchController = TextEditingController();
   String _tagQuery = '';
   String _genreQuery = '';
+  String _excludedGenreQuery = '';
+  String _authorQuery = '';
+  String _artistQuery = '';
   String _themeQuery = '';
 
   @override
@@ -1252,14 +1263,25 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
     _statuses = {...?initial?.statuses};
     _tags = {...?initial?.tags};
     _genres = {...?initial?.genres};
+    _excludedGenres = {...?initial?.excludedGenres};
+    _authorValues = {...?initial?.authorValues};
+    _artistValues = {...?initial?.artistValues};
     _themes = {...?initial?.themes};
     _demographics = {...?initial?.demographics};
     _originalLanguages = {...?initial?.originalLanguages};
     _translatedLanguages = {...?initial?.translatedLanguages};
     _chapterPreset = initial?.chapterPreset ?? '';
     _createdWithin = initial?.createdWithin ?? '';
-    _sort = initial?.sort ?? MangaSearchSort.recentlyAdded;
+    final requestedSort = initial?.sort;
+    _sort =
+        requestedSort != null && widget.options.sorts.contains(requestedSort)
+            ? requestedSort
+            : widget.options.sorts.isNotEmpty
+                ? widget.options.sorts.first
+                : MangaSearchSort.recentlyAdded;
     _categoryMode = initial?.categoryMode ?? MangaCategoryMode.any;
+    _exclusionCategoryMode =
+        initial?.exclusionCategoryMode ?? MangaCategoryMode.any;
     _adultMode = initial?.adultMode ?? MangaAdultMode.hide;
     _sortDirection = initial?.sortDirection ?? MangaSortDirection.descending;
     _authorController = TextEditingController(text: initial?.author ?? '');
@@ -1296,6 +1318,9 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
     _releaseEndController.dispose();
     _tagSearchController.dispose();
     _genreSearchController.dispose();
+    _excludedGenreSearchController.dispose();
+    _authorSearchController.dispose();
+    _artistSearchController.dispose();
     _themeSearchController.dispose();
     super.dispose();
   }
@@ -1321,6 +1346,9 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
         statuses: _statuses,
         tags: _tags,
         genres: _genres,
+        excludedGenres: _excludedGenres,
+        authorValues: _authorValues,
+        artistValues: _artistValues,
         themes: _themes,
         demographics: _demographics,
         originalLanguages: _originalLanguages,
@@ -1337,6 +1365,7 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
         maximumChapters: _number(_maximumController),
         sort: _sort,
         categoryMode: _categoryMode,
+        exclusionCategoryMode: _exclusionCategoryMode,
         adultMode: _adultMode,
         sortDirection: _sortDirection,
       ),
@@ -1350,6 +1379,7 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
     required Set<String> selected,
     required TextEditingController searchController,
     required ValueChanged<String> onSearch,
+    Set<String>? mutuallyExclusive,
   }) {
     final query = searchController.text.trim().toLowerCase();
     final visible = options
@@ -1386,9 +1416,12 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
                   label: Text(option.label),
                   selected: selected.contains(option.value),
                   onSelected: (enabled) => setState(() {
-                    enabled
-                        ? selected.add(option.value)
-                        : selected.remove(option.value);
+                    if (enabled) {
+                      selected.add(option.value);
+                      mutuallyExclusive?.remove(option.value);
+                    } else {
+                      selected.remove(option.value);
+                    }
                   }),
                 ),
             ],
@@ -1457,6 +1490,18 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
       return _themeQuery.isEmpty ||
           theme.label.toLowerCase().contains(_themeQuery.toLowerCase());
     }).toList(growable: false);
+    final visibleExcludedGenres = widget.options.genres.where((genre) {
+      return _excludedGenreQuery.isEmpty ||
+          genre.label.toLowerCase().contains(_excludedGenreQuery.toLowerCase());
+    }).toList(growable: false);
+    final visibleAuthors = widget.options.authors.where((author) {
+      return _authorQuery.isEmpty ||
+          author.label.toLowerCase().contains(_authorQuery.toLowerCase());
+    }).toList(growable: false);
+    final visibleArtists = widget.options.artists.where((artist) {
+      return _artistQuery.isEmpty ||
+          artist.label.toLowerCase().contains(_artistQuery.toLowerCase());
+    }).toList(growable: false);
     return DraggableScrollableSheet(
       expand: false,
       initialChildSize: .9,
@@ -1506,12 +1551,15 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
                 ),
             ],
           ),
-          if (widget.options.supportsAuthor ||
-              widget.options.supportsArtist) ...[
+          if ((widget.options.supportsAuthor &&
+                  widget.options.authors.isEmpty) ||
+              (widget.options.supportsArtist &&
+                  widget.options.artists.isEmpty)) ...[
             const SizedBox(height: 18),
             Row(
               children: [
-                if (widget.options.supportsAuthor)
+                if (widget.options.supportsAuthor &&
+                    widget.options.authors.isEmpty)
                   Expanded(
                     child: TextField(
                       controller: _authorController,
@@ -1519,9 +1567,12 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
                     ),
                   ),
                 if (widget.options.supportsAuthor &&
-                    widget.options.supportsArtist)
+                    widget.options.authors.isEmpty &&
+                    widget.options.supportsArtist &&
+                    widget.options.artists.isEmpty)
                   const SizedBox(width: 12),
-                if (widget.options.supportsArtist)
+                if (widget.options.supportsArtist &&
+                    widget.options.artists.isEmpty)
                   Expanded(
                     child: TextField(
                       controller: _artistController,
@@ -1708,6 +1759,36 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
               selected: _genres,
               searchController: _genreSearchController,
               onSearch: (value) => setState(() => _genreQuery = value),
+              mutuallyExclusive: _excludedGenres,
+            ),
+          if (widget.options.supportsGenreExclusion &&
+              widget.options.genres.isNotEmpty)
+            _optionExpansion(
+              title: 'Excluded genres',
+              searchLabel: 'Find a genre to exclude',
+              options: visibleExcludedGenres,
+              selected: _excludedGenres,
+              searchController: _excludedGenreSearchController,
+              onSearch: (value) => setState(() => _excludedGenreQuery = value),
+              mutuallyExclusive: _genres,
+            ),
+          if (widget.options.authors.isNotEmpty)
+            _optionExpansion(
+              title: 'Authors',
+              searchLabel: 'Find an author',
+              options: visibleAuthors,
+              selected: _authorValues,
+              searchController: _authorSearchController,
+              onSearch: (value) => setState(() => _authorQuery = value),
+            ),
+          if (widget.options.artists.isNotEmpty)
+            _optionExpansion(
+              title: 'Artists',
+              searchLabel: 'Find an artist',
+              options: visibleArtists,
+              selected: _artistValues,
+              searchController: _artistSearchController,
+              onSearch: (value) => setState(() => _artistQuery = value),
             ),
           if (widget.options.demographics.isNotEmpty)
             _simpleOptionExpansion(
@@ -1762,6 +1843,27 @@ class _MangaAdvancedFilterSheetState extends State<_MangaAdvancedFilterSheet> {
               ],
               onChanged: (value) => setState(
                 () => _categoryMode = value ?? MangaCategoryMode.any,
+              ),
+            ),
+          ],
+          if (widget.options.supportsExclusionCategoryMode) ...[
+            const SizedBox(height: 14),
+            DropdownButtonFormField<MangaCategoryMode>(
+              initialValue: _exclusionCategoryMode,
+              decoration:
+                  const InputDecoration(labelText: 'Excluded genre matching'),
+              items: const [
+                DropdownMenuItem(
+                  value: MangaCategoryMode.any,
+                  child: Text('Exclude any selected genre (OR)'),
+                ),
+                DropdownMenuItem(
+                  value: MangaCategoryMode.all,
+                  child: Text('Exclude only when all match (AND)'),
+                ),
+              ],
+              onChanged: (value) => setState(
+                () => _exclusionCategoryMode = value ?? MangaCategoryMode.any,
               ),
             ),
           ],
@@ -1858,6 +1960,7 @@ String _mangaSortLabel(MangaSearchSort sort) => switch (sort) {
       MangaSearchSort.mostFollows => 'Most follows',
       MangaSearchSort.mostReviews => 'Most reviews',
       MangaSearchSort.mostComments => 'Most comments',
+      MangaSearchSort.bookmarked => 'Bookmarked',
     };
 
 class _MangaTaxonomySelection {

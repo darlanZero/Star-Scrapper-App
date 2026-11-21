@@ -161,6 +161,7 @@ void main() {
     expect(ids, contains('xcomic'));
     expect(ids, contains('comick'));
     expect(ids, contains('bato'));
+    expect(ids, contains('rawkuma'));
   });
 
   test('Leitura Manga is a mixed PT-BR source, not an adult-only source', () {
@@ -316,6 +317,21 @@ void main() {
     expect(
       source.api.catalogFilterLabel(MangaCatalogFilter.added),
       'Most saved',
+    );
+  });
+
+  test('Rawkuma is a mixed Japanese filterable manga source', () {
+    final source = SourceCatalog.createAll().singleWhere(
+      (source) => source.id == 'rawkuma',
+    );
+
+    expect(source.languagePrefix, 'JP');
+    expect(source.contentType, SourceContentType.manga);
+    expect(source.isRRated, isFalse);
+    expect(source.api, isA<FilterableMangaSource>());
+    expect(
+      source.api.catalogFilterLabel(MangaCatalogFilter.updated),
+      'Latest updates',
     );
   });
 }

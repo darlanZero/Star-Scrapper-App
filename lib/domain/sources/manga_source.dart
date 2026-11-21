@@ -49,6 +49,7 @@ enum MangaSearchSort {
   mostFollows,
   mostReviews,
   mostComments,
+  bookmarked,
 }
 
 enum MangaCategoryMode { any, all }
@@ -70,6 +71,8 @@ class MangaSearchOptions {
   final List<MangaFilterOption> statuses;
   final List<MangaFilterOption> tags;
   final List<MangaFilterOption> genres;
+  final List<MangaFilterOption> authors;
+  final List<MangaFilterOption> artists;
   final List<MangaFilterOption> themes;
   final List<MangaFilterOption> demographics;
   final List<MangaFilterOption> originalLanguages;
@@ -83,6 +86,8 @@ class MangaSearchOptions {
   final bool supportsReleaseDateRange;
   final bool supportsChapterRange;
   final bool supportsCategoryMode;
+  final bool supportsGenreExclusion;
+  final bool supportsExclusionCategoryMode;
   final bool supportsAdultMode;
   final bool supportsSortDirection;
 
@@ -92,6 +97,8 @@ class MangaSearchOptions {
     Iterable<MangaFilterOption> statuses = const [],
     Iterable<MangaFilterOption> tags = const [],
     Iterable<MangaFilterOption> genres = const [],
+    Iterable<MangaFilterOption> authors = const [],
+    Iterable<MangaFilterOption> artists = const [],
     Iterable<MangaFilterOption> themes = const [],
     Iterable<MangaFilterOption> demographics = const [],
     Iterable<MangaFilterOption> originalLanguages = const [],
@@ -105,6 +112,8 @@ class MangaSearchOptions {
     this.supportsReleaseDateRange = false,
     this.supportsChapterRange = true,
     this.supportsCategoryMode = false,
+    this.supportsGenreExclusion = false,
+    this.supportsExclusionCategoryMode = false,
     this.supportsAdultMode = false,
     this.supportsSortDirection = false,
   })  : types = List.unmodifiable(types),
@@ -112,6 +121,8 @@ class MangaSearchOptions {
         statuses = List.unmodifiable(statuses),
         tags = List.unmodifiable(tags),
         genres = List.unmodifiable(genres),
+        authors = List.unmodifiable(authors),
+        artists = List.unmodifiable(artists),
         themes = List.unmodifiable(themes),
         demographics = List.unmodifiable(demographics),
         originalLanguages = List.unmodifiable(originalLanguages),
@@ -127,6 +138,9 @@ class MangaSearchRequest {
   final Set<String> statuses;
   final Set<String> tags;
   final Set<String> genres;
+  final Set<String> excludedGenres;
+  final Set<String> authorValues;
+  final Set<String> artistValues;
   final Set<String> themes;
   final Set<String> demographics;
   final Set<String> originalLanguages;
@@ -143,6 +157,7 @@ class MangaSearchRequest {
   final int? maximumChapters;
   final MangaSearchSort sort;
   final MangaCategoryMode categoryMode;
+  final MangaCategoryMode exclusionCategoryMode;
   final MangaAdultMode adultMode;
   final MangaSortDirection sortDirection;
 
@@ -152,6 +167,9 @@ class MangaSearchRequest {
     Set<String> statuses = const {},
     Set<String> tags = const {},
     Set<String> genres = const {},
+    Set<String> excludedGenres = const {},
+    Set<String> authorValues = const {},
+    Set<String> artistValues = const {},
     Set<String> themes = const {},
     Set<String> demographics = const {},
     Set<String> originalLanguages = const {},
@@ -168,6 +186,7 @@ class MangaSearchRequest {
     this.maximumChapters,
     this.sort = MangaSearchSort.recentlyAdded,
     this.categoryMode = MangaCategoryMode.any,
+    this.exclusionCategoryMode = MangaCategoryMode.any,
     this.adultMode = MangaAdultMode.hide,
     this.sortDirection = MangaSortDirection.descending,
   })  : types = Set.unmodifiable(types),
@@ -175,6 +194,9 @@ class MangaSearchRequest {
         statuses = Set.unmodifiable(statuses),
         tags = Set.unmodifiable(tags),
         genres = Set.unmodifiable(genres),
+        excludedGenres = Set.unmodifiable(excludedGenres),
+        authorValues = Set.unmodifiable(authorValues),
+        artistValues = Set.unmodifiable(artistValues),
         themes = Set.unmodifiable(themes),
         demographics = Set.unmodifiable(demographics),
         originalLanguages = Set.unmodifiable(originalLanguages),
@@ -186,6 +208,9 @@ class MangaSearchRequest {
       statuses.isNotEmpty ||
       tags.isNotEmpty ||
       genres.isNotEmpty ||
+      excludedGenres.isNotEmpty ||
+      authorValues.isNotEmpty ||
+      artistValues.isNotEmpty ||
       themes.isNotEmpty ||
       demographics.isNotEmpty ||
       originalLanguages.isNotEmpty ||
@@ -202,6 +227,7 @@ class MangaSearchRequest {
       maximumChapters != null ||
       sort != MangaSearchSort.recentlyAdded ||
       categoryMode != MangaCategoryMode.any ||
+      exclusionCategoryMode != MangaCategoryMode.any ||
       adultMode != MangaAdultMode.hide ||
       sortDirection != MangaSortDirection.descending;
 
@@ -211,6 +237,9 @@ class MangaSearchRequest {
       statuses.length +
       tags.length +
       genres.length +
+      excludedGenres.length +
+      authorValues.length +
+      artistValues.length +
       themes.length +
       demographics.length +
       originalLanguages.length +
@@ -224,6 +253,7 @@ class MangaSearchRequest {
       (minimumChapters == null && maximumChapters == null ? 0 : 1) +
       (sort == MangaSearchSort.recentlyAdded ? 0 : 1) +
       (categoryMode == MangaCategoryMode.any ? 0 : 1) +
+      (exclusionCategoryMode == MangaCategoryMode.any ? 0 : 1) +
       (adultMode == MangaAdultMode.hide ? 0 : 1) +
       (sortDirection == MangaSortDirection.descending ? 0 : 1);
 }
@@ -838,6 +868,16 @@ extension MangaSourcePresentation on MangaSource {
         MangaCatalogFilter.trending => 'Discover',
         MangaCatalogFilter.added => 'Most saved',
         MangaCatalogFilter.updated => 'Updated',
+        MangaCatalogFilter.alphabetical => 'Alphabetical',
+      };
+    }
+    if (id == 'rawkuma') {
+      return switch (filter) {
+        MangaCatalogFilter.updated => 'Latest updates',
+        MangaCatalogFilter.popular => 'Library',
+        MangaCatalogFilter.added => 'Recently added',
+        MangaCatalogFilter.recent => 'Recent',
+        MangaCatalogFilter.trending => 'Trending',
         MangaCatalogFilter.alphabetical => 'Alphabetical',
       };
     }

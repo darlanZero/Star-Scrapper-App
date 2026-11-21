@@ -35,6 +35,7 @@ import 'package:star_scrapper_app/data/sources/manga/comick_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/porn_comic_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/bato_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/eahentai_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/rawkuma_source.dart';
 import 'package:star_scrapper_app/infrastructure/webview/browser_html_loader.dart';
 
 /// Single registry for the sources bundled with the application.
@@ -145,6 +146,7 @@ abstract final class SourceCatalog {
         PornComicMangaSource(),
         BatoSource(),
         EAHentaiSource(),
+        RawkumaSource(),
       ];
 
   static List<Fonte> createAll() => [
@@ -422,6 +424,20 @@ abstract final class SourceCatalog {
           api: EAHentaiSource(),
           contentType: SourceContentType.manga,
           isRRated: true,
+        ),
+        Fonte(
+          id: 'rawkuma',
+          image:
+              'https://rawkuma.net/wp-content/uploads/2025/09/Rawkuma-Logo.png',
+          name: 'Rawkuma',
+          languagePrefix: 'JP',
+          flags: [
+            'https://cdn.countryflags.com/thumbs/japan/flag-3d-250.png',
+          ],
+          api: RawkumaSource(),
+          contentType: SourceContentType.manga,
+          // Mixed catalog: adult genres exist, but are not the source focus.
+          isRRated: false,
         ),
       ];
 }
