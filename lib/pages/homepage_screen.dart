@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/components/Shared/source_badge.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.dart';
 import 'package:star_scrapper_app/pages/anime_library_grid.dart';
 import 'package:star_scrapper_app/application/library/anime_library_controller.dart';
@@ -122,16 +123,16 @@ class _HomePageScreenState extends State<HomePageScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SegmentedButton<_LibraryMediaType>(
-                      segments: const [
+                      segments: [
                         ButtonSegment(
                           value: _LibraryMediaType.manga,
-                          icon: Icon(Icons.menu_book_rounded),
-                          label: Text('Manga'),
+                          icon: const Icon(Icons.menu_book_rounded),
+                          label: Text(context.l10n.libraryTabManga),
                         ),
                         ButtonSegment(
                           value: _LibraryMediaType.anime,
-                          icon: Icon(Icons.play_circle_outline_rounded),
-                          label: Text('Anime'),
+                          icon: const Icon(Icons.play_circle_outline_rounded),
+                          label: Text(context.l10n.libraryTabAnime),
                         ),
                       ],
                       selected: {_mediaType},
@@ -177,7 +178,7 @@ class _HomePageScreenState extends State<HomePageScreen> {
                   top: 4,
                   child: IconButton.filledTonal(
                     onPressed: _showSortSheet,
-                    tooltip: 'Sort books',
+                    tooltip: context.l10n.sortBooksTooltip,
                     icon: const Icon(Icons.sort_rounded),
                   ),
                 ),
@@ -454,7 +455,7 @@ class _HomePageScreenState extends State<HomePageScreen> {
       builder: (context, fontProvider, _) {
         final primaryTabs = _tabsState.libraryTabs;
         if (primaryTabs.isEmpty) {
-          return const Center(child: Text('Configure suas tabs na Settings.'));
+          return Center(child: Text(context.l10n.configureTabsInSettings));
         }
 
         final primaryLabel =
@@ -507,13 +508,13 @@ class _HomePageScreenState extends State<HomePageScreen> {
                       ),
                       const SizedBox(height: 18),
                       Text(
-                        'Your shelf is ready',
+                        context.l10n.emptyShelfTitle,
                         textAlign: TextAlign.center,
                         style: theme.textTheme.titleLarge,
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Explore a source and add your first title to this collection.',
+                        context.l10n.emptyShelfSubtitle,
                         textAlign: TextAlign.center,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: colors.onSurfaceVariant,
@@ -527,7 +528,7 @@ class _HomePageScreenState extends State<HomePageScreen> {
                           context.read<TabsState>().setActivePageIndex(2);
                         },
                         icon: const Icon(Icons.explore_outlined),
-                        label: const Text('Explore sources'),
+                        label: Text(context.l10n.exploreSources),
                       ),
                     ],
                   ),

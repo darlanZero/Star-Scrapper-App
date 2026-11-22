@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/application/trackers/tracker_controller.dart';
 import 'package:star_scrapper_app/components/UI/tracker_media_card.dart';
 import 'package:star_scrapper_app/domain/trackers/tracker.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/tracker_media_details_screen.dart';
 import 'package:star_scrapper_app/pages/tracker_source_search.dart';
 
@@ -112,11 +113,12 @@ class _TrackerSeasonScreenState extends State<TrackerSeasonScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final currentYear = DateTime.now().year;
     final years =
         List.generate(currentYear - 1940 + 2, (i) => currentYear + 1 - i);
     return Scaffold(
-      appBar: AppBar(title: const Text('Season archive')),
+      appBar: AppBar(title: Text(l10n.seasonArchiveTitle)),
       body: RefreshIndicator(
         onRefresh: () async => _reload(),
         child: CustomScrollView(
@@ -129,12 +131,12 @@ class _TrackerSeasonScreenState extends State<TrackerSeasonScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Browse any anime season',
+                      l10n.browseAnyAnimeSeason,
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      'Choose a season and year, then scroll to load more titles.',
+                      l10n.browseAnyAnimeSeasonDesc,
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -145,16 +147,16 @@ class _TrackerSeasonScreenState extends State<TrackerSeasonScreen> {
                         Expanded(
                           child: DropdownButtonFormField<AnimeSeason>(
                             initialValue: _season,
-                            decoration: const InputDecoration(
-                              labelText: 'Season',
+                            decoration: InputDecoration(
+                              labelText: l10n.seasonLabel,
                               prefixIcon:
-                                  Icon(Icons.calendar_view_month_rounded),
+                                  const Icon(Icons.calendar_view_month_rounded),
                             ),
                             items: AnimeSeason.values
                                 .map(
                                   (season) => DropdownMenuItem(
                                     value: season,
-                                    child: Text(_seasonLabel(season)),
+                                    child: Text(_seasonLabel(l10n, season)),
                                   ),
                                 )
                                 .toList(),
@@ -169,8 +171,8 @@ class _TrackerSeasonScreenState extends State<TrackerSeasonScreen> {
                         Expanded(
                           child: DropdownButtonFormField<int>(
                             initialValue: _year,
-                            decoration: const InputDecoration(
-                              labelText: 'Year',
+                            decoration: InputDecoration(
+                              labelText: l10n.yearLabel,
                             ),
                             items: years
                                 .map(
@@ -192,26 +194,26 @@ class _TrackerSeasonScreenState extends State<TrackerSeasonScreen> {
                     const SizedBox(height: 10),
                     DropdownButtonFormField<TrackerSort>(
                       initialValue: _sort,
-                      decoration: const InputDecoration(
-                        labelText: 'Order by',
-                        prefixIcon: Icon(Icons.sort_rounded),
+                      decoration: InputDecoration(
+                        labelText: l10n.orderByLabel,
+                        prefixIcon: const Icon(Icons.sort_rounded),
                       ),
-                      items: const [
+                      items: [
                         DropdownMenuItem(
                           value: TrackerSort.popularity,
-                          child: Text('Popularity'),
+                          child: Text(l10n.sortPopularity),
                         ),
                         DropdownMenuItem(
                           value: TrackerSort.highestRated,
-                          child: Text('Highest rated'),
+                          child: Text(l10n.sortHighestRated),
                         ),
                         DropdownMenuItem(
                           value: TrackerSort.mostRecent,
-                          child: Text('Most recent'),
+                          child: Text(l10n.sortMostRecent),
                         ),
                         DropdownMenuItem(
                           value: TrackerSort.trending,
-                          child: Text('Trending'),
+                          child: Text(l10n.trendingLabel),
                         ),
                       ],
                       onChanged: (value) {
@@ -234,9 +236,9 @@ class _TrackerSeasonScreenState extends State<TrackerSeasonScreen> {
                 child: _SeasonError(error: _error, onRetry: _reload),
               )
             else if (_items.isEmpty)
-              const SliverFillRemaining(
+              SliverFillRemaining(
                 hasScrollBody: false,
-                child: Center(child: Text('No titles found for this season.')),
+                child: Center(child: Text(l10n.noTitlesForSeason)),
               )
             else ...[
               SliverPadding(
@@ -270,11 +272,11 @@ class _TrackerSeasonScreenState extends State<TrackerSeasonScreen> {
                             ? TextButton.icon(
                                 onPressed: () => _loadPage(_generation),
                                 icon: const Icon(Icons.refresh_rounded),
-                                label: const Text('Try loading more again'),
+                                label: Text(l10n.tryLoadingMoreAgain),
                               )
                             : _hasMore
                                 ? const SizedBox.shrink()
-                                : const Text('You reached the end.'),
+                                : Text(l10n.youReachedTheEnd),
                   ),
                 ),
               ),
@@ -299,11 +301,12 @@ AnimeSeason _seasonForMonth(int month) => switch (month) {
       _ => AnimeSeason.fall,
     };
 
-String _seasonLabel(AnimeSeason season) => switch (season) {
-      AnimeSeason.winter => 'Winter',
-      AnimeSeason.spring => 'Spring',
-      AnimeSeason.summer => 'Summer',
-      AnimeSeason.fall => 'Fall',
+String _seasonLabel(AppLocalizations l10n, AnimeSeason season) =>
+    switch (season) {
+      AnimeSeason.winter => l10n.seasonWinter,
+      AnimeSeason.spring => l10n.seasonSpring,
+      AnimeSeason.summer => l10n.seasonSummer,
+      AnimeSeason.fall => l10n.seasonFall,
     };
 
 class _SeasonError extends StatelessWidget {
@@ -326,7 +329,7 @@ class _SeasonError extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Try again'),
+                label: Text(context.l10n.tryAgain),
               ),
             ],
           ),

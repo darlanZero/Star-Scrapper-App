@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:star_scrapper_app/components/Shared/anime_source_image.dart';
 import 'package:star_scrapper_app/domain/sources/anime_source.dart';
 import 'package:star_scrapper_app/domain/sources/manga_source.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/anime_source_details_screen.dart';
 import 'package:star_scrapper_app/pages/anime_source_webview_screen.dart';
 import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.dart';
@@ -351,7 +352,11 @@ class _AnimeSourceCatalogScreenState extends State<AnimeSourceCatalogScreen> {
                                   selected: _advancedRequest == null &&
                                       _filter == filter,
                                   label: Text(
-                                    _catalogFilterLabel(filter, widget.source),
+                                    _catalogFilterLabel(
+                                      context.l10n,
+                                      filter,
+                                      widget.source,
+                                    ),
                                   ),
                                   avatar: Icon(
                                     _catalogFilterIcon(filter),
@@ -608,7 +613,7 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
               children: [
                 Expanded(
                   child: Text(
-                    'Advanced filters',
+                    context.l10n.advancedFilters,
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                 ),
@@ -617,7 +622,7 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
                     context,
                     AnimeSearchRequest(),
                   ),
-                  child: const Text('Reset'),
+                  child: Text(context.l10n.resetAction),
                 ),
               ],
             ),
@@ -716,7 +721,10 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
             DropdownButtonFormField<AnimeSearchSort>(
               initialValue: _sort,
               decoration: InputDecoration(
-                labelText: widget.options.labelFor('sorts', 'Order by'),
+                labelText: widget.options.labelFor(
+                'sorts',
+                context.l10n.orderByLabel,
+              ),
               ),
               items: widget.options.sorts
                   .map(
@@ -738,7 +746,9 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
             const SizedBox(height: 12),
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
-              title: Text(widget.options.labelFor('genres', 'Genres')),
+              title: Text(
+              widget.options.labelFor('genres', context.l10n.genresLabel),
+            ),
               subtitle: Text(
                 _genres.isEmpty
                     ? widget.options.labelFor('genresAny', 'Any genre')
@@ -800,7 +810,7 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
                 ),
               ),
               icon: const Icon(Icons.filter_alt_rounded),
-              label: const Text('Apply filters'),
+              label: Text(context.l10n.applyFilters),
             ),
           ],
         ),
@@ -856,7 +866,10 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
           initialValue: value,
           decoration: InputDecoration(labelText: label),
           items: [
-            const DropdownMenuItem(value: null, child: Text('Any')),
+            DropdownMenuItem(
+              value: null,
+              child: Text(context.l10n.anyOption),
+            ),
             ...options.map(
               (option) => DropdownMenuItem(
                 value: option.value,
@@ -870,6 +883,7 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
 }
 
 String _catalogFilterLabel(
+  AppLocalizations l10n,
   AnimeCatalogFilter filter,
   AnimeSource source,
 ) {
@@ -879,7 +893,7 @@ String _catalogFilterLabel(
       AnimeCatalogFilter.updated => 'Cosplay · Latest',
       AnimeCatalogFilter.popular => 'Animation · Popular',
       AnimeCatalogFilter.popularMonth => 'Cosplay · Popular',
-      _ => _defaultCatalogFilterLabel(filter),
+      _ => _defaultCatalogFilterLabel(l10n, filter),
     };
   }
   if (source.id == 'hanime1') {
@@ -893,7 +907,7 @@ String _catalogFilterLabel(
       AnimeCatalogFilter.seriesMostViewed => 'Like ratio',
       AnimeCatalogFilter.seriesNewest => 'Longest',
       AnimeCatalogFilter.updated => 'Watching now',
-      _ => _defaultCatalogFilterLabel(filter),
+      _ => _defaultCatalogFilterLabel(l10n, filter),
     };
   }
   if (source.id == 'jable') {
@@ -903,7 +917,7 @@ String _catalogFilterLabel(
       AnimeCatalogFilter.popularMonth => 'Top hits this month',
       AnimeCatalogFilter.popularWeek => 'Top hits this week',
       AnimeCatalogFilter.popularToday => "Today's hits",
-      _ => _defaultCatalogFilterLabel(filter),
+      _ => _defaultCatalogFilterLabel(l10n, filter),
     };
   }
   if (source.id == 'hentai_img') {
@@ -918,109 +932,116 @@ String _catalogFilterLabel(
       AnimeCatalogFilter.seriesMostViewed => 'Bookmark ranking',
       AnimeCatalogFilter.movies => 'Videos',
       AnimeCatalogFilter.episodeMostViewed => 'Video ranking',
-      _ => _defaultCatalogFilterLabel(filter),
+      _ => _defaultCatalogFilterLabel(l10n, filter),
     };
   }
   if (source.id == 'goyabu') {
     return switch (filter) {
-      AnimeCatalogFilter.popular => 'Today',
-      AnimeCatalogFilter.popularWeek => 'This week',
-      AnimeCatalogFilter.popularMonth => 'This month',
-      _ => _defaultCatalogFilterLabel(filter),
+      AnimeCatalogFilter.popular => l10n.catalogFilterPopularToday,
+      AnimeCatalogFilter.popularWeek => l10n.catalogFilterPopularWeek,
+      AnimeCatalogFilter.popularMonth => l10n.catalogFilterPopularMonth,
+      _ => _defaultCatalogFilterLabel(l10n, filter),
     };
   }
   if (source.id == 'hentai_haven') {
     return switch (filter) {
       AnimeCatalogFilter.recent => 'Episodes · Newest',
-      AnimeCatalogFilter.popular => 'Episodes · Popular',
-      AnimeCatalogFilter.episodeMostViewed => 'Episodes · Most viewed',
-      AnimeCatalogFilter.seriesNewest => 'Series · Newest',
-      AnimeCatalogFilter.seriesPopular => 'Series · Popular',
-      AnimeCatalogFilter.seriesMostViewed => 'Series · Most viewed',
-      _ => _defaultCatalogFilterLabel(filter),
+      AnimeCatalogFilter.popular => l10n.catalogFilterEpisodesPopular,
+      AnimeCatalogFilter.episodeMostViewed =>
+        l10n.catalogFilterEpisodesMostViewed,
+      AnimeCatalogFilter.seriesNewest => l10n.catalogFilterSeriesNewest,
+      AnimeCatalogFilter.seriesPopular => l10n.catalogFilterSeriesPopular,
+      AnimeCatalogFilter.seriesMostViewed => l10n.catalogFilterSeriesMostViewed,
+      _ => _defaultCatalogFilterLabel(l10n, filter),
     };
   }
   if (source.id == 'animeq') {
     return switch (filter) {
-      AnimeCatalogFilter.recent => 'Últimos episódios',
-      AnimeCatalogFilter.featured => 'Destaques',
-      AnimeCatalogFilter.catalog => 'Todos os animes',
-      AnimeCatalogFilter.subtitled => 'Legendados',
-      AnimeCatalogFilter.dubbed => 'Dublados',
-      AnimeCatalogFilter.manhwa => 'Manhwa',
-      AnimeCatalogFilter.donghua => 'Donghua',
-      AnimeCatalogFilter.movies => 'Filmes',
-      AnimeCatalogFilter.subtitledMovies => 'Filmes legendados',
-      AnimeCatalogFilter.dubbedMovies => 'Filmes dublados',
-      AnimeCatalogFilter.adult => 'Hentai (+18)',
-      _ => _defaultCatalogFilterLabel(filter),
+      AnimeCatalogFilter.recent => l10n.catalogFilterLatestEpisodes,
+      AnimeCatalogFilter.featured => l10n.catalogFilterFeatured,
+      AnimeCatalogFilter.catalog => l10n.catalogFilterAllAnime,
+      AnimeCatalogFilter.subtitled => l10n.catalogFilterSubtitled,
+      AnimeCatalogFilter.dubbed => l10n.catalogFilterDubbed,
+      AnimeCatalogFilter.manhwa => l10n.catalogFilterManhwa,
+      AnimeCatalogFilter.donghua => l10n.catalogFilterDonghua,
+      AnimeCatalogFilter.movies => l10n.catalogFilterMovies,
+      AnimeCatalogFilter.subtitledMovies => l10n.catalogFilterSubtitledMovies,
+      AnimeCatalogFilter.dubbedMovies => l10n.catalogFilterDubbedMovies,
+      AnimeCatalogFilter.adult => l10n.catalogFilterAdult18,
+      _ => _defaultCatalogFilterLabel(l10n, filter),
     };
   }
   if (source.id == 'animefire') {
     return switch (filter) {
-      AnimeCatalogFilter.recent => 'Novos episódios',
-      AnimeCatalogFilter.popular => 'Mais curtidos',
-      AnimeCatalogFilter.dubbed => 'Novos dublados',
-      AnimeCatalogFilter.added => 'Novidades',
-      AnimeCatalogFilter.catalog => 'Animes',
-      AnimeCatalogFilter.movies => 'Filmes',
-      AnimeCatalogFilter.airing => 'Lançamentos',
-      AnimeCatalogFilter.upcoming => 'Em breve',
-      _ => _defaultCatalogFilterLabel(filter),
+      AnimeCatalogFilter.recent => l10n.catalogFilterNewEpisodes,
+      AnimeCatalogFilter.popular => l10n.catalogFilterMostLiked,
+      AnimeCatalogFilter.dubbed => l10n.catalogFilterNewDubbed,
+      AnimeCatalogFilter.added => l10n.catalogFilterNewReleases,
+      AnimeCatalogFilter.catalog => 'Anime',
+      AnimeCatalogFilter.movies => l10n.catalogFilterMovies,
+      AnimeCatalogFilter.airing => l10n.catalogFilterAiring,
+      AnimeCatalogFilter.upcoming => l10n.catalogFilterUpcoming,
+      _ => _defaultCatalogFilterLabel(l10n, filter),
     };
   }
   if (source.id == 'animes_online') {
     return switch (filter) {
-      AnimeCatalogFilter.catalog => 'Catálogo',
-      AnimeCatalogFilter.airing => 'Lançamentos',
-      AnimeCatalogFilter.scheduleSunday => 'Domingo',
-      AnimeCatalogFilter.scheduleMonday => 'Segunda',
-      AnimeCatalogFilter.scheduleTuesday => 'Terça',
-      AnimeCatalogFilter.scheduleWednesday => 'Quarta',
-      AnimeCatalogFilter.scheduleThursday => 'Quinta',
-      AnimeCatalogFilter.scheduleFriday => 'Sexta',
-      AnimeCatalogFilter.scheduleSaturday => 'Sábado',
-      AnimeCatalogFilter.scheduleUnknown => 'Indefinido',
-      _ => _defaultCatalogFilterLabel(filter),
+      AnimeCatalogFilter.catalog => l10n.catalogFilterCatalog,
+      AnimeCatalogFilter.airing => l10n.catalogFilterAiring,
+      AnimeCatalogFilter.scheduleSunday => l10n.weekdaySunday,
+      AnimeCatalogFilter.scheduleMonday => l10n.weekdayMonday,
+      AnimeCatalogFilter.scheduleTuesday => l10n.weekdayTuesday,
+      AnimeCatalogFilter.scheduleWednesday => l10n.weekdayWednesday,
+      AnimeCatalogFilter.scheduleThursday => l10n.weekdayThursday,
+      AnimeCatalogFilter.scheduleFriday => l10n.weekdayFriday,
+      AnimeCatalogFilter.scheduleSaturday => l10n.weekdaySaturday,
+      AnimeCatalogFilter.scheduleUnknown => l10n.weekdayUnknown,
+      _ => _defaultCatalogFilterLabel(l10n, filter),
     };
   }
-  return _defaultCatalogFilterLabel(filter);
+  return _defaultCatalogFilterLabel(l10n, filter);
 }
 
-String _defaultCatalogFilterLabel(AnimeCatalogFilter filter) =>
+String _defaultCatalogFilterLabel(
+  AppLocalizations l10n,
+  AnimeCatalogFilter filter,
+) =>
     switch (filter) {
-      AnimeCatalogFilter.featured => 'Featured',
-      AnimeCatalogFilter.catalog => 'Catalog',
-      AnimeCatalogFilter.subtitled => 'Subtitled',
-      AnimeCatalogFilter.dubbed => 'Dubbed',
-      AnimeCatalogFilter.manhwa => 'Manhwa',
-      AnimeCatalogFilter.donghua => 'Donghua',
-      AnimeCatalogFilter.movies => 'Movies',
-      AnimeCatalogFilter.subtitledMovies => 'Subtitled movies',
-      AnimeCatalogFilter.dubbedMovies => 'Dubbed movies',
-      AnimeCatalogFilter.adult => 'Adult',
-      AnimeCatalogFilter.popular => 'Most viewed',
-      AnimeCatalogFilter.popularToday => 'Today',
-      AnimeCatalogFilter.popularWeek => 'This week',
-      AnimeCatalogFilter.popularMonth => 'This month',
-      AnimeCatalogFilter.recent => 'Latest',
-      AnimeCatalogFilter.episodeMostViewed => 'Most viewed episodes',
-      AnimeCatalogFilter.seriesNewest => 'Newest series',
-      AnimeCatalogFilter.seriesPopular => 'Popular series',
-      AnimeCatalogFilter.seriesMostViewed => 'Most viewed series',
-      AnimeCatalogFilter.updated => 'Updated',
-      AnimeCatalogFilter.added => 'Recently added',
-      AnimeCatalogFilter.airing => 'Airing',
-      AnimeCatalogFilter.upcoming => 'Upcoming',
-      AnimeCatalogFilter.completed => 'Completed',
-      AnimeCatalogFilter.scheduleSunday => 'Sunday schedule',
-      AnimeCatalogFilter.scheduleMonday => 'Monday schedule',
-      AnimeCatalogFilter.scheduleTuesday => 'Tuesday schedule',
-      AnimeCatalogFilter.scheduleWednesday => 'Wednesday schedule',
-      AnimeCatalogFilter.scheduleThursday => 'Thursday schedule',
-      AnimeCatalogFilter.scheduleFriday => 'Friday schedule',
-      AnimeCatalogFilter.scheduleSaturday => 'Saturday schedule',
-      AnimeCatalogFilter.scheduleUnknown => 'Unscheduled',
+      AnimeCatalogFilter.featured => l10n.catalogFilterFeatured,
+      AnimeCatalogFilter.catalog => l10n.catalogFilterCatalog,
+      AnimeCatalogFilter.subtitled => l10n.catalogFilterSubtitled,
+      AnimeCatalogFilter.dubbed => l10n.catalogFilterDubbed,
+      AnimeCatalogFilter.manhwa => l10n.catalogFilterManhwa,
+      AnimeCatalogFilter.donghua => l10n.catalogFilterDonghua,
+      AnimeCatalogFilter.movies => l10n.catalogFilterMovies,
+      AnimeCatalogFilter.subtitledMovies => l10n.catalogFilterSubtitledMovies,
+      AnimeCatalogFilter.dubbedMovies => l10n.catalogFilterDubbedMovies,
+      AnimeCatalogFilter.adult => l10n.catalogFilterAdult,
+      AnimeCatalogFilter.popular => l10n.catalogFilterPopular,
+      AnimeCatalogFilter.popularToday => l10n.catalogFilterPopularToday,
+      AnimeCatalogFilter.popularWeek => l10n.catalogFilterPopularWeek,
+      AnimeCatalogFilter.popularMonth => l10n.catalogFilterPopularMonth,
+      AnimeCatalogFilter.recent => l10n.catalogFilterRecent,
+      AnimeCatalogFilter.episodeMostViewed =>
+        l10n.catalogFilterEpisodeMostViewed,
+      AnimeCatalogFilter.seriesNewest => l10n.catalogFilterSeriesNewest,
+      AnimeCatalogFilter.seriesPopular => l10n.catalogFilterSeriesPopular,
+      AnimeCatalogFilter.seriesMostViewed =>
+        l10n.catalogFilterSeriesMostViewed,
+      AnimeCatalogFilter.updated => l10n.catalogFilterUpdated,
+      AnimeCatalogFilter.added => l10n.catalogFilterAdded,
+      AnimeCatalogFilter.airing => l10n.catalogFilterAiring,
+      AnimeCatalogFilter.upcoming => l10n.catalogFilterUpcoming,
+      AnimeCatalogFilter.completed => l10n.catalogFilterCompleted,
+      AnimeCatalogFilter.scheduleSunday => '${l10n.weekdaySunday} schedule',
+      AnimeCatalogFilter.scheduleMonday => '${l10n.weekdayMonday} schedule',
+      AnimeCatalogFilter.scheduleTuesday => '${l10n.weekdayTuesday} schedule',
+      AnimeCatalogFilter.scheduleWednesday =>
+        '${l10n.weekdayWednesday} schedule',
+      AnimeCatalogFilter.scheduleThursday => '${l10n.weekdayThursday} schedule',
+      AnimeCatalogFilter.scheduleFriday => '${l10n.weekdayFriday} schedule',
+      AnimeCatalogFilter.scheduleSaturday => '${l10n.weekdaySaturday} schedule',
+      AnimeCatalogFilter.scheduleUnknown => l10n.weekdayUnknown,
     };
 
 IconData _catalogFilterIcon(AnimeCatalogFilter filter) => switch (filter) {

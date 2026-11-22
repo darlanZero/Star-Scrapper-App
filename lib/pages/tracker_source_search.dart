@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/domain/sources/source.dart';
 import 'package:star_scrapper_app/domain/trackers/tracker.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/search_screen.dart';
 import 'package:star_scrapper_app/pages/anime_multi_source_search_screen.dart';
 
@@ -15,8 +16,7 @@ void openTrackerSourceSearch(BuildContext context, TrackerMedia media) {
     final sources = provider.activeAnimeSources;
     if (sources.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Enable an anime source before searching.')),
+        SnackBar(content: Text(context.l10n.enableAnimeSourceBeforeSearching)),
       );
       return;
     }
@@ -39,8 +39,8 @@ void openTrackerSourceSearch(BuildContext context, TrackerMedia media) {
       SnackBar(
         content: Text(
           sourceType == SourceContentType.anime
-              ? 'No anime source is available yet.'
-              : 'Enable a manga source before searching.',
+              ? context.l10n.noAnimeSourceAvailableYet
+              : context.l10n.enableMangaSourceBeforeSearching,
         ),
       ),
     );

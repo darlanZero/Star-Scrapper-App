@@ -8,6 +8,7 @@ import 'package:star_scrapper_app/application/library/anime_library_controller.d
 import 'package:star_scrapper_app/application/trackers/tracker_controller.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/application/notifications/app_notification_service.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 
 class LibraryBackupRestoreScreen extends StatefulWidget {
   const LibraryBackupRestoreScreen({super.key});
@@ -45,13 +46,13 @@ class _LibraryBackupRestoreScreenState
       await _notifications.notifyBackupCreated(_fileName(path));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Backup created in: $path')),
+        SnackBar(content: Text(context.l10n.backupCreatedIn(path))),
       );
       await _reloadBackupList();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to create backup: $e')),
+        SnackBar(content: Text(context.l10n.backupCreateFailed('$e'))),
       );
     } finally {
       if (mounted) setState(() => _isBusy = false);
@@ -59,21 +60,20 @@ class _LibraryBackupRestoreScreenState
   }
 
   Future<void> _restoreBackup(String filePath) async {
+    final l10n = context.l10n;
     final allow = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Restore Backup'),
-        content: const Text(
-          'This will overwrite the current app data. Continue?',
-        ),
+        title: Text(l10n.restoreBackupTitle),
+        content: Text(l10n.restoreBackupConfirmMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Restore'),
+            child: Text(l10n.restoreAction),
           ),
         ],
       ),
@@ -111,12 +111,12 @@ class _LibraryBackupRestoreScreenState
       await _notifications.notifyBackupRestored(_fileName(filePath));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Backup restored successfully.')),
+        SnackBar(content: Text(context.l10n.backupRestoredSuccess)),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to restore backup: $e')),
+        SnackBar(content: Text(context.l10n.backupRestoreFailed('$e'))),
       );
     } finally {
       if (mounted) setState(() => _isBusy = false);
@@ -146,12 +146,12 @@ class _LibraryBackupRestoreScreenState
       if (!mounted) return;
       if (outputPath == null) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Backup saved successfully.')),
+        SnackBar(content: Text(context.l10n.backupSavedSuccess)),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Falha ao baixar backup: $e')),
+        SnackBar(content: Text(context.l10n.backupDownloadFailed('$e'))),
       );
     } finally {
       if (mounted) setState(() => _isBusy = false);
@@ -168,20 +168,21 @@ class _LibraryBackupRestoreScreenState
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load backup: $e')),
+        SnackBar(content: Text(context.l10n.backupLoadFailed('$e'))),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final theme = Provider.of<ThemeProvider>(context);
     return Scaffold(
       backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: theme.selectedTheme.appBarTheme.backgroundColor,
         title: Text(
-          'Backup & Restore',
+          l10n.backupAndRestoreTitle,
           style: TextStyle(
             color: theme.selectedTheme.textTheme.titleLarge?.color,
             fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
@@ -193,16 +194,13 @@ class _LibraryBackupRestoreScreenState
       ),
       body: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: Card(
               child: ListTile(
-                leading: Icon(Icons.lock_rounded),
-                title: Text('Encrypted complete backup'),
-                subtitle: Text(
-                  'Includes manga and anime history, favorites, tabs, stored '
-                  'logins, and enabled sources. Keep the password safe.',
-                ),
+                leading: const Icon(Icons.lock_rounded),
+                title: Text(l10n.encryptedCompleteBackupTitle),
+                subtitle: Text(l10n.encryptedCompleteBackupDesc),
               ),
             ),
           ),
@@ -214,7 +212,7 @@ class _LibraryBackupRestoreScreenState
                   child: ElevatedButton.icon(
                     onPressed: _isBusy ? null : _createBackup,
                     icon: const Icon(Icons.backup_rounded),
-                    label: const Text('Create Backup'),
+                    label: Text(l10n.createBackupButton),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -222,7 +220,7 @@ class _LibraryBackupRestoreScreenState
                   child: ElevatedButton.icon(
                     onPressed: _isBusy ? null : _loadBackupFromDevice,
                     icon: const Icon(Icons.upload_file_rounded),
-                    label: const Text('Load Backup'),
+                    label: Text(l10n.loadBackupButton),
                   ),
                 ),
               ],
@@ -231,7 +229,7 @@ class _LibraryBackupRestoreScreenState
           if (_isBusy) const LinearProgressIndicator(minHeight: 2),
           Expanded(
             child: _backupFiles.isEmpty
-                ? const Center(child: Text('No backups found.'))
+                ? Center(child: Text(l10n.noBackupsFound))
                 : ListView.builder(
                     itemCount: _backupFiles.length,
                     itemBuilder: (context, index) {
@@ -245,21 +243,21 @@ class _LibraryBackupRestoreScreenState
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              tooltip: 'Download',
+                              tooltip: l10n.downloadTooltip,
                               icon: const Icon(Icons.download_rounded),
                               onPressed: _isBusy
                                   ? null
                                   : () => _downloadBackup(file.path),
                             ),
                             IconButton(
-                              tooltip: 'Restore',
+                              tooltip: l10n.restoreTooltip,
                               icon: const Icon(Icons.restore_rounded),
                               onPressed: _isBusy
                                   ? null
                                   : () => _restoreBackup(file.path),
                             ),
                             IconButton(
-                              tooltip: 'Delete',
+                              tooltip: l10n.deleteTooltip,
                               icon: const Icon(Icons.delete_outline),
                               onPressed: _isBusy
                                   ? null
@@ -314,18 +312,19 @@ class _BackupPasswordDialogState extends State<_BackupPasswordDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-        title: Text(widget.confirm ? 'Protect your backup' : 'Unlock backup'),
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return AlertDialog(
+        title: Text(
+          widget.confirm ? l10n.protectBackupTitle : l10n.unlockBackupTitle,
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                widget.confirm
-                    ? 'This password encrypts your library and stored logins. '
-                        'It cannot be recovered if you forget it.'
-                    : 'Enter the password used when this backup was created.',
+                widget.confirm ? l10n.protectBackupDesc : l10n.unlockBackupDesc,
               ),
               const SizedBox(height: 16),
               TextField(
@@ -336,7 +335,7 @@ class _BackupPasswordDialogState extends State<_BackupPasswordDialog> {
                   if (!widget.confirm) _submit();
                 },
                 decoration: InputDecoration(
-                  labelText: 'Backup password',
+                  labelText: l10n.backupPasswordLabel,
                   errorText: _validationMessage,
                   suffixIcon: IconButton(
                     onPressed: () => setState(
@@ -356,8 +355,8 @@ class _BackupPasswordDialogState extends State<_BackupPasswordDialog> {
                   controller: _confirmationController,
                   obscureText: _obscurePassword,
                   onSubmitted: (_) => _submit(),
-                  decoration: const InputDecoration(
-                    labelText: 'Confirm password',
+                  decoration: InputDecoration(
+                    labelText: l10n.confirmPasswordLabel,
                   ),
                 ),
               ],
@@ -367,12 +366,15 @@ class _BackupPasswordDialogState extends State<_BackupPasswordDialog> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           ElevatedButton(
             onPressed: _submit,
-            child: Text(widget.confirm ? 'Create backup' : 'Unlock'),
+            child: Text(
+              widget.confirm ? l10n.createBackupAction : l10n.unlockAction,
+            ),
           ),
         ],
       );
+  }
 }

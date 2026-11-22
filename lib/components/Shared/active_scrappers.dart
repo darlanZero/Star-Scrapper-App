@@ -5,6 +5,7 @@ import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';
 import 'package:star_scrapper_app/domain/sources/source.dart';
 import 'package:star_scrapper_app/domain/sources/anime_source.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/anime_source_catalog_screen.dart';
 import 'package:star_scrapper_app/pages/pages.dart';
 
@@ -190,7 +191,9 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
             ? colors.primary
             : colors.onSurfaceVariant,
       ),
-      tooltip: pinnedFonts.contains(font) ? 'Unpin source' : 'Pin source',
+      tooltip: pinnedFonts.contains(font)
+          ? context.l10n.unpinSourceTooltip
+          : context.l10n.pinSourceTooltip,
       onPressed: () => togglePinned(font),
     );
 
@@ -351,7 +354,7 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
                   child: OutlinedButton.icon(
                     onPressed: () => open(AnimeCatalogFilter.recent),
                     icon: const Icon(Icons.schedule_rounded),
-                    label: const Text('Latest'),
+                    label: Text(context.l10n.latestLabel),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -359,7 +362,7 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
                   child: FilledButton.tonalIcon(
                     onPressed: () => open(AnimeCatalogFilter.popular),
                     icon: const Icon(Icons.trending_up_rounded),
-                    label: const Text('Trending'),
+                    label: Text(context.l10n.trendingLabel),
                   ),
                 ),
               ],
@@ -401,16 +404,16 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),
           children: [
             SegmentedButton<SourceContentType>(
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: SourceContentType.manga,
-                  icon: Icon(Icons.menu_book_rounded),
-                  label: Text('Manga'),
+                  icon: const Icon(Icons.menu_book_rounded),
+                  label: Text(context.l10n.libraryTabManga),
                 ),
                 ButtonSegment(
                   value: SourceContentType.anime,
-                  icon: Icon(Icons.play_circle_rounded),
-                  label: Text('Anime'),
+                  icon: const Icon(Icons.play_circle_rounded),
+                  label: Text(context.l10n.libraryTabAnime),
                 ),
               ],
               selected: {_contentType},
@@ -435,7 +438,7 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                     subtitle: Text(
-                      '${group.value.length} ${group.value.length == 1 ? 'source' : 'sources'}',
+                      context.l10n.sourceCountLabel(group.value.length),
                     ),
                     children: group.value.map(_buildAnimeSourceTile).toList(),
                   ),
@@ -462,16 +465,16 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
                       const SizedBox(height: 12),
                       Text(
                         _contentType == SourceContentType.anime
-                            ? 'No active anime sources.'
-                            : 'No active manga sources.',
+                            ? context.l10n.noActiveAnimeSources
+                            : context.l10n.noActiveMangaSources,
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 6),
                       Text(
                         _contentType == SourceContentType.anime
-                            ? 'Enable AniTube in the Manage tab.'
-                            : 'Enable a source in the Manage tab.',
+                            ? context.l10n.enableAnimeSourceHint
+                            : context.l10n.enableMangaSourceHint,
                         textAlign: TextAlign.center,
                         style: TextStyle(color: colors.onSurfaceVariant),
                       ),
@@ -485,11 +488,13 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
                 margin: const EdgeInsets.only(bottom: 10),
                 child: ExpansionTile(
                   leading: Icon(Icons.push_pin_rounded, color: colors.primary),
-                  title: const Text(
-                    'Pinned sources',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                  title: Text(
+                    context.l10n.pinnedSourcesTitle,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
-                  subtitle: Text('${activePinnedFonts.length} saved'),
+                  subtitle: Text(
+                    context.l10n.savedCountLabel(activePinnedFonts.length),
+                  ),
                   children: activePinnedFonts.map(_buildFontTile).toList(),
                 ),
               ),
@@ -512,7 +517,7 @@ class _ScrapperActiveFontsState extends State<ScrapperActiveFonts> {
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                     subtitle: Text(
-                      '${visibleFonts.length} ${visibleFonts.length == 1 ? 'source' : 'sources'}',
+                      context.l10n.sourceCountLabel(visibleFonts.length),
                     ),
                     children: visibleFonts.map(_buildFontTile).toList(),
                   ),

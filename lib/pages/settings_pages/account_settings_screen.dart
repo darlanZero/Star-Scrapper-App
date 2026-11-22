@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/components/Shared/settings_nav_item.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/scrapper_logins_screen.dart';
 import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/tracker_settings_screen.dart';
 
@@ -25,16 +26,15 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Account Settings',
+                context.l10n.accountSettingsTitle,
                 textAlign: TextAlign.center,
                 style: theme.selectedTheme.textTheme.headlineMedium,
               ),
               const SizedBox(height: 28),
               SettingsNavItem(
                 icon: Icons.manage_accounts_outlined,
-                label: 'Source logins',
-                description:
-                    'Sign in to sources that require an account, renew browser sessions, or disconnect stored source access.',
+                label: context.l10n.accountSourceLoginsTitle,
+                description: context.l10n.accountSourceLoginsDesc,
                 theme: theme,
                 onTap: () => Navigator.push(
                   context,
@@ -46,9 +46,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
               const SizedBox(height: 12),
               SettingsNavItem(
                 icon: Icons.sync_alt_rounded,
-                label: 'Trackers',
-                description:
-                    'Connect and configure services such as AniList and MyAnimeList for Discover, progress, and library tracking.',
+                label: context.l10n.accountTrackersTitle,
+                description: context.l10n.accountTrackersDesc,
                 theme: theme,
                 onTap: () => Navigator.push(
                   context,

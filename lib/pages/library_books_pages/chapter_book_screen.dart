@@ -14,6 +14,7 @@ import 'package:star_scrapper_app/domain/library/reader_progress.dart';
 import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart' as flutter_webview;
 import 'package:webview_windows/webview_windows.dart' as webview_windows;
@@ -435,7 +436,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
             FilledButton.icon(
               onPressed: _retryNativeReader,
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Try again'),
+              label: Text(context.l10n.tryAgain),
             ),
           ],
         ),
@@ -496,9 +497,8 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
     if (api is! ChapterNavigationMangaSource) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content:
-              Text('Navegação entre capítulos não é suportada nesta fonte.'),
+        SnackBar(
+          content: Text(context.l10n.chapterNavigationNotSupported),
         ),
       );
       return;
@@ -512,7 +512,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            next ? 'Não há próximo capítulo.' : 'Não há capítulo anterior.',
+            next ? context.l10n.noNextChapter : context.l10n.noPreviousChapter,
           ),
         ),
       );
@@ -904,7 +904,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
                         setModalState(() {});
                       },
                       contentPadding: EdgeInsets.zero,
-                      title: Text('Paginated mode',
+                      title: Text(context.l10n.paginatedMode,
                           style: TextStyle(color: colors.onSurface)),
                       activeThumbColor: colors.primary,
                     ),
@@ -916,7 +916,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
                         _preloadPagesAround(_currentPage);
                       },
                       contentPadding: EdgeInsets.zero,
-                      title: Text('Reverse reading direction',
+                      title: Text(context.l10n.reverseReadingDirection,
                           style: TextStyle(color: colors.onSurface)),
                       activeThumbColor: colors.primary,
                     ),
@@ -992,23 +992,23 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
     final note = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Save story reminder'),
+        title: Text(context.l10n.saveStoryReminderTitle),
         content: TextField(
           autofocus: true,
           minLines: 2,
           maxLines: 5,
           maxLength: 500,
           onChanged: (value) => reminderNote = value,
-          decoration: const InputDecoration(
-            labelText: 'What happened here?',
-            hintText: 'Add a short note about this key moment',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: context.l10n.whatHappenedHereLabel,
+            hintText: context.l10n.addShortNoteHint,
+            border: const OutlineInputBorder(),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton.icon(
             onPressed: () => Navigator.pop(
@@ -1016,7 +1016,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
               reminderNote,
             ),
             icon: const Icon(Icons.bookmark_add_outlined),
-            label: const Text('Save reminder'),
+            label: Text(context.l10n.saveReminderAction),
           ),
         ],
       ),
@@ -1127,13 +1127,13 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: const Text('Image Options'),
+            title: Text(context.l10n.imageOptionsTitle),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 ListTile(
-                  leading: Icon(Icons.save_alt),
-                  title: const Text('Save Image'),
+                  leading: const Icon(Icons.save_alt),
+                  title: Text(context.l10n.saveImageAction),
                   onTap: () {
                     _downloadImage(page);
                     Navigator.of(context).pop();
@@ -1141,16 +1141,16 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
                 ),
                 ListTile(
                   leading: const Icon(Icons.bookmark_add_outlined),
-                  title: const Text('Save as Story Reminder'),
-                  subtitle: const Text('Keep this image with a chapter note'),
+                  title: Text(context.l10n.saveAsStoryReminderAction),
+                  subtitle: Text(context.l10n.saveAsStoryReminderDesc),
                   onTap: () {
                     Navigator.of(context).pop();
                     _saveStoryReminder(page);
                   },
                 ),
                 ListTile(
-                  leading: Icon(Icons.share),
-                  title: const Text('Share Image'),
+                  leading: const Icon(Icons.share),
+                  title: Text(context.l10n.shareImageAction),
                   onTap: () {
                     _shareImage(page);
                     Navigator.of(context).pop();
@@ -1198,7 +1198,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
 
     if (kIsWeb) {
       return Center(
-        child: Text('Web view not supported on this platform.'),
+        child: Text(context.l10n.webViewNotSupported),
       );
     } else if (defaultTargetPlatform == TargetPlatform.android) {
       _ensureAndroidWebViewController();
@@ -1230,13 +1230,13 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
                         FilledButton.icon(
                           onPressed: _retryWebView,
                           icon: const Icon(Icons.refresh_rounded),
-                          label: const Text('Try again'),
+                          label: Text(context.l10n.tryAgain),
                         ),
                         const SizedBox(height: 8),
                         OutlinedButton.icon(
                           onPressed: () => launchUrl(Uri.parse(url)),
                           icon: const Icon(Icons.open_in_new_rounded),
-                          label: const Text('Open externally'),
+                          label: Text(context.l10n.openExternally),
                         ),
                       ],
                     ),
@@ -1261,7 +1261,7 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
             }
           });
     } else {
-      webViewContent = const Text('Unsupported platform');
+      webViewContent = Text(context.l10n.unsupportedPlatform);
     }
 
     return webViewContent;
@@ -1422,9 +1422,9 @@ class _ChapterBookScreenState extends State<ChapterBookScreen>
                 await _saveReadingProgress();
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Reading progress saved'),
-                    duration: Duration(seconds: 1),
+                  SnackBar(
+                    content: Text(context.l10n.readingProgressSaved),
+                    duration: const Duration(seconds: 1),
                   ),
                 );
               },

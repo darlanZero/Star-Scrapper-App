@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/application/library/anime_library_controller.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 
 enum _TrackedLibrary { manga, anime }
 
@@ -16,13 +17,8 @@ class LibraryItemsSettingsScreen extends StatefulWidget {
 
 class _LibraryItemsSettingsScreenState
     extends State<LibraryItemsSettingsScreen> {
-  final List<String> updateIntervals = [
-    '2 hours',
-    '5 hours',
-    '12 hours',
-    '24 hours'
-  ];
-  String selectedUpdateInterval = '2 hours';
+  static const List<int> _updateIntervalHours = [2, 5, 12, 24];
+  int _selectedUpdateIntervalHours = 2;
   Map<String, bool> tabsSelection = {};
   bool trackerEnabled = true;
   bool runningNow = false;
@@ -38,33 +34,15 @@ class _LibraryItemsSettingsScreenState
     }
     trackerEnabled = fontProvider.trackerEnabled;
     final hours = fontProvider.updateInterval.inHours;
-    if (hours == 2) selectedUpdateInterval = '2 hours';
-    if (hours == 5) selectedUpdateInterval = '5 hours';
-    if (hours == 12) selectedUpdateInterval = '12 hours';
-    if (hours == 24) selectedUpdateInterval = '24 hours';
+    _selectedUpdateIntervalHours =
+        _updateIntervalHours.contains(hours) ? hours : 24;
   }
 
   void _saveSettings() {
     final fontProvider = Provider.of<FontProvider>(context, listen: false);
     final animeProvider = context.read<AnimeLibraryController>();
 
-    Duration interval;
-
-    switch (selectedUpdateInterval) {
-      case '2 hours':
-        interval = const Duration(hours: 2);
-        break;
-      case '5 hours':
-        interval = const Duration(hours: 5);
-        break;
-      case '12 hours':
-        interval = const Duration(hours: 12);
-        break;
-      case '24 horas':
-      default:
-        interval = const Duration(hours: 24);
-        break;
-    }
+    final interval = Duration(hours: _selectedUpdateIntervalHours);
     if (_library == _TrackedLibrary.manga) {
       fontProvider.setUpdateInterval(interval);
     } else {
@@ -100,7 +78,9 @@ class _LibraryItemsSettingsScreenState
       trackerEnabled = value == _TrackedLibrary.manga
           ? fp.trackerEnabled
           : anime.trackerEnabled;
-      selectedUpdateInterval = '${interval.inHours} hours';
+      final hours = interval.inHours;
+      _selectedUpdateIntervalHours =
+          _updateIntervalHours.contains(hours) ? hours : 24;
     });
   }
 
@@ -113,18 +93,23 @@ class _LibraryItemsSettingsScreenState
               .read<AnimeLibraryController>()
               .runTrackerNow(notifyCompletion: true);
       if (!mounted) return;
+      final l10n = context.l10n;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${_library == _TrackedLibrary.manga ? 'Manga' : 'Anime'} '
-            'tracker completed: $changes update(s).',
+            l10n.trackerCompletedUpdates(
+              _library == _TrackedLibrary.manga
+                  ? l10n.libraryTabManga
+                  : l10n.libraryTabAnime,
+              changes,
+            ),
           ),
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Falha ao executar tracker: $e')),
+        SnackBar(content: Text(context.l10n.trackerRunFailed('$e'))),
       );
     } finally {
       if (mounted) setState(() => runningNow = false);
@@ -133,12 +118,13 @@ class _LibraryItemsSettingsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final theme = Provider.of<ThemeProvider>(context);
     return Scaffold(
       backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: theme.selectedTheme.appBarTheme.backgroundColor,
-        title: Text("Library Items Settings",
+        title: Text(l10n.libraryItemsSettingsTitle,
             style: TextStyle(
               color: theme.selectedTheme.textTheme.titleLarge?.color,
               fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
@@ -173,14 +159,14 @@ class _LibraryItemsSettingsScreenState
             Padding(
               padding: const EdgeInsets.all(16),
               child: SegmentedButton<_TrackedLibrary>(
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: _TrackedLibrary.manga,
-                    label: Text('Manga'),
+                    label: Text(l10n.libraryTabManga),
                   ),
                   ButtonSegment(
                     value: _TrackedLibrary.anime,
-                    label: Text('Anime'),
+                    label: Text(l10n.libraryTabAnime),
                   ),
                 ],
                 selected: {_library},
@@ -190,8 +176,8 @@ class _LibraryItemsSettingsScreenState
             SwitchListTile(
               title: Text(
                 _library == _TrackedLibrary.manga
-                    ? 'Enable Chapter Tracker'
-                    : 'Enable Episode Tracker',
+                    ? l10n.enableChapterTracker
+                    : l10n.enableEpisodeTracker,
                 style: TextStyle(
                   color: theme.selectedTheme.textTheme.titleMedium?.color,
                   fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
@@ -209,30 +195,31 @@ class _LibraryItemsSettingsScreenState
               },
             ),
             ListTile(
-              title: Text('Update Interval',
+              title: Text(l10n.updateInterval,
                   style: TextStyle(
                     color: theme.selectedTheme.textTheme.titleMedium?.color,
                     fontSize:
                         MediaQuery.of(context).size.width >= 600 ? 24 : 18,
                     fontWeight: FontWeight.bold,
                   )),
-              subtitle: DropdownButton<String>(
-                value: selectedUpdateInterval,
-                items: updateIntervals.map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
+              subtitle: DropdownButton<int>(
+                value: _selectedUpdateIntervalHours,
+                items: _updateIntervalHours.map((int hours) {
+                  return DropdownMenuItem<int>(
+                    value: hours,
+                    child: Text(l10n.hoursCount(hours)),
                   );
                 }).toList(),
-                onChanged: (String? value) {
+                onChanged: (int? value) {
+                  if (value == null) return;
                   setState(() {
-                    selectedUpdateInterval = value!;
+                    _selectedUpdateIntervalHours = value;
                   });
                 },
               ),
             ),
             ListTile(
-              title: Text('Tabs to Update',
+              title: Text(l10n.tabsToUpdate,
                   style: TextStyle(
                     color: theme.selectedTheme.textTheme.titleMedium?.color,
                     fontSize:
@@ -255,7 +242,7 @@ class _LibraryItemsSettingsScreenState
             ),
             ListTile(
               title: Text(
-                'Last Check',
+                l10n.lastCheck,
                 style: TextStyle(
                   color: theme.selectedTheme.textTheme.titleMedium?.color,
                   fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
@@ -263,12 +250,12 @@ class _LibraryItemsSettingsScreenState
                 ),
               ),
               subtitle: Text(
-                lastCheck?.toString() ?? 'Never',
+                lastCheck?.toString() ?? l10n.never,
               ),
             ),
             ElevatedButton(
               onPressed: _saveSettings,
-              child: Text('Save Settings',
+              child: Text(l10n.saveSettings,
                   style: TextStyle(
                     color: theme.selectedTheme.textTheme.titleMedium?.color,
                     fontSize:
@@ -286,7 +273,7 @@ class _LibraryItemsSettingsScreenState
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.refresh_rounded),
-              label: const Text('Check Now'),
+              label: Text(l10n.checkNow),
             ),
           ],
         );

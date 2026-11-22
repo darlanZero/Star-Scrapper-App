@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/library_backup_restore_screen.dart';
 import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/library_items_screen.dart';
 import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/library_tabs_settings_screen.dart';
@@ -20,7 +21,7 @@ class _LibrarySettingsScreenState extends State<LibrarySettingsScreen> {
       backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: theme.selectedTheme.appBarTheme.backgroundColor,
-        title: Text('Library Settings',
+        title: Text(context.l10n.librarySettingsTitle,
             style: TextStyle(
               color: theme.selectedTheme.textTheme.titleLarge?.color,
               fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
@@ -69,7 +70,7 @@ class _LibrarySettingsScreenState extends State<LibrarySettingsScreen> {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        'Library Tabs Settings',
+                        context.l10n.libraryTabsSettingsTitle,
                         style: TextStyle(
                           fontSize: MediaQuery.of(context).size.width >= 600
                               ? 16
@@ -115,7 +116,7 @@ class _LibrarySettingsScreenState extends State<LibrarySettingsScreen> {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        'Library Items Settings',
+                        context.l10n.libraryItemsSettingsTitle,
                         style: TextStyle(
                           fontSize: MediaQuery.of(context).size.width >= 600
                               ? 16
@@ -163,7 +164,7 @@ class _LibrarySettingsScreenState extends State<LibrarySettingsScreen> {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        'Backup & Restore',
+                        context.l10n.backupAndRestoreTitle,
                         style: TextStyle(
                           fontSize: MediaQuery.of(context).size.width >= 600
                               ? 16

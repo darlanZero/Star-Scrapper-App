@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/domain/sources/anime_source.dart';
 import 'package:star_scrapper_app/domain/sources/source.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 
 export 'package:star_scrapper_app/domain/sources/source.dart';
 
@@ -162,16 +163,16 @@ class _ScrapperDownloaderFontsState extends State<ScrapperDownloaderFonts> {
           physics: BouncingScrollPhysics(),
           children: [
             SegmentedButton<SourceContentType>(
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: SourceContentType.manga,
-                  icon: Icon(Icons.menu_book_rounded),
-                  label: Text('Manga'),
+                  icon: const Icon(Icons.menu_book_rounded),
+                  label: Text(context.l10n.libraryTabManga),
                 ),
                 ButtonSegment(
                   value: SourceContentType.anime,
-                  icon: Icon(Icons.play_circle_rounded),
-                  label: Text('Anime'),
+                  icon: const Icon(Icons.play_circle_rounded),
+                  label: Text(context.l10n.libraryTabAnime),
                 ),
               ],
               selected: {_contentType},
@@ -184,7 +185,7 @@ class _ScrapperDownloaderFontsState extends State<ScrapperDownloaderFonts> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'Anime sources',
+                  context.l10n.animeSources,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
@@ -194,7 +195,7 @@ class _ScrapperDownloaderFontsState extends State<ScrapperDownloaderFonts> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'Enable providers to browse and play episodes.',
+                  context.l10n.enableProvidersToPlay,
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -216,7 +217,7 @@ class _ScrapperDownloaderFontsState extends State<ScrapperDownloaderFonts> {
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                     subtitle: Text(
-                      '${group.value.length} ${group.value.length == 1 ? 'source' : 'sources'}',
+                      context.l10n.sourceCountLabel(group.value.length),
                     ),
                     children: group.value
                         .map(
@@ -231,19 +232,19 @@ class _ScrapperDownloaderFontsState extends State<ScrapperDownloaderFonts> {
               const SizedBox(height: 28),
               const Icon(Icons.ondemand_video_outlined, size: 48),
               const SizedBox(height: 12),
-              const Text(
-                'Anime sources will be added in a future update.',
+              Text(
+                context.l10n.animeSourcesFutureUpdate,
                 textAlign: TextAlign.center,
               ),
             ],
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             if (_contentType == SourceContentType.manga &&
                 visibleSources.isNotEmpty)
-              _buildFontSection('Active Sources', true),
-            SizedBox(height: 10),
+              _buildFontSection(context.l10n.activeSourcesTitle, true),
+            const SizedBox(height: 10),
             if (_contentType == SourceContentType.manga &&
                 visibleSources.isNotEmpty)
-              _buildFontSection('Inactive Sources', false),
+              _buildFontSection(context.l10n.inactiveSourcesTitle, false),
           ],
         ),
       );

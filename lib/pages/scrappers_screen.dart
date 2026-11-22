@@ -5,6 +5,7 @@ import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/components/Shared/active_scrappers.dart';
 import 'package:star_scrapper_app/components/Shared/library_history.dart';
 import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 
 class ScrappersScreen extends StatefulWidget {
   const ScrappersScreen({super.key});
@@ -21,9 +22,17 @@ class _ScrappersScreenState extends State<ScrappersScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final l10n = context.l10n;
+    final tabsState = Provider.of<TabsState>(context, listen: false);
+    final theme = Provider.of<ThemeProvider>(context, listen: false);
+    final width = MediaQuery.of(context).size.width;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final tabsState = Provider.of<TabsState>(context, listen: false);
-      final theme = Provider.of<ThemeProvider>(context, listen: false);
+      if (!mounted) return;
       final colors = theme.selectedTheme.colorScheme;
       final appBarBase = colors.surfaceContainer;
       final scaffoldBase = theme.selectedTheme.scaffoldBackgroundColor;
@@ -49,11 +58,11 @@ class _ScrappersScreenState extends State<ScrappersScreen>
                     ),
                     child: TabBar(
                       controller: _tabController,
-                      tabs: const [
-                        Tab(text: 'Sources'),
-                        Tab(text: 'Manage'),
-                        Tab(text: 'History'),
-                        Tab(text: 'Migrate'),
+                      tabs: [
+                        Tab(text: l10n.sourcesTabSources),
+                        Tab(text: l10n.sourcesTabManage),
+                        Tab(text: l10n.sourcesTabHistory),
+                        Tab(text: l10n.sourcesTabMigrate),
                       ],
                       isScrollable: true,
                       dividerColor: Colors.transparent,
@@ -72,8 +81,7 @@ class _ScrappersScreenState extends State<ScrappersScreen>
                       unselectedLabelColor: colors.onSurfaceVariant,
                       labelStyle: TextStyle(
                         fontWeight: FontWeight.w700,
-                        fontSize:
-                            MediaQuery.of(context).size.width >= 600 ? 14 : 12,
+                        fontSize: width >= 600 ? 14 : 12,
                       ),
                       labelPadding: const EdgeInsets.symmetric(horizontal: 10),
                     ),
@@ -95,11 +103,11 @@ class _ScrappersScreenState extends State<ScrappersScreen>
   Widget build(BuildContext context) {
     return TabBarView(
       controller: _tabController,
-      children: const [
-        Center(child: ScrapperActiveFonts()),
-        Center(child: ScrapperDownloaderFonts()),
-        Center(child: LibraryHistory()),
-        Center(child: Text('Migrate')),
+      children: [
+        const Center(child: ScrapperActiveFonts()),
+        const Center(child: ScrapperDownloaderFonts()),
+        const Center(child: LibraryHistory()),
+        Center(child: Text(context.l10n.sourcesTabMigrate)),
       ],
     );
   }

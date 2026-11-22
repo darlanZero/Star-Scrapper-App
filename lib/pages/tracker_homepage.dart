@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:star_scrapper_app/application/trackers/tracker_controller.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/domain/trackers/tracker.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/tracker_media_details_screen.dart';
 import 'package:star_scrapper_app/pages/tracker_season_screen.dart';
 import 'package:star_scrapper_app/pages/tracker_source_search.dart';
@@ -213,7 +214,7 @@ class _TrackerHomepageState extends State<TrackerHomepage> {
                       FilterChip(
                         selected: tracker.includeAdult,
                         avatar: const Icon(Icons.visibility_outlined, size: 18),
-                        label: const Text('Adult'),
+                        label: Text(context.l10n.catalogFilterAdult),
                         onSelected: (value) async {
                           await tracker.setIncludeAdult(value);
                           if (mounted) _reloadHome();
@@ -221,7 +222,7 @@ class _TrackerHomepageState extends State<TrackerHomepage> {
                       ),
                       const SizedBox(width: 4),
                       IconButton(
-                        tooltip: 'How Discover works',
+                        tooltip: context.l10n.howDiscoverWorksTooltip,
                         onPressed: _showDiscoverTutorial,
                         icon: const Icon(Icons.help_outline_rounded),
                       ),
@@ -229,16 +230,16 @@ class _TrackerHomepageState extends State<TrackerHomepage> {
                   ),
                   const SizedBox(height: 16),
                   SegmentedButton<TrackedMediaType>(
-                    segments: const [
+                    segments: [
                       ButtonSegment(
                         value: TrackedMediaType.anime,
-                        icon: Icon(Icons.play_circle_outline_rounded),
-                        label: Text('Anime'),
+                        icon: const Icon(Icons.play_circle_outline_rounded),
+                        label: Text(context.l10n.libraryTabAnime),
                       ),
                       ButtonSegment(
                         value: TrackedMediaType.manga,
-                        icon: Icon(Icons.menu_book_rounded),
-                        label: Text('Manga'),
+                        icon: const Icon(Icons.menu_book_rounded),
+                        label: Text(context.l10n.libraryTabManga),
                       ),
                     ],
                     selected: {_type},
@@ -256,17 +257,17 @@ class _TrackerHomepageState extends State<TrackerHomepage> {
                         ),
                       ),
                       icon: const Icon(Icons.calendar_month_rounded),
-                      label: const Text('Browse season archive'),
+                      label: Text(context.l10n.browseSeasonArchive),
                     ),
                   ],
                   const SizedBox(height: 14),
                   SearchBar(
                     controller: _searchController,
-                    hintText: 'Search tracker titles',
+                    hintText: context.l10n.searchTrackerTitlesHint,
                     leading: const Icon(Icons.search_rounded),
                     trailing: [
                       IconButton(
-                        tooltip: 'Filters',
+                        tooltip: context.l10n.filtersTooltip,
                         onPressed: () => setState(
                           () => _showFilters = !_showFilters,
                         ),
@@ -281,7 +282,7 @@ class _TrackerHomepageState extends State<TrackerHomepage> {
                           _tags.isNotEmpty ||
                           _genres.isNotEmpty)
                         IconButton(
-                          tooltip: 'Clear search',
+                          tooltip: context.l10n.clearSearchTooltip,
                           onPressed: _clearSearch,
                           icon: const Icon(Icons.close_rounded),
                         ),
@@ -388,31 +389,28 @@ class _DiscoverTutorialDialog extends StatelessWidget {
           ),
         ),
       ),
-      title: const Text('Discover at a glance', textAlign: TextAlign.center),
+      title: Text(context.l10n.discoverAtAGlance, textAlign: TextAlign.center),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460),
-        child: const Column(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             _TutorialStep(
               icon: Icons.swap_horizontal_circle_outlined,
-              title: 'Choose what to explore',
-              description:
-                  'Switch between Anime and Manga. Discover combines the trackers enabled in Account Settings.',
+              title: context.l10n.discoverStep1Title,
+              description: context.l10n.discoverStep1Desc,
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             _TutorialStep(
               icon: Icons.manage_search_rounded,
-              title: 'Search the tracker catalog',
-              description:
-                  'Type a title or use filters to browse by popularity, rating, genres, and tags.',
+              title: context.l10n.discoverSearchCatalog,
+              description: context.l10n.discoverStep2Desc,
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             _TutorialStep(
               icon: Icons.touch_app_outlined,
-              title: 'Open or find a source',
-              description:
-                  'Tap a title for tracker details. Touch and hold it to search your enabled sources for that same title.',
+              title: context.l10n.discoverOpenOrFindSource,
+              description: context.l10n.discoverStep3Desc,
             ),
           ],
         ),
@@ -421,12 +419,12 @@ class _DiscoverTutorialDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Not now'),
+          child: Text(context.l10n.notNow),
         ),
         FilledButton.icon(
           onPressed: () => Navigator.of(context).pop(),
           icon: const Icon(Icons.explore_outlined),
-          label: const Text('Start exploring'),
+          label: Text(context.l10n.discoverStartExploring),
         ),
       ],
     );
@@ -612,9 +610,9 @@ class _SearchResults extends StatelessWidget {
       );
     }
     if (items.isEmpty) {
-      return const SliverFillRemaining(
+      return SliverFillRemaining(
         hasScrollBody: false,
-        child: Center(child: Text('No tracker results found.')),
+        child: Center(child: Text(context.l10n.noTrackerResultsFound)),
       );
     }
     return SliverMainAxisGroup(
@@ -646,11 +644,11 @@ class _SearchResults extends StatelessWidget {
                       ? TextButton.icon(
                           onPressed: onRetry,
                           icon: const Icon(Icons.refresh_rounded),
-                          label: const Text('Try loading more again'),
+                          label: Text(context.l10n.tryLoadingMoreAgain),
                         )
                       : hasMore
                           ? const SizedBox.shrink()
-                          : const Text('You reached the end.'),
+                          : Text(context.l10n.youReachedTheEnd),
             ),
           ),
         ),
@@ -716,7 +714,7 @@ class _ScheduleCarousel extends StatelessWidget {
                               ),
                               if (entry.releaseNumber != null)
                                 Text(
-                                  'Episode ${entry.releaseNumber}',
+                                  context.l10n.episodeNumber(entry.releaseNumber!),
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                             ],
@@ -935,23 +933,23 @@ class _SearchFiltersState extends State<_SearchFilters> {
           children: [
             DropdownButtonFormField<TrackerSort>(
               initialValue: widget.sort,
-              decoration: const InputDecoration(labelText: 'Order by'),
-              items: const [
+              decoration: InputDecoration(labelText: context.l10n.orderByLabel),
+              items: [
                 DropdownMenuItem(
                   value: TrackerSort.popularity,
-                  child: Text('Popularity'),
+                  child: Text(context.l10n.sortPopularity),
                 ),
                 DropdownMenuItem(
                   value: TrackerSort.trending,
-                  child: Text('Trending'),
+                  child: Text(context.l10n.trendingLabel),
                 ),
                 DropdownMenuItem(
                   value: TrackerSort.mostRecent,
-                  child: Text('Most recent'),
+                  child: Text(context.l10n.sortMostRecent),
                 ),
                 DropdownMenuItem(
                   value: TrackerSort.highestRated,
-                  child: Text('Highest rated'),
+                  child: Text(context.l10n.sortHighestRated),
                 ),
               ],
               onChanged: (value) {
@@ -960,9 +958,9 @@ class _SearchFiltersState extends State<_SearchFilters> {
             ),
             const SizedBox(height: 12),
             TextField(
-              decoration: const InputDecoration(
-                labelText: 'Find genres or tags',
-                prefixIcon: Icon(Icons.tag_rounded),
+              decoration: InputDecoration(
+                labelText: context.l10n.findGenresOrTagsLabel,
+                prefixIcon: const Icon(Icons.tag_rounded),
               ),
               onChanged: (value) => setState(() {
                 _filter = value.trim();
@@ -980,7 +978,7 @@ class _SearchFiltersState extends State<_SearchFilters> {
               child: FilledButton.icon(
                 onPressed: widget.onApply,
                 icon: const Icon(Icons.search_rounded),
-                label: const Text('Apply'),
+                label: Text(context.l10n.applyAction),
               ),
             ),
           ],
@@ -999,7 +997,9 @@ class _SearchFiltersState extends State<_SearchFilters> {
           return const LinearProgressIndicator();
         }
         if (snapshot.hasError) {
-          return Text('Could not load genres and tags: ${snapshot.error}');
+          return Text(
+            context.l10n.couldNotLoadGenresAndTags('${snapshot.error}'),
+          );
         }
         final taxonomy = snapshot.data ?? TrackerTaxonomy.empty;
         final needle = _filter.toLowerCase();
@@ -1014,7 +1014,7 @@ class _SearchFiltersState extends State<_SearchFilters> {
                 item.category.toLowerCase().contains(needle))
             .toList();
         if (genres.isEmpty && tags.isEmpty) {
-          return const Text('No matching genres or tags.');
+          return Text(context.l10n.noMatchingGenresOrTags);
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1029,8 +1029,9 @@ class _SearchFiltersState extends State<_SearchFilters> {
                 leading: const Icon(Icons.category_outlined),
                 title: Text(
                   widget.selectedGenres.isEmpty
-                      ? 'Genres'
-                      : 'Genres (${widget.selectedGenres.length} selected)',
+                      ? context.l10n.genresLabel
+                      : context.l10n
+                          .genresSelectedLabel(widget.selectedGenres.length),
                 ),
                 children: _genresExpanded
                     ? [
@@ -1065,8 +1066,9 @@ class _SearchFiltersState extends State<_SearchFilters> {
                 leading: const Icon(Icons.tag_rounded),
                 title: Text(
                   widget.selectedTags.isEmpty
-                      ? 'Tags'
-                      : 'Tags (${widget.selectedTags.length} selected)',
+                      ? context.l10n.tagsLabel
+                      : context.l10n
+                          .tagsSelectedLabel(widget.selectedTags.length),
                 ),
                 children: _tagsExpanded
                     ? [
@@ -1116,14 +1118,14 @@ class _TrackerError extends StatelessWidget {
             const Icon(Icons.cloud_off_rounded, size: 48),
             const SizedBox(height: 12),
             Text(
-              error?.toString() ?? 'Could not load tracker data.',
+              error?.toString() ?? context.l10n.couldNotLoadTrackerData,
               textAlign: TextAlign.center,
             ),
             if (onRetry != null) ...[
               const SizedBox(height: 16),
               FilledButton.tonal(
                 onPressed: onRetry,
-                child: const Text('Try again'),
+                child: Text(context.l10n.tryAgain),
               ),
             ],
           ],
@@ -1149,7 +1151,7 @@ class _NoTrackers extends StatelessWidget {
             const Icon(Icons.sync_disabled_rounded, size: 54),
             const SizedBox(height: 12),
             Text(
-              'Enable a tracker to start discovering titles.',
+              context.l10n.enableTrackerToDiscover,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium,
             ),
@@ -1157,7 +1159,7 @@ class _NoTrackers extends StatelessWidget {
             FilledButton.icon(
               onPressed: onOpenSettings,
               icon: const Icon(Icons.settings_outlined),
-              label: const Text('Open settings'),
+              label: Text(context.l10n.openSettings),
             ),
           ],
         ),

@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/components/Shared/source_badge.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.dart';
 
 class LibraryBooksHistory extends StatefulWidget {
@@ -278,7 +279,10 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                                       ),
                                     ),
                                     child: Text(
-                                      'Last: Cap. $chapterTitle • $readChapterCount read',
+                                      context.l10n.lastChapterReadSummary(
+                                        chapterTitle,
+                                        readChapterCount,
+                                      ),
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 12,
@@ -307,7 +311,7 @@ class _LibraryBooksHistoryState extends State<LibraryBooksHistory> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
-                                      'Chap. $title',
+                                      context.l10n.chapterShort(title),
                                       style: const TextStyle(
                                           color: Colors.white, fontSize: 12),
                                     ),

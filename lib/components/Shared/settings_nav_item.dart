@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 
 class SettingsNavItem extends StatelessWidget {
   final IconData icon;
@@ -30,7 +31,7 @@ class SettingsNavItem extends StatelessWidget {
         actions: [
           FilledButton.tonal(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Got it'),
+            child: Text(context.l10n.gotIt),
           ),
         ],
       ),

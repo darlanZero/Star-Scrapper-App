@@ -9,6 +9,7 @@ import 'package:star_scrapper_app/application/trackers/tracker_controller.dart';
 import 'package:star_scrapper_app/application/library/tabs_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/domain/library/anime_library_record.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/anime_source_webview_screen.dart';
 
 class AnimeSourceDetailsScreen extends StatefulWidget {
@@ -204,9 +205,9 @@ class _AnimeSourceDetailsScreenState extends State<AnimeSourceDetailsScreen> {
         child: ListView(
           shrinkWrap: true,
           children: [
-            const ListTile(
-              title: Text('Choose a video server'),
-              subtitle: Text('You can try another server if playback fails.'),
+            ListTile(
+              title: Text(context.l10n.chooseVideoServer),
+              subtitle: Text(context.l10n.chooseVideoServerSubtitle),
             ),
             for (final choice in choices)
               ListTile(
@@ -248,20 +249,20 @@ class _AnimeSourceDetailsScreenState extends State<AnimeSourceDetailsScreen> {
     final title = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Rename anime'),
+        title: Text(context.l10n.renameAnimeTitle),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(labelText: 'Library title'),
+          decoration: InputDecoration(labelText: context.l10n.libraryTitleLabel),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, controller.text),
-            child: const Text('Save'),
+            child: Text(context.l10n.save),
           ),
         ],
       ),
@@ -521,7 +522,9 @@ class _AnimeSourceDetailsScreenState extends State<AnimeSourceDetailsScreen> {
                       : const Icon(Icons.sync_alt_rounded),
                 ),
               IconButton.filledTonal(
-                tooltip: isFavorite ? 'Remove from library' : 'Add to library',
+                tooltip: isFavorite
+                    ? context.l10n.removeFromLibraryTooltip
+                    : context.l10n.addToLibraryTooltip,
                 onPressed: () async {
                   final added = await library.toggleFavorite(
                     sourceId: widget.source.id,
@@ -543,7 +546,7 @@ class _AnimeSourceDetailsScreenState extends State<AnimeSourceDetailsScreen> {
                 ),
               ),
               PopupMenuButton<String>(
-                tooltip: 'Anime options',
+                tooltip: context.l10n.animeOptionsTooltip,
                 enabled: record != null,
                 onSelected: (value) {
                   if (record == null) return;
@@ -556,26 +559,26 @@ class _AnimeSourceDetailsScreenState extends State<AnimeSourceDetailsScreen> {
                       _manageTabs(record);
                   }
                 },
-                itemBuilder: (_) => const [
+                itemBuilder: (_) => [
                   PopupMenuItem(
                     value: 'rename',
                     child: ListTile(
-                      leading: Icon(Icons.edit_outlined),
-                      title: Text('Rename anime'),
+                      leading: const Icon(Icons.edit_outlined),
+                      title: Text(context.l10n.renameAnimeTitle),
                     ),
                   ),
                   PopupMenuItem(
                     value: 'migrate',
                     child: ListTile(
-                      leading: Icon(Icons.swap_horiz_rounded),
-                      title: Text('Migrate anime'),
+                      leading: const Icon(Icons.swap_horiz_rounded),
+                      title: Text(context.l10n.migrateAnimeTitle),
                     ),
                   ),
                   PopupMenuItem(
                     value: 'tabs',
                     child: ListTile(
-                      leading: Icon(Icons.folder_copy_outlined),
-                      title: Text('Manage tabs'),
+                      leading: const Icon(Icons.folder_copy_outlined),
+                      title: Text(context.l10n.manageTabsTitle),
                     ),
                   ),
                 ],
@@ -681,10 +684,10 @@ class _AnimeSourceDetailsScreenState extends State<AnimeSourceDetailsScreen> {
             ),
           ),
           if (data.episodes.isEmpty)
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Center(child: Text('No episodes available.')),
+                padding: const EdgeInsets.all(32),
+                child: Center(child: Text(context.l10n.noEpisodesAvailable)),
               ),
             )
           else
@@ -725,7 +728,7 @@ class _AnimeSourceDetailsScreenState extends State<AnimeSourceDetailsScreen> {
                   title: Text(episode.title),
                   subtitle: Text([
                     if (episode.releasedAt != null) _date(episode.releasedAt!),
-                    if (progress?.completed == true) 'Watched',
+                    if (progress?.completed == true) context.l10n.watchedLabel,
                     if (progress?.canResume == true)
                       'Resume at ${_duration(progress!.position)}',
                   ].join(' · ')),
@@ -740,7 +743,7 @@ class _AnimeSourceDetailsScreenState extends State<AnimeSourceDetailsScreen> {
                                 Icons.check_circle_rounded,
                                 size: 18,
                               ),
-                              label: const Text('Watched'),
+                              label: Text(context.l10n.watchedLabel),
                               visualDensity: VisualDensity.compact,
                             )
                           : const Icon(Icons.play_circle_fill_rounded),

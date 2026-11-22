@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:star_scrapper_app/application/locale/locale_provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/config/themes.dart';
 import 'package:star_scrapper_app/components/UI/theme_preview_widgets.dart';
 import 'package:star_scrapper_app/components/Shared/settings_nav_item.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/fonts_hosts_settings_screen.dart';
 import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/library_settings_screen.dart';
 import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/playback_settings_screen.dart';
@@ -18,7 +20,9 @@ class GeneralSettingsScreen extends StatefulWidget {
 class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final theme = Provider.of<ThemeProvider>(context);
+    final localeProvider = Provider.of<LocaleProvider?>(context);
     final selectedTheme = theme.selectedTheme;
     final themes = [
       (name: 'Purple Forest', data: Appthemes.purpleForest),
@@ -39,16 +43,15 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'General',
+                l10n.generalTitle,
                 textAlign: TextAlign.center,
                 style: selectedTheme.textTheme.headlineMedium,
               ),
               const SizedBox(height: 24),
               SettingsNavItem(
                 icon: Icons.local_library_outlined,
-                label: 'Library',
-                description:
-                    'Manage library tabs, saved items, backups, reading history, and update behavior.',
+                label: l10n.generalLibraryTitle,
+                description: l10n.generalLibraryDesc,
                 theme: theme,
                 onTap: () => Navigator.push(
                   context,
@@ -59,9 +62,8 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
               const SizedBox(height: 10),
               SettingsNavItem(
                 icon: Icons.cloud_sync_outlined,
-                label: 'Sources',
-                description:
-                    'Choose which manga and anime sources are enabled and available throughout the app.',
+                label: l10n.generalSourcesTitle,
+                description: l10n.generalSourcesDesc,
                 theme: theme,
                 onTap: () => Navigator.push(
                   context,
@@ -73,9 +75,8 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
               const SizedBox(height: 10),
               SettingsNavItem(
                 icon: Icons.ondemand_video_rounded,
-                label: 'Video playback',
-                description:
-                    'Adjust native player behavior, hardware decoding, gestures, subtitles, and compatibility options.',
+                label: l10n.generalPlaybackTitle,
+                description: l10n.generalPlaybackDesc,
                 theme: theme,
                 onTap: () => Navigator.push(
                   context,
@@ -84,9 +85,47 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
                   ),
                 ),
               ),
+              if (localeProvider != null) ...[
+                const SizedBox(height: 10),
+                Card(
+                  margin: EdgeInsets.zero,
+                  child: ListTile(
+                    leading: const Icon(Icons.translate_rounded),
+                    title: Text(l10n.languageSectionTitle),
+                    trailing: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: localeProvider.localeTag,
+                        onChanged: (value) {
+                          if (value != null) {
+                            localeProvider.setLocaleTag(value);
+                          }
+                        },
+                        items: [
+                          DropdownMenuItem(
+                            value: 'system',
+                            child: Text(l10n.languageSystemDefault),
+                          ),
+                          DropdownMenuItem(
+                            value: 'en',
+                            child: Text(l10n.languageEnglish),
+                          ),
+                          DropdownMenuItem(
+                            value: 'pt_BR',
+                            child: Text(l10n.languagePortugueseBrazil),
+                          ),
+                          DropdownMenuItem(
+                            value: 'es',
+                            child: Text(l10n.languageSpanish),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 30),
               Text(
-                'Appearance',
+                l10n.appearanceTitle,
                 textAlign: TextAlign.center,
                 style: selectedTheme.textTheme.titleLarge,
               ),

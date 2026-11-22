@@ -12,6 +12,7 @@ import 'package:star_scrapper_app/components/Shared/source_badge.dart';
 import 'package:star_scrapper_app/data/library/manga_reminder_store.dart';
 import 'package:star_scrapper_app/domain/library/manga_reminder.dart';
 import 'package:star_scrapper_app/domain/sources/manga_source.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/library_books_pages/chapter_book_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart' as flutter_webview;
@@ -640,7 +641,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete reminder?'),
+        title: Text(context.l10n.deleteReminderQuestion),
         content: const Text(
           'The saved image and its annotation will be removed.',
         ),
@@ -706,10 +707,10 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                 final bookId = widget.bookDetails['id'];
 
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Row(children: const [
-                    Text('Updating book details...'),
-                    SizedBox(width: 10),
-                    CircularProgressIndicator(),
+                  content: Row(children: [
+                    Text(context.l10n.updatingBookDetails),
+                    const SizedBox(width: 10),
+                    const CircularProgressIndicator(),
                   ]),
                   duration: const Duration(minutes: 1),
                   shape: RoundedRectangleBorder(
@@ -836,13 +837,13 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           return StatefulBuilder(
             builder: (context, setDialogState) {
               return AlertDialog(
-                title: const Text('Gerenciar Organização'),
+                title: Text(context.l10n.manageOrganization),
                 content: SingleChildScrollView(
                   child: ListBody(
                     children: [
-                      const Padding(
-                        padding: EdgeInsets.only(bottom: 4),
-                        child: Text('Tabs'),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(context.l10n.tabsLabel),
                       ),
                       ...tabsState.libraryTabs.map((libraryTab) {
                         return CheckboxListTile(
@@ -886,13 +887,14 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                         return <Widget>[
                           Padding(
                             padding: const EdgeInsets.only(bottom: 4),
-                            child: Text('Subtabs de "$primaryTab"'),
+                            child: Text(
+                              context.l10n.subtabsOfPrimaryTab(primaryTab),
+                            ),
                           ),
                           if (subTabs.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.only(left: 12, bottom: 8),
-                              child:
-                                  Text('Sem subtabs para esta tab primária.'),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 12, bottom: 8),
+                              child: Text(context.l10n.noSubtabsForPrimaryTab),
                             ),
                           ...subTabs.map((subTab) {
                             return CheckboxListTile(
@@ -934,7 +936,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                 ),
                 actions: [
                   TextButton(
-                    child: const Text('Fechar'),
+                    child: Text(context.l10n.close),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -1113,17 +1115,17 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   }
                 },
                 itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                      const PopupMenuItem<String>(
+                      PopupMenuItem<String>(
                         value: 'Rename Book',
-                        child: Text('Rename book'),
+                        child: Text(context.l10n.renameBookAction),
                       ),
-                      const PopupMenuItem<String>(
+                      PopupMenuItem<String>(
                         value: 'Migrate Book',
-                        child: Text('Migrate book'),
+                        child: Text(context.l10n.migrateBookAction),
                       ),
-                      const PopupMenuItem<String>(
+                      PopupMenuItem<String>(
                         value: 'Manage Tabs',
-                        child: Text('Gerenciar tabs'),
+                        child: Text(context.l10n.manageTabsTitle),
                       ),
                     ]),
           ],
@@ -1529,12 +1531,12 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           children: [
             ListTile(
               title: Text(label),
-              subtitle: const Text('Reading progress'),
+              subtitle: Text(context.l10n.readingProgressLabel),
             ),
             ListTile(
               enabled: !isRead,
               leading: const Icon(Icons.check_circle_outline_rounded),
-              title: const Text('Mark chapter as read'),
+              title: Text(context.l10n.markChapterRead),
               onTap: () => Navigator.pop(
                 sheetContext,
                 _ChapterProgressAction.markOne,
@@ -1542,7 +1544,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.done_all_rounded),
-              title: const Text('Mark this and previous chapters as read'),
+              title: Text(context.l10n.markThisAndPreviousRead),
               subtitle: Text('${through.length} chapters in this sequence'),
               onTap: () => Navigator.pop(
                 sheetContext,
@@ -1552,7 +1554,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
             ListTile(
               enabled: isRead,
               leading: const Icon(Icons.remove_circle_outline_rounded),
-              title: const Text('Mark chapter as unread'),
+              title: Text(context.l10n.markChapterUnread),
               onTap: () => Navigator.pop(
                 sheetContext,
                 _ChapterProgressAction.unmarkOne,
@@ -1561,7 +1563,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
             ListTile(
               enabled: readThrough > 0,
               leading: const Icon(Icons.playlist_remove_rounded),
-              title: const Text('Remove read marks through this chapter'),
+              title: Text(context.l10n.removeReadMarksThroughHere),
               subtitle: Text('$readThrough marked chapters will be affected'),
               onTap: () => Navigator.pop(
                 sheetContext,

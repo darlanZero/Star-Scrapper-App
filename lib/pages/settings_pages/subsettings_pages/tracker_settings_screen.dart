@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/application/trackers/tracker_controller.dart';
 import 'package:star_scrapper_app/domain/trackers/tracker.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/settings_pages/subsettings_pages/tracker_oauth_webview_screen.dart';
 
 class TrackerSettingsScreen extends StatefulWidget {
@@ -32,30 +33,28 @@ class _TrackerSettingsScreenState extends State<TrackerSettingsScreen> {
     final tracker = context.watch<TrackerController>();
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Trackers')),
+      appBar: AppBar(title: Text(context.l10n.accountTrackersTitle)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 18, 16, 40),
         children: [
-          Text('Discovery and tracking',
+          Text(context.l10n.discoveryAndTrackingTitle,
               style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 6),
           Text(
-            'Discover anime and manga with tracker metadata, then match titles against your enabled sources.',
+            context.l10n.discoveryAndTrackingDesc,
             style: TextStyle(color: colors.onSurfaceVariant, height: 1.4),
           ),
           const SizedBox(height: 20),
           _TrackerCard(
             title: 'AniList',
-            subtitle: 'Public catalog, dynamic tags and airing calendar',
+            subtitle: context.l10n.aniListSubtitle,
             icon: Icons.auto_awesome_rounded,
             enabled: tracker.aniListEnabled,
             onChanged: tracker.setAniListEnabled,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Login is optional for discovery and required only for future personal-list synchronization.',
-                ),
+                Text(context.l10n.aniListOptionalLoginNote),
                 const SizedBox(height: 14),
                 _AccountStatus(account: tracker.aniListAccount),
                 const SizedBox(height: 12),
@@ -63,7 +62,7 @@ class _TrackerSettingsScreenState extends State<TrackerSettingsScreen> {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.developer_mode_rounded),
-                    title: const Text('Configured by this build'),
+                    title: Text(context.l10n.configuredByBuild),
                     subtitle: Text(
                       '${tracker.aniListClientName} · Client ID ${tracker.aniListClientId}\n${tracker.aniListRedirectUri}',
                     ),
@@ -72,7 +71,7 @@ class _TrackerSettingsScreenState extends State<TrackerSettingsScreen> {
                   _OAuthFields(
                     clientId: _aniListClientId,
                     redirect: _aniListRedirect,
-                    clientIdLabel: 'AniList Client ID',
+                    clientIdLabel: context.l10n.aniListClientIdLabel,
                   ),
                 const SizedBox(height: 12),
                 _OAuthActions(
@@ -88,7 +87,7 @@ class _TrackerSettingsScreenState extends State<TrackerSettingsScreen> {
           const SizedBox(height: 12),
           _TrackerCard(
             title: 'MyAnimeList',
-            subtitle: 'Rankings, seasonal catalogs and account lists',
+            subtitle: context.l10n.malSubtitle,
             icon: Icons.list_alt_rounded,
             enabled: tracker.malEnabled,
             onChanged:
@@ -96,15 +95,14 @@ class _TrackerSettingsScreenState extends State<TrackerSettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                    'MAL requires a Client ID even for public requests.'),
+                Text(context.l10n.malClientIdRequiredNote),
                 const SizedBox(height: 14),
                 _AccountStatus(account: tracker.malAccount),
                 const SizedBox(height: 12),
                 _OAuthFields(
                   clientId: _malClientId,
                   redirect: _malRedirect,
-                  clientIdLabel: 'MAL Client ID',
+                  clientIdLabel: context.l10n.malClientIdLabel,
                 ),
                 const SizedBox(height: 12),
                 _OAuthActions(
@@ -124,10 +122,8 @@ class _TrackerSettingsScreenState extends State<TrackerSettingsScreen> {
               value: tracker.includeAdult,
               onChanged: tracker.setIncludeAdult,
               secondary: const Icon(Icons.visibility_outlined),
-              title: const Text('Include adult content'),
-              subtitle: const Text(
-                'Works with public tracker data; login is not required.',
-              ),
+              title: Text(context.l10n.includeAdultContentTitle),
+              subtitle: Text(context.l10n.includeAdultContentDesc),
             ),
           ),
           const SizedBox(height: 12),
@@ -136,10 +132,8 @@ class _TrackerSettingsScreenState extends State<TrackerSettingsScreen> {
               value: tracker.preferEnglishTitles,
               onChanged: tracker.setPreferEnglishTitles,
               secondary: const Icon(Icons.translate_rounded),
-              title: const Text('Prefer English titles'),
-              subtitle: const Text(
-                'Off by default. Romaji titles are used whenever available.',
-              ),
+              title: Text(context.l10n.preferEnglishTitlesTitle),
+              subtitle: Text(context.l10n.preferEnglishTitlesDesc),
             ),
           ),
           if (tracker.authError != null) ...[
@@ -156,11 +150,9 @@ class _TrackerSettingsScreenState extends State<TrackerSettingsScreen> {
           const SizedBox(height: 20),
           Card(
             color: colors.secondaryContainer.withValues(alpha: 0.45),
-            child: const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Register StarsLibrary in each tracker and use the exact redirect URI shown here. Tokens are kept in secure device storage; passwords and client secrets are never stored.',
-              ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(context.l10n.trackerSecurityNote),
             ),
           ),
         ],
@@ -177,7 +169,7 @@ class _TrackerSettingsScreenState extends State<TrackerSettingsScreen> {
         );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tracker configuration saved.')),
+        SnackBar(content: Text(context.l10n.trackerConfigSaved)),
       );
     }
   }
@@ -229,7 +221,7 @@ class _TrackerSettingsScreenState extends State<TrackerSettingsScreen> {
 
   void _showConnected(String provider) =>
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$provider account connected.')),
+        SnackBar(content: Text(context.l10n.trackerAccountConnected(provider))),
       );
 
   void _showError(Object error) => ScaffoldMessenger.of(context).showSnackBar(
@@ -274,9 +266,9 @@ class _OAuthFields extends StatelessWidget {
             controller: redirect,
             autocorrect: false,
             enableSuggestions: false,
-            decoration: const InputDecoration(
-              labelText: 'Registered redirect URI',
-              prefixIcon: Icon(Icons.link_rounded),
+            decoration: InputDecoration(
+              labelText: context.l10n.registeredRedirectUriLabel,
+              prefixIcon: const Icon(Icons.link_rounded),
             ),
           ),
         ],
@@ -306,19 +298,19 @@ class _OAuthActions extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: busy ? null : onSave,
             icon: const Icon(Icons.save_outlined),
-            label: const Text('Save'),
+            label: Text(context.l10n.save),
           ),
           if (connected)
             FilledButton.tonalIcon(
               onPressed: busy ? null : onDisconnect,
               icon: const Icon(Icons.logout_rounded),
-              label: const Text('Disconnect'),
+              label: Text(context.l10n.disconnectAction),
             )
           else
             FilledButton.icon(
               onPressed: busy ? null : onConnect,
               icon: const Icon(Icons.login_rounded),
-              label: const Text('Connect'),
+              label: Text(context.l10n.connectAction),
             ),
         ],
       );
@@ -344,8 +336,8 @@ class _AccountStatus extends StatelessWidget {
         Expanded(
           child: Text(
             account == null
-                ? 'Not connected'
-                : 'Connected as ${account!.username}',
+                ? context.l10n.notConnected
+                : context.l10n.connectedAs(account!.username),
             style: TextStyle(
               color: account == null ? colors.onSurfaceVariant : colors.primary,
               fontWeight: FontWeight.w600,

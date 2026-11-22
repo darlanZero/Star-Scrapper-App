@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 
 class SourceResultsPanel {
   final String id;
@@ -74,7 +75,7 @@ class _SourceResultsSection extends StatelessWidget {
                 Expanded(
                   child: Text(
                     panel.isLoading
-                        ? '${panel.title} · Searching…'
+                        ? context.l10n.searchingSourceInline(panel.title)
                         : '${panel.title} (${panel.resultCount})',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -87,25 +88,25 @@ class _SourceResultsSection extends StatelessWidget {
                 if (panel.onMore != null)
                   TextButton(
                     onPressed: panel.onMore,
-                    child: const Text('More'),
+                    child: Text(context.l10n.moreAction),
                   ),
               ],
             ),
           ),
           const Divider(height: 1),
           if (panel.isLoading)
-            const SizedBox(
+            SizedBox(
               height: 92,
               child: Center(
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    SizedBox.square(
+                    const SizedBox.square(
                       dimension: 22,
                       child: CircularProgressIndicator(strokeWidth: 2.5),
                     ),
-                    SizedBox(width: 12),
-                    Text('Searching this source…'),
+                    const SizedBox(width: 12),
+                    Text(context.l10n.searchingThisSource),
                   ],
                 ),
               ),
@@ -114,7 +115,7 @@ class _SourceResultsSection extends StatelessWidget {
             ConstrainedBox(
               constraints: const BoxConstraints(minHeight: 132),
               child: panel.emptyState ??
-                  const Center(child: Text('No results in this source.')),
+                  Center(child: Text(context.l10n.noResultsInSource)),
             )
           else
             SizedBox(

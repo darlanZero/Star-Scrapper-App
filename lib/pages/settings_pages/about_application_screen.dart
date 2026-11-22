@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AboutApplicationScreen extends StatefulWidget {
@@ -29,7 +30,10 @@ class _AboutApplicationScreenState extends State<AboutApplicationScreen> {
   Future<void> _open(Uri uri) async {
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
         mounted) {
-      _showMessage(title: 'Could not open link', message: uri.toString());
+      _showMessage(
+        title: context.l10n.aboutCouldNotOpenLink,
+        message: uri.toString(),
+      );
     }
   }
 
@@ -50,8 +54,8 @@ class _AboutApplicationScreenState extends State<AboutApplicationScreen> {
       if (_compareVersions(releaseVersion, currentVersion) <= 0) {
         if (mounted) {
           _showMessage(
-            title: 'StarsLibrary is up to date',
-            message: 'You are using version $currentVersion.',
+            title: context.l10n.aboutUpToDateTitle,
+            message: context.l10n.aboutUpToDateMessage(currentVersion),
             icon: Icons.verified_rounded,
           );
         }
@@ -80,19 +84,20 @@ class _AboutApplicationScreenState extends State<AboutApplicationScreen> {
             '',
       );
       if (!mounted) return;
+      final l10n = context.l10n;
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           icon: const Icon(Icons.system_update_alt_rounded),
-          title: const Text('Update available'),
+          title: Text(l10n.aboutUpdateAvailableTitle),
           content: Text(
-            'StarsLibrary $releaseVersion is available. You currently have $currentVersion.',
+            l10n.aboutUpdateAvailableMessage(releaseVersion, currentVersion),
             textAlign: TextAlign.center,
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Later'),
+              child: Text(l10n.later),
             ),
             FilledButton(
               onPressed: downloadUri == null
@@ -101,7 +106,7 @@ class _AboutApplicationScreenState extends State<AboutApplicationScreen> {
                       Navigator.of(dialogContext).pop();
                       _open(downloadUri);
                     },
-              child: const Text('View update'),
+              child: Text(l10n.aboutViewUpdate),
             ),
           ],
         ),
@@ -109,8 +114,8 @@ class _AboutApplicationScreenState extends State<AboutApplicationScreen> {
     } catch (_) {
       if (mounted) {
         _showMessage(
-          title: 'Could not check for updates',
-          message: 'Check your connection and try again.',
+          title: context.l10n.aboutUpdateCheckFailedTitle,
+          message: context.l10n.aboutUpdateCheckFailedMessage,
           icon: Icons.cloud_off_rounded,
         );
       }
@@ -151,7 +156,7 @@ class _AboutApplicationScreenState extends State<AboutApplicationScreen> {
           actions: [
             FilledButton.tonal(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('OK'),
+              child: Text(context.l10n.ok),
             ),
           ],
         ),
@@ -159,6 +164,7 @@ class _AboutApplicationScreenState extends State<AboutApplicationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     return SingleChildScrollView(
@@ -170,7 +176,7 @@ class _AboutApplicationScreenState extends State<AboutApplicationScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'About StarsLibrary',
+                l10n.aboutTitle,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.w800,
@@ -208,7 +214,7 @@ class _AboutApplicationScreenState extends State<AboutApplicationScreen> {
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      'Your stories, one library',
+                      l10n.aboutHeroTitle,
                       textAlign: TextAlign.center,
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w800,
@@ -216,7 +222,7 @@ class _AboutApplicationScreenState extends State<AboutApplicationScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Browse, organize, read manga, and watch anime from your enabled sources — with tracker-powered discovery and native playback.',
+                      l10n.aboutHeroDesc,
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: colors.onSurfaceVariant,
@@ -224,22 +230,22 @@ class _AboutApplicationScreenState extends State<AboutApplicationScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Wrap(
+                    Wrap(
                       alignment: WrapAlignment.center,
                       spacing: 8,
                       runSpacing: 8,
                       children: [
                         Chip(
-                          avatar: Icon(Icons.hub_outlined, size: 18),
-                          label: Text('Multi-source'),
+                          avatar: const Icon(Icons.hub_outlined, size: 18),
+                          label: Text(l10n.aboutChipMultiSource),
                         ),
                         Chip(
-                          avatar: Icon(Icons.block_rounded, size: 18),
-                          label: Text('No ads'),
+                          avatar: const Icon(Icons.block_rounded, size: 18),
+                          label: Text(l10n.aboutChipNoAds),
                         ),
                         Chip(
-                          avatar: Icon(Icons.code_rounded, size: 18),
-                          label: Text('Open source'),
+                          avatar: const Icon(Icons.code_rounded, size: 18),
+                          label: Text(l10n.aboutChipOpenSource),
                         ),
                       ],
                     ),
@@ -255,7 +261,7 @@ class _AboutApplicationScreenState extends State<AboutApplicationScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        'Application',
+                        l10n.aboutApplicationTitle,
                         textAlign: TextAlign.center,
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
@@ -270,14 +276,14 @@ class _AboutApplicationScreenState extends State<AboutApplicationScreen> {
                             children: [
                               Expanded(
                                 child: _AppDatum(
-                                  label: 'Version',
+                                  label: l10n.aboutVersionLabel,
                                   value: info?.version ?? '—',
                                 ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: _AppDatum(
-                                  label: 'Build',
+                                  label: l10n.aboutBuildLabel,
                                   value: info?.buildNumber ?? '—',
                                 ),
                               ),
@@ -298,8 +304,8 @@ class _AboutApplicationScreenState extends State<AboutApplicationScreen> {
                             : const Icon(Icons.system_update_alt_rounded),
                         label: Text(
                           _checkingForUpdates
-                              ? 'Checking…'
-                              : 'Check for updates',
+                              ? l10n.aboutCheckingUpdates
+                              : l10n.aboutCheckUpdates,
                         ),
                       ),
                     ],
@@ -313,16 +319,16 @@ class _AboutApplicationScreenState extends State<AboutApplicationScreen> {
                   children: [
                     ListTile(
                       leading: const FaIcon(FontAwesomeIcons.github),
-                      title: const Text('Source code'),
-                      subtitle: const Text('View the project on GitHub'),
+                      title: Text(l10n.aboutSourceCodeTitle),
+                      subtitle: Text(l10n.aboutSourceCodeSubtitle),
                       trailing: const Icon(Icons.open_in_new_rounded),
                       onTap: () => _open(_repositoryUri),
                     ),
                     const Divider(height: 1, indent: 56),
                     ListTile(
                       leading: const Icon(Icons.language_rounded),
-                      title: const Text('StarsLibrary website'),
-                      subtitle: const Text('Project news and information'),
+                      title: Text(l10n.aboutWebsiteTitle),
+                      subtitle: Text(l10n.aboutWebsiteSubtitle),
                       trailing: const Icon(Icons.open_in_new_rounded),
                       onTap: () => _open(_websiteUri),
                     ),
@@ -331,7 +337,7 @@ class _AboutApplicationScreenState extends State<AboutApplicationScreen> {
               ),
               const SizedBox(height: 18),
               Text(
-                'StarsLibrary does not host third-party content and is not affiliated with content providers, authors, or publishers.',
+                l10n.aboutDisclaimer,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colors.onSurfaceVariant,

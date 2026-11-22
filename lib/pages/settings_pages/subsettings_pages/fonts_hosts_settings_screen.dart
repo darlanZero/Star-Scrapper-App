@@ -4,6 +4,7 @@ import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/components/Shared/source_badge.dart';
 import 'package:star_scrapper_app/domain/sources/source.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 
 class FontsHostsSettingsScreen extends StatefulWidget {
   const FontsHostsSettingsScreen({super.key});
@@ -18,10 +19,10 @@ class _FontsHostsSettingsScreenState extends State<FontsHostsSettingsScreen> {
 
   static const List<int> _intervalMinutes = [15, 30, 60, 180, 360, 720, 1440];
 
-  String _labelFromMinutes(int minutes) {
-    if (minutes < 60) return '$minutes min';
+  String _labelFromMinutes(AppLocalizations l10n, int minutes) {
+    if (minutes < 60) return l10n.minutesShort(minutes);
     final h = minutes ~/ 60;
-    return '$h h';
+    return l10n.hoursShort(h);
   }
 
   Future<void> _runNow() async {
@@ -31,12 +32,12 @@ class _FontsHostsSettingsScreenState extends State<FontsHostsSettingsScreen> {
           .checkAllFontsHostsNow();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Hosts checked successfully.')),
+        SnackBar(content: Text(context.l10n.hostsCheckedSuccess)),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to check hosts: $e')),
+        SnackBar(content: Text(context.l10n.hostsCheckFailed('$e'))),
       );
     } finally {
       if (mounted) setState(() => _running = false);
@@ -45,12 +46,13 @@ class _FontsHostsSettingsScreenState extends State<FontsHostsSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final theme = Provider.of<ThemeProvider>(context);
     return Scaffold(
       backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: theme.selectedTheme.appBarTheme.backgroundColor,
-        title: const Text('Source Host Monitor'),
+        title: Text(l10n.sourceHostMonitorTitle),
         centerTitle: true,
         elevation: 0,
       ),
@@ -65,19 +67,18 @@ class _FontsHostsSettingsScreenState extends State<FontsHostsSettingsScreen> {
               SwitchListTile(
                 value: fontProvider.fontHostAutoCheckEnabled,
                 onChanged: fontProvider.setFontHostAutoCheckEnabled,
-                title: const Text('Automatic host checks'),
-                subtitle:
-                    const Text('Monitor manga and anime source availability'),
+                title: Text(l10n.automaticHostChecks),
+                subtitle: Text(l10n.automaticHostChecksDesc),
               ),
               ListTile(
-                title: const Text('Auto-check interval'),
+                title: Text(l10n.autoCheckInterval),
                 subtitle: DropdownButton<int>(
                   value: intervalValue,
                   items: _intervalMinutes
                       .map(
                         (m) => DropdownMenuItem<int>(
                           value: m,
-                          child: Text(_labelFromMinutes(m)),
+                          child: Text(_labelFromMinutes(l10n, m)),
                         ),
                       )
                       .toList(),
@@ -89,9 +90,10 @@ class _FontsHostsSettingsScreenState extends State<FontsHostsSettingsScreen> {
                 ),
               ),
               ListTile(
-                title: const Text('Last check'),
+                title: Text(l10n.lastCheck),
                 subtitle: Text(
-                    fontProvider.fontHostLastCheckedAt?.toString() ?? 'Never'),
+                  fontProvider.fontHostLastCheckedAt?.toString() ?? l10n.never,
+                ),
               ),
               ElevatedButton.icon(
                 onPressed: _running ? null : _runNow,
@@ -102,7 +104,7 @@ class _FontsHostsSettingsScreenState extends State<FontsHostsSettingsScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.wifi_find_rounded),
-                label: const Text('Check now'),
+                label: Text(l10n.checkNow),
               ),
               const SizedBox(height: 16),
               for (final type in SourceContentType.values) ...[
@@ -110,8 +112,8 @@ class _FontsHostsSettingsScreenState extends State<FontsHostsSettingsScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
                   child: Text(
                     type == SourceContentType.manga
-                        ? 'Manga sources'
-                        : 'Anime sources',
+                        ? l10n.mangaSources
+                        : l10n.animeSources,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
@@ -126,19 +128,19 @@ class _FontsHostsSettingsScreenState extends State<FontsHostsSettingsScreen> {
                   switch (status) {
                     case FontHostStatus.online:
                       statusColor = Colors.green;
-                      statusText = 'online';
+                      statusText = l10n.hostStatusOnline;
                       break;
                     case FontHostStatus.outdated:
                       statusColor = Colors.redAccent;
-                      statusText = 'outdated';
+                      statusText = l10n.hostStatusOutdated;
                       break;
                     case FontHostStatus.checking:
                       statusColor = Colors.orangeAccent;
-                      statusText = 'checking';
+                      statusText = l10n.hostStatusChecking;
                       break;
                     case FontHostStatus.unknown:
                       statusColor = Colors.grey;
-                      statusText = 'unknown';
+                      statusText = l10n.hostStatusUnknown;
                       break;
                   }
                   return ListTile(

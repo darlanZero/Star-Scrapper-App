@@ -10,6 +10,7 @@ import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/components/search/source_results_carousel.dart';
 import 'package:star_scrapper_app/domain/library/anime_library_record.dart';
 import 'package:star_scrapper_app/domain/sources/anime_source.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/anime_source_catalog_screen.dart';
 import 'package:star_scrapper_app/pages/anime_source_details_screen.dart';
 import 'package:star_scrapper_app/pages/anime_source_webview_screen.dart';
@@ -133,7 +134,7 @@ class _AnimeMultiSourceSearchScreenState
         .firstOrNull;
     if (source == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This anime source is unavailable.')),
+        SnackBar(content: Text(context.l10n.animeSourceUnavailable)),
       );
       return;
     }
@@ -155,7 +156,7 @@ class _AnimeMultiSourceSearchScreenState
         icon: Icons.video_library_rounded,
         resultCount: _libraryResults.length,
         previewCount: _libraryResults.length,
-        emptyState: const Center(child: Text('No results in your library.')),
+        emptyState: Center(child: Text(context.l10n.noResultsInLibrary)),
         itemBuilder: (context, index) {
           final record = _libraryResults[index];
           return _AnimeSearchTile(
@@ -190,7 +191,7 @@ class _AnimeMultiSourceSearchScreenState
           emptyState: group.isLoading
               ? null
               : group.error == null
-                  ? const Center(child: Text('No results in this source.'))
+                  ? Center(child: Text(context.l10n.noResultsInSource))
                   : Padding(
                       padding: const EdgeInsets.all(20),
                       child: Column(
@@ -213,7 +214,7 @@ class _AnimeMultiSourceSearchScreenState
                             const SizedBox(height: 10),
                             FilledButton.tonal(
                               onPressed: () => _verifySource(group),
-                              child: const Text('Verify in browser'),
+                              child: Text(context.l10n.verifyInBrowser),
                             ),
                           ],
                         ],
@@ -245,19 +246,19 @@ class _AnimeMultiSourceSearchScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Search anime sources')),
+      appBar: AppBar(title: Text(context.l10n.searchAnimeSourcesTitle)),
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: SearchBar(
               controller: _searchController,
-              hintText: 'Search enabled anime sources',
+              hintText: context.l10n.searchEnabledAnimeSourcesHint,
               leading: const Icon(Icons.search_rounded),
               trailing: [
                 if (_searchController.text.isNotEmpty)
                   IconButton(
-                    tooltip: 'Clear search',
+                    tooltip: context.l10n.clearSearchTooltip,
                     onPressed: () {
                       _searchController.clear();
                       _search(const []);

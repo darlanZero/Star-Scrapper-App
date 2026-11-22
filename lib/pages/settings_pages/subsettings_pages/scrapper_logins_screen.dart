@@ -11,6 +11,7 @@ import 'package:star_scrapper_app/data/sources/manga/engine/base_html_manga_sour
     show ProfileAuthMangaSource;
 import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 import 'package:star_scrapper_app/domain/sources/source.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 
 /// ─────────────────────────────────────────────────────────────────────────────
 /// ScrapperLoginsScreen
@@ -75,7 +76,7 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Login — ${font.name}',
+                  context.l10n.loginWithTitle(font.name),
                   textAlign: TextAlign.center,
                   style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
@@ -85,13 +86,13 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
                 ElevatedButton.icon(
                   onPressed: () => Navigator.pop(ctx, 'credentials'),
                   icon: const Icon(Icons.email_outlined),
-                  label: const Text('Email and password'),
+                  label: Text(context.l10n.emailAndPassword),
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
                   onPressed: () => Navigator.pop(ctx, 'browser'),
                   icon: const Icon(Icons.open_in_browser_outlined),
-                  label: const Text('Google or Discord'),
+                  label: Text(context.l10n.googleOrDiscord),
                 ),
               ],
             ),
@@ -169,8 +170,9 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
             }
           }
 
+          final l10n = context.l10n;
           return AlertDialog(
-            title: Text('Login — ${font.name}'),
+            title: Text(l10n.loginWithTitle(font.name)),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -178,7 +180,7 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
                   autofillHints: const [AutofillHints.email],
-                  decoration: const InputDecoration(labelText: 'Email'),
+                  decoration: InputDecoration(labelText: l10n.emailLabel),
                 ),
                 const SizedBox(height: 10),
                 TextField(
@@ -186,14 +188,14 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
                   obscureText: true,
                   autofillHints: const [AutofillHints.password],
                   onSubmitted: loading ? null : (_) => submit(),
-                  decoration: const InputDecoration(labelText: 'Password'),
+                  decoration: InputDecoration(labelText: l10n.passwordLabel),
                 ),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: loading ? null : () => Navigator.pop(dialogContext),
-                child: const Text('Cancel'),
+                child: Text(l10n.cancel),
               ),
               FilledButton(
                 onPressed: loading ? null : submit,
@@ -202,7 +204,7 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
                         dimension: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Login'),
+                    : Text(l10n.loginAction),
               ),
             ],
           );
@@ -219,21 +221,23 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
   }
 
   Future<void> _doLogout(Fonte font) async {
+    final l10n = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Logout de ${font.name}'),
-        content: const Text(
-          'This will remove the saved session for this scrapper. Are you sure you want to logout?',
-        ),
+        title: Text(l10n.logoutTitle(font.name)),
+        content: Text(l10n.logoutConfirmMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Logout', style: TextStyle(color: Colors.red)),
+            child: Text(
+              l10n.logoutAction,
+              style: const TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),
@@ -266,7 +270,7 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
         backgroundColor: theme.selectedTheme.appBarTheme.backgroundColor,
         iconTheme: theme.selectedTheme.iconTheme,
         title: Text(
-          'Scrapper Logins',
+          context.l10n.scrapperLoginsTitle,
           style: TextStyle(
             color: textColor,
             fontWeight: FontWeight.bold,
@@ -302,9 +306,7 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Manage the logins for sites that require authentication. '
-                            'Tokens are stored locally on the device. '
-                            'Logout to remove an expired or compromised token.',
+                            context.l10n.scrapperLoginsInfo,
                             style: TextStyle(
                               color: subtitleColor,
                               fontSize: 13,
@@ -321,7 +323,7 @@ class _ScrapperLoginsScreenState extends State<ScrapperLoginsScreen> {
                   if (authFonts.isEmpty)
                     Center(
                       child: Text(
-                        'No scrappers with authentication configured.',
+                        context.l10n.noAuthScrappers,
                         style: TextStyle(color: subtitleColor),
                       ),
                     )
@@ -528,7 +530,7 @@ class _ScrapperLoginCard extends StatelessWidget {
                   child: ElevatedButton.icon(
                     onPressed: onLogin,
                     icon: const Icon(Icons.login, size: 16),
-                    label: const Text('Complete Login'),
+                    label: Text(context.l10n.completeLogin),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: theme.selectedTheme.primaryColor,
                       foregroundColor: Colors.white,
@@ -541,7 +543,7 @@ class _ScrapperLoginCard extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: onLogin,
                     icon: const Icon(Icons.refresh, size: 16),
-                    label: const Text('Renew Session'),
+                    label: Text(context.l10n.renewSession),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: textColor,
                       side: BorderSide(color: theme.selectedTheme.dividerColor),
@@ -553,8 +555,10 @@ class _ScrapperLoginCard extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: onLogout,
                   icon: const Icon(Icons.logout, size: 16, color: Colors.red),
-                  label:
-                      const Text('Logout', style: TextStyle(color: Colors.red)),
+                  label: Text(
+                    context.l10n.logoutAction,
+                    style: const TextStyle(color: Colors.red),
+                  ),
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(
                       color: Colors.red.withValues(alpha: 0.5),

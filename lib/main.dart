@@ -4,7 +4,9 @@ import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/application/playback/playback_preferences.dart';
 import 'package:star_scrapper_app/application/library/anime_library_controller.dart';
+import 'package:star_scrapper_app/application/locale/locale_provider.dart';
 import 'package:star_scrapper_app/application/trackers/tracker_controller.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/pages/scrappers_screen.dart';
@@ -25,6 +27,7 @@ Future<void> main(List<String> args) async {
   runApp(
     MultiProvider(providers: [
       ChangeNotifierProvider(create: (context) => ThemeProvider()),
+      ChangeNotifierProvider(create: (_) => LocaleProvider()),
       ChangeNotifierProvider(create: (context) => AppState()),
       ChangeNotifierProvider(
         create: (_) {
@@ -75,8 +78,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Provider.of<ThemeProvider>(context);
+    final localeProvider = Provider.of<LocaleProvider>(context);
     return MaterialApp(
       title: 'StarsLibrary',
+      onGenerateTitle: (context) => context.l10n.appTitle,
+      locale: localeProvider.locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: theme.selectedTheme,
       home: const MainScreen(title: 'StarsLibrary'),
     );
@@ -159,26 +167,26 @@ class _MainScreenState extends State<MainScreen>
                 context.read<AppState>().setIndex(index);
                 context.read<TabsState>().setActivePageIndex(index);
               },
-              destinations: const [
+              destinations: [
                 NavigationDestination(
-                  icon: Icon(Icons.local_library_outlined),
-                  selectedIcon: Icon(Icons.local_library_rounded),
-                  label: 'Library',
+                  icon: const Icon(Icons.local_library_outlined),
+                  selectedIcon: const Icon(Icons.local_library_rounded),
+                  label: context.l10n.navLibrary,
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.auto_awesome_outlined),
-                  selectedIcon: Icon(Icons.auto_awesome_rounded),
-                  label: 'Discover',
+                  icon: const Icon(Icons.auto_awesome_outlined),
+                  selectedIcon: const Icon(Icons.auto_awesome_rounded),
+                  label: context.l10n.navDiscover,
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.explore_outlined),
-                  selectedIcon: Icon(Icons.explore_rounded),
-                  label: 'Sources',
+                  icon: const Icon(Icons.explore_outlined),
+                  selectedIcon: const Icon(Icons.explore_rounded),
+                  label: context.l10n.navSources,
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.tune_outlined),
-                  selectedIcon: Icon(Icons.tune_rounded),
-                  label: 'Settings',
+                  icon: const Icon(Icons.tune_outlined),
+                  selectedIcon: const Icon(Icons.tune_rounded),
+                  label: context.l10n.navSettings,
                 ),
               ],
             ),
@@ -193,7 +201,7 @@ class _MainScreenState extends State<MainScreen>
                   MaterialPageRoute(builder: (_) => const SearchScreen()),
                 );
               },
-              tooltip: 'Search for mangas',
+              tooltip: context.l10n.searchForMangas,
               child: const Icon(Icons.search_rounded),
             )
           : null,

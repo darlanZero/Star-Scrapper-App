@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/settings_pages/about_application_screen.dart';
 import 'package:star_scrapper_app/pages/settings_pages/account_settings_screen.dart';
 import 'package:star_scrapper_app/pages/settings_pages/general_settings_screen.dart';
@@ -21,9 +22,17 @@ class _SettingsScreenState extends State<SettingsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final l10n = context.l10n;
+    final tabsState = Provider.of<TabsState>(context, listen: false);
+    final theme = Provider.of<ThemeProvider>(context, listen: false);
+    final width = MediaQuery.of(context).size.width;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final tabsState = Provider.of<TabsState>(context, listen: false);
-      final theme = Provider.of<ThemeProvider>(context, listen: false);
+      if (!mounted) return;
       final appBarBase = theme.selectedTheme.appBarTheme.backgroundColor ??
           theme.selectedTheme.primaryColor;
       final scaffoldBase = theme.selectedTheme.scaffoldBackgroundColor;
@@ -51,10 +60,10 @@ class _SettingsScreenState extends State<SettingsScreen>
                     ),
                     child: TabBar(
                       controller: _tabController,
-                      tabs: const [
-                        Tab(text: 'General'),
-                        Tab(text: 'Account'),
-                        Tab(text: 'About'),
+                      tabs: [
+                        Tab(text: l10n.settingsTabGeneral),
+                        Tab(text: l10n.settingsTabAccount),
+                        Tab(text: l10n.settingsTabAbout),
                       ],
                       isScrollable: true,
                       dividerColor: Colors.transparent,
@@ -73,8 +82,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                       unselectedLabelColor: Colors.white70,
                       labelStyle: TextStyle(
                         fontWeight: FontWeight.w700,
-                        fontSize:
-                            MediaQuery.of(context).size.width >= 600 ? 14 : 12,
+                        fontSize: width >= 600 ? 14 : 12,
                       ),
                       labelPadding: const EdgeInsets.symmetric(horizontal: 10),
                     ),

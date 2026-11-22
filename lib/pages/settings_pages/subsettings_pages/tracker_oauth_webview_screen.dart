@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:webview_flutter/webview_flutter.dart' as mobile;
 import 'package:webview_windows/webview_windows.dart' as windows;
 
@@ -95,9 +96,10 @@ class _TrackerOAuthWebViewScreenState extends State<TrackerOAuthWebViewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
-        title: Text('Connect ${widget.providerName}'),
+        title: Text(l10n.connectProvider(widget.providerName)),
         actions: [
           if (_loading)
             const Padding(
@@ -112,9 +114,7 @@ class _TrackerOAuthWebViewScreenState extends State<TrackerOAuthWebViewScreen> {
       body: Column(
         children: [
           MaterialBanner(
-            content: Text(
-              'Sign in on ${widget.providerName}. StarsLibrary never sees or stores your password.',
-            ),
+            content: Text(l10n.oauthBannerMessage(widget.providerName)),
             actions: const [SizedBox.shrink()],
           ),
           Expanded(child: _buildWebView()),

@@ -4,6 +4,7 @@ import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/application/library/anime_library_controller.dart';
 import 'package:star_scrapper_app/application/library/library_organization_contracts.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 
 enum _LibraryKind { manga, anime }
 
@@ -40,7 +41,7 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
       backgroundColor: theme.selectedTheme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: theme.selectedTheme.appBarTheme.backgroundColor,
-        title: Text("Library Tabs Settings",
+        title: Text(context.l10n.libraryTabsSettingsTitle,
             style: TextStyle(
               color: theme.selectedTheme.textTheme.titleLarge?.color,
               fontSize: MediaQuery.of(context).size.width >= 600 ? 24 : 18,
@@ -72,9 +73,15 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             SegmentedButton<_LibraryKind>(
-              segments: const [
-                ButtonSegment(value: _LibraryKind.manga, label: Text('Manga')),
-                ButtonSegment(value: _LibraryKind.anime, label: Text('Anime')),
+              segments: [
+                ButtonSegment(
+                  value: _LibraryKind.manga,
+                  label: Text(context.l10n.libraryTabManga),
+                ),
+                ButtonSegment(
+                  value: _LibraryKind.anime,
+                  label: Text(context.l10n.libraryTabAnime),
+                ),
               ],
               selected: {_kind},
               onSelectionChanged: (value) =>
@@ -87,7 +94,7 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
                   child: TextField(
                     controller: _tabController,
                     decoration: InputDecoration(
-                      hintText: 'Add primary tab',
+                      hintText: context.l10n.addPrimaryTabHint,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -106,9 +113,9 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
               ],
             ),
             const SizedBox(height: 10),
-            const Text(
-              'Tip: long-press and drag a primary tab onto another to nest it as subtab.',
-              style: TextStyle(color: Colors.white70),
+            Text(
+              context.l10n.tabsReorderTip,
+              style: const TextStyle(color: Colors.white70),
             ),
             const SizedBox(height: 12),
             ReorderableListView(
@@ -293,7 +300,7 @@ class _LibraryTabsSettingsScreenState extends State<LibraryTabsSettingsScreen> {
                       child: TextField(
                         controller: subTabController,
                         decoration: InputDecoration(
-                          hintText: 'Add subtab to "$primaryTab"',
+                          hintText: context.l10n.addSubtabToHint(primaryTab),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -328,23 +335,23 @@ Future<String?> _showRenameDialog(BuildContext context, String currentTabName) {
     context: context,
     builder: (BuildContext context) {
       return AlertDialog(
-        title: const Text('Rename Tab'),
+        title: Text(context.l10n.renameTabTitle),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(hintText: 'Enter new tab name'),
+          decoration: InputDecoration(hintText: context.l10n.enterNewTabNameHint),
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
             },
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           TextButton(
             onPressed: () {
               Navigator.of(context).pop(controller.text);
             },
-            child: const Text('Save'),
+            child: Text(context.l10n.save),
           ),
         ],
       );

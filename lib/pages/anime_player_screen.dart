@@ -11,6 +11,7 @@ import 'package:screen_brightness/screen_brightness.dart';
 import 'package:star_scrapper_app/application/playback/playback_preferences.dart';
 import 'package:star_scrapper_app/domain/sources/anime_source.dart';
 import 'package:star_scrapper_app/infrastructure/playback/hls_extension_proxy.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:volume_controller/volume_controller.dart';
 
 class AnimePlayerScreen extends StatefulWidget {
@@ -609,7 +610,8 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
                       Row(
                         children: [
                           IconButton(
-                            tooltip: 'Back ${_preferences.doubleTapSeconds}s',
+                            tooltip: context.l10n
+                                .seekBackwardTooltip(_preferences.doubleTapSeconds),
                             onPressed: () => _seekRelative(
                               -_preferences.doubleTapSeconds,
                             ),
@@ -617,8 +619,8 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
                             icon: const Icon(Icons.replay_10_rounded),
                           ),
                           IconButton(
-                            tooltip:
-                                'Forward ${_preferences.doubleTapSeconds}s',
+                            tooltip: context.l10n
+                                .seekForwardTooltip(_preferences.doubleTapSeconds),
                             onPressed: () =>
                                 _seekRelative(_preferences.doubleTapSeconds),
                             color: Colors.white,
@@ -632,7 +634,8 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
                             ),
                             icon: const Icon(Icons.subtitles_rounded),
                             label: Text(
-                              _selectedTracks.subtitle.title ?? 'Subtitles',
+                              _selectedTracks.subtitle.title ??
+                                  context.l10n.subtitlesTitle,
                             ),
                           ),
                           if (widget.playback.streams.length > 1)
@@ -674,13 +677,13 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
             child: ListView(
               shrinkWrap: true,
               children: [
-                const ListTile(
-                  title: Text('Subtitles'),
-                  subtitle: Text('Embedded and source-provided tracks'),
+                ListTile(
+                  title: Text(context.l10n.subtitlesTitle),
+                  subtitle: Text(context.l10n.embeddedAndSourceTracks),
                 ),
                 ListTile(
                   leading: const Icon(Icons.text_fields_rounded),
-                  title: const Text('Subtitle font'),
+                  title: Text(context.l10n.subtitleFontTitle),
                   trailing: DropdownButton<SubtitleTypeface>(
                     value: _preferences.subtitleTypeface,
                     items: SubtitleTypeface.values
@@ -702,7 +705,9 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
                 ListTile(
                   leading: const Icon(Icons.format_size_rounded),
                   title: Text(
-                    'Subtitle size · ${_preferences.subtitleFontSize.round()} px',
+                    context.l10n.subtitleSizeLabel(
+                      _preferences.subtitleFontSize.round(),
+                    ),
                   ),
                   subtitle: Slider(
                     min: 16,
@@ -720,7 +725,7 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
                 const Divider(),
                 ListTile(
                   leading: const Icon(Icons.subtitles_off_rounded),
-                  title: const Text('Off'),
+                  title: Text(context.l10n.offLabel),
                   onTap: () {
                     _player?.setSubtitleTrack(SubtitleTrack.no());
                     Navigator.pop(context);
@@ -731,7 +736,9 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
                 ))
                   ListTile(
                     leading: const Icon(Icons.closed_caption_rounded),
-                    title: Text(track.title ?? track.language ?? 'Embedded'),
+                    title: Text(
+                      track.title ?? track.language ?? context.l10n.embeddedLabel,
+                    ),
                     subtitle: track.codec == null ? null : Text(track.codec!),
                     onTap: () {
                       _player?.setSubtitleTrack(track);
@@ -815,9 +822,9 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const ListTile(
-                    title: Text('Video decoder'),
-                    subtitle: Text(
+                  ListTile(
+                    title: Text(context.l10n.videoDecoderTitle),
+                    subtitle: const Text(
                       'Changing decoder reloads the current stream.',
                     ),
                   ),
@@ -825,9 +832,12 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
                     RadioListTile<VideoDecoderMode>(
                       value: mode,
                       title: Text(switch (mode) {
-                        VideoDecoderMode.automatic => 'Automatic',
-                        VideoDecoderMode.hardware => 'Hardware',
-                        VideoDecoderMode.software => 'Software compatibility',
+                        VideoDecoderMode.automatic =>
+                          context.l10n.decoderAutoTitle,
+                        VideoDecoderMode.hardware =>
+                          context.l10n.decoderHardwareTitle,
+                        VideoDecoderMode.software =>
+                          context.l10n.decoderSoftwareTitle,
                       }),
                     ),
                 ],

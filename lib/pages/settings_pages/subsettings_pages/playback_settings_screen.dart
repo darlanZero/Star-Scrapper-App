@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/application/playback/playback_preferences.dart';
 import 'package:star_scrapper_app/domain/sources/anime_source.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/anime_player_screen.dart';
 
 class PlaybackSettingsScreen extends StatelessWidget {
@@ -9,14 +10,15 @@ class PlaybackSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final preferences = context.watch<PlaybackPreferences>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Video playback')),
+      appBar: AppBar(title: Text(l10n.generalPlaybackTitle)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 18, 16, 40),
         children: [
           Text(
-            'Decoder',
+            l10n.decoderTitle,
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
@@ -26,35 +28,29 @@ class PlaybackSettingsScreen extends StatelessWidget {
               onChanged: (value) {
                 if (value != null) preferences.setDecoderMode(value);
               },
-              child: const Column(
+              child: Column(
                 children: [
                   RadioListTile<VideoDecoderMode>(
                     value: VideoDecoderMode.automatic,
-                    title: Text('Automatic'),
-                    subtitle: Text(
-                      'Prefer hardware decoding and fall back when necessary.',
-                    ),
+                    title: Text(l10n.decoderAutoTitle),
+                    subtitle: Text(l10n.decoderAutoDesc),
                   ),
                   RadioListTile<VideoDecoderMode>(
                     value: VideoDecoderMode.hardware,
-                    title: Text('Hardware'),
-                    subtitle: Text(
-                      'Use the device video decoder for lower battery usage.',
-                    ),
+                    title: Text(l10n.decoderHardwareTitle),
+                    subtitle: Text(l10n.decoderHardwareDesc),
                   ),
                   RadioListTile<VideoDecoderMode>(
                     value: VideoDecoderMode.software,
-                    title: Text('Software compatibility'),
-                    subtitle: Text(
-                      'Use the CPU when a device codec produces visual errors.',
-                    ),
+                    title: Text(l10n.decoderSoftwareTitle),
+                    subtitle: Text(l10n.decoderSoftwareDesc),
                   ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 20),
-          Text('Gestures', style: Theme.of(context).textTheme.titleLarge),
+          Text(l10n.gesturesTitle, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           Card(
             child: Column(
@@ -63,22 +59,20 @@ class PlaybackSettingsScreen extends StatelessWidget {
                   value: preferences.gesturesEnabled,
                   onChanged: preferences.setGesturesEnabled,
                   secondary: const Icon(Icons.touch_app_rounded),
-                  title: const Text('Player gestures'),
-                  subtitle: const Text(
-                    'Double tap to seek; swipe left for volume and right for brightness.',
-                  ),
+                  title: Text(l10n.playerGesturesTitle),
+                  subtitle: Text(l10n.playerGesturesDesc),
                 ),
                 ListTile(
                   leading: const Icon(Icons.fast_forward_rounded),
-                  title: const Text('Double-tap seek'),
-                  subtitle: Text('${preferences.doubleTapSeconds} seconds'),
+                  title: Text(l10n.doubleTapSeekTitle),
+                  subtitle: Text(l10n.secondsCount(preferences.doubleTapSeconds)),
                   trailing: DropdownButton<int>(
                     value: preferences.doubleTapSeconds,
                     items: const [5, 10, 15, 20, 30]
                         .map(
                           (seconds) => DropdownMenuItem(
                             value: seconds,
-                            child: Text('$seconds s'),
+                            child: Text(l10n.secondsShort(seconds)),
                           ),
                         )
                         .toList(),
@@ -93,7 +87,7 @@ class PlaybackSettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          Text('Episodes', style: Theme.of(context).textTheme.titleLarge),
+          Text(l10n.episodesTitle, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           Card(
             child: Column(
@@ -102,26 +96,22 @@ class PlaybackSettingsScreen extends StatelessWidget {
                   value: preferences.autoSkipIntro,
                   onChanged: preferences.setAutoSkipIntro,
                   secondary: const Icon(Icons.skip_next_rounded),
-                  title: const Text('Automatically skip intros'),
-                  subtitle: const Text(
-                    'Only applies when the source supplies a verified intro range.',
-                  ),
+                  title: Text(l10n.autoSkipIntroTitle),
+                  subtitle: Text(l10n.autoSkipIntroDesc),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 20),
-          Text('Subtitles', style: Theme.of(context).textTheme.titleLarge),
+          Text(l10n.subtitlesTitle, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           Card(
             child: Column(
               children: [
                 ListTile(
                   leading: const Icon(Icons.subtitles_rounded),
-                  title: const Text('Preferred subtitle language'),
-                  subtitle: const Text(
-                    'Use “auto” or a language code such as en, pt-BR or ja.',
-                  ),
+                  title: Text(l10n.preferredSubtitleLanguageTitle),
+                  subtitle: Text(l10n.preferredSubtitleLanguageDesc),
                   trailing: SizedBox(
                     width: 86,
                     child: TextFormField(
@@ -134,10 +124,8 @@ class PlaybackSettingsScreen extends StatelessWidget {
                 ),
                 ListTile(
                   leading: const Icon(Icons.text_fields_rounded),
-                  title: const Text('Subtitle font'),
-                  subtitle: const Text(
-                    'Noto Sans includes Portuguese and other extended characters.',
-                  ),
+                  title: Text(l10n.subtitleFontTitle),
+                  subtitle: Text(l10n.subtitleFontDesc),
                   trailing: DropdownButton<SubtitleTypeface>(
                     value: preferences.subtitleTypeface,
                     items: SubtitleTypeface.values
@@ -158,7 +146,7 @@ class PlaybackSettingsScreen extends StatelessWidget {
                 ListTile(
                   leading: const Icon(Icons.format_size_rounded),
                   title: Text(
-                    'Subtitle size · ${preferences.subtitleFontSize.round()} px',
+                    l10n.subtitleSizeLabel(preferences.subtitleFontSize.round()),
                   ),
                   subtitle: Slider(
                     min: 16,
@@ -177,7 +165,7 @@ class PlaybackSettingsScreen extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
-                'Hardware decoding is recommended. Software mode may use considerably more battery and make the device warmer.',
+                l10n.playbackHardwareWarning,
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -188,7 +176,7 @@ class PlaybackSettingsScreen extends StatelessWidget {
           FilledButton.icon(
             onPressed: () => _openDiagnostics(context),
             icon: const Icon(Icons.play_circle_outline_rounded),
-            label: const Text('Test video player'),
+            label: Text(l10n.testVideoPlayer),
           ),
         ],
       ),
@@ -196,11 +184,12 @@ class PlaybackSettingsScreen extends StatelessWidget {
   }
 
   void _openDiagnostics(BuildContext context) {
+    final l10n = context.l10n;
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => AnimePlayerScreen(
-          title: 'StarsLibrary player diagnostics',
-          episodeTitle: 'Public sample video',
+          title: l10n.playerDiagnosticsTitle,
+          episodeTitle: l10n.publicSampleVideo,
           playback: AnimePlayback(
             streams: [
               AnimeVideoStream(

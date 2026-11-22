@@ -7,6 +7,7 @@ import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/components/Shared/source_badge.dart';
 import 'package:star_scrapper_app/domain/library/anime_library_record.dart';
 import 'package:star_scrapper_app/domain/sources/anime_source.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/anime_source_details_screen.dart';
 
 class AnimeLibraryGrid extends StatelessWidget {
@@ -41,13 +42,13 @@ class AnimeLibraryGrid extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Your anime shelf is ready',
+                    context.l10n.animeShelfReady,
                     style: Theme.of(context).textTheme.titleLarge,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Open an anime source and tap the heart to save a title.',
+                    context.l10n.animeShelfSubtitle,
                     style: TextStyle(color: colors.onSurfaceVariant),
                     textAlign: TextAlign.center,
                   ),
@@ -58,7 +59,7 @@ class AnimeLibraryGrid extends StatelessWidget {
                       context.read<TabsState>().setActivePageIndex(2);
                     },
                     icon: const Icon(Icons.explore_outlined),
-                    label: const Text('Explore anime sources'),
+                    label: Text(context.l10n.exploreAnimeSources),
                   ),
                 ],
               ),
@@ -238,7 +239,7 @@ class _AnimeLibraryCard extends StatelessWidget {
                   ),
                   child: Text(
                     progress!.completed
-                        ? 'Watched'
+                        ? context.l10n.watchedLabel
                         : _formatDuration(progress!.position),
                     style: const TextStyle(
                       color: Colors.white,
@@ -267,7 +268,7 @@ class _AnimeLibraryCard extends StatelessWidget {
                   if (progress != null) ...[
                     const SizedBox(height: 4),
                     Text(
-                      'Last: ${progress!.episodeTitle}',
+                      context.l10n.lastEpisodeLabel(progress!.episodeTitle),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style:

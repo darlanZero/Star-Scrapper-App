@@ -14,6 +14,7 @@ import 'package:star_scrapper_app/domain/sources/manga_source.dart';
 import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/components/Shared/scrapper_font.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.dart';
 
 class FontBooksGalleryScreen extends StatefulWidget {
@@ -265,7 +266,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
               const SizedBox(height: 20),
               ElevatedButton.icon(
                 icon: const Icon(Icons.email_outlined),
-                label: const Text('Login with email and password'),
+                label: Text(context.l10n.loginWithEmailPassword),
                 onPressed: () {
                   Navigator.pop(ctx);
                   _showCredentialsDialog(api);
@@ -274,7 +275,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 icon: const Icon(Icons.open_in_browser_outlined),
-                label: const Text('Login via browser'),
+                label: Text(context.l10n.loginViaBrowser),
                 onPressed: () {
                   Navigator.pop(ctx);
                   _openWebViewLogin(api, profile);
@@ -445,9 +446,9 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sessão + cookies WebView limpos.'),
-          duration: Duration(seconds: 3),
+        SnackBar(
+          content: Text(context.l10n.webViewSessionCleared),
+          duration: const Duration(seconds: 3),
         ),
       );
       _loadBooks();
@@ -507,7 +508,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
           if (kDebugMode)
             IconButton(
               icon: const Icon(Icons.logout, color: Colors.redAccent),
-              tooltip: 'Limpar sessão + cookies WebView (debug)',
+              tooltip: context.l10n.clearWebViewSessionTooltip,
               onPressed: _debugClearSession,
             ),
         ],
@@ -731,19 +732,21 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
 
             // ── Footer de paginação ──────────────────────────────────────────
             if (_isLoadingMore)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SizedBox(
+                    const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                    SizedBox(width: 12),
-                    Text('Carregando mais...',
-                        style: TextStyle(color: Colors.grey)),
+                    const SizedBox(width: 12),
+                    Text(
+                      context.l10n.loadingMore,
+                      style: const TextStyle(color: Colors.grey),
+                    ),
                   ],
                 ),
               )
@@ -751,7 +754,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Text(
-                  '— fim da lista —',
+                  context.l10n.endOfList,
                   style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                 ),
               ),
@@ -775,7 +778,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
             const Icon(Icons.lock_outline, size: 72, color: Colors.grey),
             const SizedBox(height: 16),
             Text(
-              'Login necessário',
+              context.l10n.loginRequired,
               style: Theme.of(context)
                   .textTheme
                   .titleLarge
@@ -783,7 +786,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Please log in to ${widget.selectedFont.name} to access the content.',
+              context.l10n.loginRequiredMessage(widget.selectedFont.name),
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade400),
             ),
@@ -1091,7 +1094,7 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
       } catch (error) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not load genres: $error')),
+          SnackBar(content: Text(context.l10n.couldNotLoadGenres('$error'))),
         );
         return;
       }
@@ -1099,21 +1102,22 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
+        final l10n = context.l10n;
         return AlertDialog(
-          title: const Text('Filter'),
+          title: Text(l10n.filterTitle),
           content: SingleChildScrollView(
             child: Column(
-              children: const [
-                Text('Filter by:'),
-                Divider(),
-                Text('Genre'),
-                Divider(),
-                Text('Author'),
-                Divider(),
-                Text('Year'),
-                Divider(),
-                Text('Rating'),
-                Divider(),
+              children: [
+                Text(l10n.filterByLabel),
+                const Divider(),
+                Text(l10n.genreLabel),
+                const Divider(),
+                Text(l10n.authorLabel),
+                const Divider(),
+                Text(l10n.yearLabel),
+                const Divider(),
+                Text(l10n.ratingLabel),
+                const Divider(),
               ],
             ),
           ),

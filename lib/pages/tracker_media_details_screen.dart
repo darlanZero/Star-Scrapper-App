@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:star_scrapper_app/application/trackers/tracker_controller.dart';
 import 'package:star_scrapper_app/components/UI/tracker_media_card.dart';
 import 'package:star_scrapper_app/domain/trackers/tracker.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/tracker_source_search.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -69,7 +70,7 @@ class _TrackerMediaDetailsScreenState extends State<TrackerMediaDetailsScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => openTrackerSourceSearch(context, widget.media),
         icon: const Icon(Icons.search_rounded),
-        label: const Text('Search sources'),
+        label: Text(context.l10n.searchSources),
       ),
     );
   }
@@ -170,17 +171,18 @@ class _DetailsBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final media = details.media;
     final facts = <String>[
       if (details.format != null) details.format!,
       if (details.status != null) details.status!,
       if (details.source != null) details.source!,
-      if (details.episodes != null) '${details.episodes} episodes',
-      if (details.chapters != null) '${details.chapters} chapters',
-      if (details.volumes != null) '${details.volumes} volumes',
+      if (details.episodes != null) l10n.episodesCount(details.episodes!),
+      if (details.chapters != null) l10n.chaptersCount(details.chapters!),
+      if (details.volumes != null) l10n.volumesCount(details.volumes!),
       if (details.durationMinutes != null)
-        '${details.durationMinutes} min / episode',
-      if (media.score != null) '${media.score}% score',
+        l10n.minutesPerEpisode(details.durationMinutes!),
+      if (media.score != null) l10n.scorePercentLabel(media.score!),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,13 +202,13 @@ class _DetailsBody extends StatelessWidget {
         ],
         if (media.description.isNotEmpty) ...[
           const SizedBox(height: 24),
-          const _SectionTitle('Synopsis'),
+          _SectionTitle(l10n.synopsisTitle),
           const SizedBox(height: 8),
           SelectableText(media.description),
         ],
         if (media.genres.isNotEmpty) ...[
           const SizedBox(height: 24),
-          const _SectionTitle('Genres'),
+          _SectionTitle(l10n.genresSectionTitle),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -217,7 +219,7 @@ class _DetailsBody extends StatelessWidget {
         ],
         if (media.tags.isNotEmpty) ...[
           const SizedBox(height: 24),
-          const _SectionTitle('Tags'),
+          _SectionTitle(l10n.tagsSectionTitle),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -227,7 +229,7 @@ class _DetailsBody extends StatelessWidget {
         ],
         if (details.studios.isNotEmpty) ...[
           const SizedBox(height: 24),
-          const _SectionTitle('Studios & publishers'),
+          _SectionTitle(l10n.studiosSectionTitle),
           const SizedBox(height: 8),
           Text(details.studios.join(' • ')),
         ],
@@ -257,7 +259,7 @@ class _DetailsBody extends StatelessWidget {
               mode: LaunchMode.externalApplication,
             ),
             icon: const Icon(Icons.open_in_new_rounded),
-            label: const Text('Open on tracker'),
+            label: Text(l10n.openOnTracker),
           ),
         ],
       ],
@@ -370,7 +372,7 @@ class _ReviewCard extends StatelessWidget {
                   mode: LaunchMode.externalApplication,
                 ),
                 icon: const Icon(Icons.open_in_new_rounded),
-                label: const Text('Read full review'),
+                label: Text(context.l10n.readFullReview),
               ),
             ),
         ],
@@ -420,7 +422,7 @@ class _DetailsError extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Try again'),
+                label: Text(context.l10n.tryAgain),
               ),
             ],
           ),

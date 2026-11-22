@@ -5,6 +5,7 @@ import 'package:star_scrapper_app/application/library/anime_library_controller.d
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/components/Shared/library_books_history.dart';
 import 'package:star_scrapper_app/domain/library/anime_library_record.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/anime_source_details_screen.dart';
 
 enum _HistoryKind { manga, anime }
@@ -25,16 +26,16 @@ class _LibraryHistoryState extends State<LibraryHistory> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: SegmentedButton<_HistoryKind>(
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: _HistoryKind.manga,
-                  icon: Icon(Icons.menu_book_rounded),
-                  label: Text('Manga'),
+                  icon: const Icon(Icons.menu_book_rounded),
+                  label: Text(context.l10n.libraryTabManga),
                 ),
                 ButtonSegment(
                   value: _HistoryKind.anime,
-                  icon: Icon(Icons.play_circle_rounded),
-                  label: Text('Anime'),
+                  icon: const Icon(Icons.play_circle_rounded),
+                  label: Text(context.l10n.libraryTabAnime),
                 ),
               ],
               selected: {_kind},
@@ -67,7 +68,7 @@ class _AnimeHistory extends StatelessWidget {
     }
     final entries = latestByAnime.values.toList();
     if (entries.isEmpty) {
-      return const Center(child: Text('No watched anime yet.'));
+      return Center(child: Text(context.l10n.noWatchedAnimeYet));
     }
     return GridView.builder(
       padding: const EdgeInsets.all(12),

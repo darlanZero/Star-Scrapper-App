@@ -1,0 +1,697 @@
+{
+  "@@locale": "en",
+  "appTitle": "StarsLibrary",
+  "navLibrary": "Library",
+  "navDiscover": "Discover",
+  "navSources": "Sources",
+  "navSettings": "Settings",
+  "searchForMangas": "Search for manga",
+  "searchForAnime": "Search for anime",
+  "ok": "OK",
+  "gotIt": "Got it",
+  "cancel": "Cancel",
+  "close": "Close",
+  "save": "Save",
+  "delete": "Delete",
+  "retry": "Retry",
+  "refresh": "Refresh",
+  "clear": "Clear",
+  "later": "Later",
+  "loading": "Loading...",
+  "loadingMore": "Loading more...",
+  "error": "Error",
+  "search": "Search",
+  "all": "All",
+  "loginRequired": "Login required",
+  "settingsTabGeneral": "General",
+  "settingsTabAccount": "Account",
+  "settingsTabAbout": "About",
+  "generalTitle": "General",
+  "generalLibraryTitle": "Library",
+  "generalLibraryDesc": "Manage library tabs, saved items, backups, reading history, and update behavior.",
+  "generalSourcesTitle": "Sources",
+  "generalSourcesDesc": "Choose which manga and anime sources are enabled and available throughout the app.",
+  "generalPlaybackTitle": "Video playback",
+  "generalPlaybackDesc": "Adjust native player behavior, hardware decoding, gestures, subtitles, and compatibility options.",
+  "languageSectionTitle": "Language",
+  "languageSystemDefault": "System default",
+  "languageEnglish": "English",
+  "languagePortugueseBrazil": "Português (Brasil)",
+  "languageSpanish": "Español",
+  "appearanceTitle": "Appearance",
+  "accountSettingsTitle": "Account Settings",
+  "accountSourceLoginsTitle": "Source logins",
+  "accountSourceLoginsDesc": "Sign in to sources that require an account, renew browser sessions, or disconnect stored source access.",
+  "accountTrackersTitle": "Trackers",
+  "accountTrackersDesc": "Connect and configure services such as AniList and MyAnimeList for Discover, progress, and library tracking.",
+  "aboutTitle": "About StarsLibrary",
+  "aboutHeroTitle": "Your stories, one library",
+  "aboutHeroDesc": "Browse, organize, read manga, and watch anime from your enabled sources — with tracker-powered discovery and native playback.",
+  "aboutChipMultiSource": "Multi-source",
+  "aboutChipNoAds": "No ads",
+  "aboutChipOpenSource": "Open source",
+  "aboutApplicationTitle": "Application",
+  "aboutVersionLabel": "Version",
+  "aboutBuildLabel": "Build",
+  "aboutCheckingUpdates": "Checking…",
+  "aboutCheckUpdates": "Check for updates",
+  "aboutSourceCodeTitle": "Source code",
+  "aboutSourceCodeSubtitle": "View the project on GitHub",
+  "aboutWebsiteTitle": "StarsLibrary website",
+  "aboutWebsiteSubtitle": "Project news and information",
+  "aboutDisclaimer": "StarsLibrary does not host third-party content and is not affiliated with content providers, authors, or publishers.",
+  "aboutCouldNotOpenLink": "Could not open link",
+  "aboutUpToDateTitle": "StarsLibrary is up to date",
+  "aboutUpToDateMessage": "You are using version {version}.",
+  "@aboutUpToDateMessage": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "aboutUpdateAvailableTitle": "Update available",
+  "aboutUpdateAvailableMessage": "StarsLibrary {releaseVersion} is available. You currently have {currentVersion}.",
+  "@aboutUpdateAvailableMessage": {
+    "placeholders": {
+      "releaseVersion": {
+        "type": "String"
+      },
+      "currentVersion": {
+        "type": "String"
+      }
+    }
+  },
+  "aboutViewUpdate": "View update",
+  "aboutUpdateCheckFailedTitle": "Could not check for updates",
+  "aboutUpdateCheckFailedMessage": "Check your connection and try again.",
+  "manageOrganization": "Manage Organization",
+  "noSubtabsForPrimaryTab": "No subtabs for this primary tab.",
+  "chapterNavigationNotSupported": "Chapter navigation is not supported for this source.",
+  "noNextChapter": "There is no next chapter.",
+  "noPreviousChapter": "There is no previous chapter.",
+  "webViewSessionCleared": "WebView session and cookies cleared.",
+  "clearWebViewSessionTooltip": "Clear WebView session and cookies (debug)",
+  "catalogFilterFeatured": "Featured",
+  "catalogFilterCatalog": "Catalog",
+  "catalogFilterAllAnime": "All anime",
+  "catalogFilterSubtitled": "Subtitled",
+  "catalogFilterDubbed": "Dubbed",
+  "catalogFilterManhwa": "Manhwa",
+  "catalogFilterDonghua": "Donghua",
+  "catalogFilterMovies": "Movies",
+  "catalogFilterSubtitledMovies": "Subtitled movies",
+  "catalogFilterDubbedMovies": "Dubbed movies",
+  "catalogFilterAdult": "Adult",
+  "catalogFilterAdult18": "Hentai (+18)",
+  "catalogFilterPopular": "Most viewed",
+  "catalogFilterMostLiked": "Most liked",
+  "catalogFilterPopularToday": "Today",
+  "catalogFilterPopularWeek": "This week",
+  "catalogFilterPopularMonth": "This month",
+  "catalogFilterRecent": "Latest",
+  "catalogFilterLatestEpisodes": "Latest episodes",
+  "catalogFilterNewEpisodes": "New episodes",
+  "catalogFilterNewDubbed": "New dubbed",
+  "catalogFilterNewReleases": "New releases",
+  "catalogFilterEpisodeMostViewed": "Most viewed episodes",
+  "catalogFilterSeriesNewest": "Newest series",
+  "catalogFilterSeriesPopular": "Popular series",
+  "catalogFilterSeriesMostViewed": "Most viewed series",
+  "catalogFilterUpdated": "Updated",
+  "catalogFilterAdded": "Recently added",
+  "catalogFilterAiring": "Airing",
+  "catalogFilterUpcoming": "Upcoming",
+  "catalogFilterCompleted": "Completed",
+  "catalogFilterEpisodesPopular": "Episodes · Popular",
+  "catalogFilterEpisodesMostViewed": "Episodes · Most viewed",
+  "weekdaySunday": "Sunday",
+  "weekdayMonday": "Monday",
+  "weekdayTuesday": "Tuesday",
+  "weekdayWednesday": "Wednesday",
+  "weekdayThursday": "Thursday",
+  "weekdayFriday": "Friday",
+  "weekdaySaturday": "Saturday",
+  "weekdayUnknown": "Unknown",
+  "discoverAtAGlance": "Discover at a glance",
+  "discoverSearchCatalog": "Search the tracker catalog",
+  "discoverOpenOrFindSource": "Open or find a source",
+  "discoverStartExploring": "Start exploring",
+  "endOfList": "— end of list —",
+  "loginRequiredMessage": "Please log in to {sourceName} to access the content.",
+  "@loginRequiredMessage": {
+    "placeholders": {
+      "sourceName": {
+        "type": "String"
+      }
+    }
+  },
+  "subtabsOfPrimaryTab": "Subtabs of \"{tabName}\"",
+  "@subtabsOfPrimaryTab": {
+    "placeholders": {
+      "tabName": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesTabSources": "Sources",
+  "sourcesTabManage": "Manage",
+  "sourcesTabHistory": "History",
+  "sourcesTabMigrate": "Migrate",
+  "libraryTabManga": "Manga",
+  "libraryTabAnime": "Anime",
+  "sortBooksTooltip": "Sort books",
+  "configureTabsInSettings": "Configure your tabs in Settings.",
+  "emptyShelfTitle": "Your shelf is ready",
+  "emptyShelfSubtitle": "Explore a source and add your first title to this collection.",
+  "exploreSources": "Explore sources",
+  "searchTitle": "Search",
+  "searchTitlesHint": "Search titles...",
+  "searchEnabledSources": "Search enabled sources",
+  "typeToSearchLibrary": "Type to search your library",
+  "noResultsInLibrary": "No results in your library.",
+  "couldNotSearchSource": "Could not search this source.",
+  "noResultsInSource": "No results in this source.",
+  "noTitlesFound": "No titles found.",
+  "searchAnimeSourcesTitle": "Search anime sources",
+  "searchEnabledAnimeSourcesHint": "Search enabled anime sources",
+  "clearSearchTooltip": "Clear search",
+  "animeSourceUnavailable": "This anime source is unavailable.",
+  "verifyInBrowser": "Verify in browser",
+  "hostsCheckedSuccess": "Hosts checked successfully.",
+  "hostsCheckFailed": "Failed to check hosts: {error}",
+  "@hostsCheckFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "sourceHostMonitorTitle": "Source Host Monitor",
+  "automaticHostChecks": "Automatic host checks",
+  "automaticHostChecksDesc": "Monitor manga and anime source availability",
+  "autoCheckInterval": "Auto-check interval",
+  "lastCheck": "Last check",
+  "never": "Never",
+  "checkNow": "Check now",
+  "mangaSources": "Manga sources",
+  "animeSources": "Anime sources",
+  "hostStatusOnline": "online",
+  "hostStatusOutdated": "outdated",
+  "hostStatusChecking": "checking",
+  "hostStatusUnknown": "unknown",
+  "minutesShort": "{minutes} min",
+  "@minutesShort": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "hoursShort": "{hours} h",
+  "@hoursShort": {
+    "placeholders": {
+      "hours": { "type": "int" }
+    }
+  },
+  "hoursCount": "{hours} hours",
+  "@hoursCount": {
+    "placeholders": {
+      "hours": { "type": "int" }
+    }
+  },
+  "librarySettingsTitle": "Library Settings",
+  "libraryTabsSettingsTitle": "Library Tabs Settings",
+  "libraryItemsSettingsTitle": "Library Items Settings",
+  "backupAndRestoreTitle": "Backup & Restore",
+  "decoderTitle": "Decoder",
+  "decoderAutoTitle": "Automatic",
+  "decoderAutoDesc": "Prefer hardware decoding and fall back when necessary.",
+  "decoderHardwareTitle": "Hardware",
+  "decoderHardwareDesc": "Use the device video decoder for lower battery usage.",
+  "decoderSoftwareTitle": "Software compatibility",
+  "decoderSoftwareDesc": "Use the CPU when a device codec produces visual errors.",
+  "gesturesTitle": "Gestures",
+  "playerGesturesTitle": "Player gestures",
+  "playerGesturesDesc": "Double tap to seek; swipe left for volume and right for brightness.",
+  "doubleTapSeekTitle": "Double-tap seek",
+  "secondsCount": "{seconds} seconds",
+  "@secondsCount": {
+    "placeholders": {
+      "seconds": { "type": "int" }
+    }
+  },
+  "secondsShort": "{seconds} s",
+  "@secondsShort": {
+    "placeholders": {
+      "seconds": { "type": "int" }
+    }
+  },
+  "episodesTitle": "Episodes",
+  "autoSkipIntroTitle": "Automatically skip intros",
+  "autoSkipIntroDesc": "Only applies when the source supplies a verified intro range.",
+  "subtitlesTitle": "Subtitles",
+  "preferredSubtitleLanguageTitle": "Preferred subtitle language",
+  "preferredSubtitleLanguageDesc": "Use “auto” or a language code such as en, pt-BR or ja.",
+  "subtitleFontTitle": "Subtitle font",
+  "subtitleFontDesc": "Noto Sans includes Portuguese and other extended characters.",
+  "subtitleSizeLabel": "Subtitle size · {size} px",
+  "@subtitleSizeLabel": {
+    "placeholders": {
+      "size": { "type": "int" }
+    }
+  },
+  "playbackHardwareWarning": "Hardware decoding is recommended. Software mode may use considerably more battery and make the device warmer.",
+  "testVideoPlayer": "Test video player",
+  "playerDiagnosticsTitle": "StarsLibrary player diagnostics",
+  "publicSampleVideo": "Public sample video",
+  "trackerCompletedUpdates": "{mediaType} tracker completed: {count} update(s).",
+  "@trackerCompletedUpdates": {
+    "placeholders": {
+      "mediaType": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "trackerRunFailed": "Failed to run tracker: {error}",
+  "@trackerRunFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "enableChapterTracker": "Enable Chapter Tracker",
+  "enableEpisodeTracker": "Enable Episode Tracker",
+  "updateInterval": "Update Interval",
+  "tabsToUpdate": "Tabs to Update",
+  "saveSettings": "Save Settings",
+  "connectProvider": "Connect {provider}",
+  "@connectProvider": {
+    "placeholders": {
+      "provider": { "type": "String" }
+    }
+  },
+  "oauthBannerMessage": "Sign in on {provider}. StarsLibrary never sees or stores your password.",
+  "@oauthBannerMessage": {
+    "placeholders": {
+      "provider": { "type": "String" }
+    }
+  },
+  "addPrimaryTabHint": "Add primary tab",
+  "tabsReorderTip": "Tip: long-press and drag a primary tab onto another to nest it as subtab.",
+  "addSubtabToHint": "Add subtab to \"{tab}\"",
+  "@addSubtabToHint": {
+    "placeholders": {
+      "tab": { "type": "String" }
+    }
+  },
+  "renameTabTitle": "Rename Tab",
+  "enterNewTabNameHint": "Enter new tab name",
+  "backupCreatedIn": "Backup created in: {path}",
+  "@backupCreatedIn": {
+    "placeholders": {
+      "path": { "type": "String" }
+    }
+  },
+  "backupCreateFailed": "Failed to create backup: {error}",
+  "@backupCreateFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "restoreBackupTitle": "Restore Backup",
+  "restoreBackupConfirmMessage": "This will replace your current library, history, tabs, and saved logins with the selected backup. Do you want to continue?",
+  "restoreAction": "Restore",
+  "backupRestoredSuccess": "Backup restored successfully.",
+  "backupRestoreFailed": "Failed to restore backup: {error}",
+  "@backupRestoreFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "backupSavedSuccess": "Backup saved successfully.",
+  "backupDownloadFailed": "Failed to download backup: {error}",
+  "@backupDownloadFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "backupLoadFailed": "Failed to load backup: {error}",
+  "@backupLoadFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "encryptedCompleteBackupTitle": "Encrypted complete backup",
+  "encryptedCompleteBackupDesc": "Includes manga and anime history, favorites, tabs, stored logins, and enabled sources. Keep the password safe.",
+  "createBackupButton": "Create Backup",
+  "loadBackupButton": "Load Backup",
+  "noBackupsFound": "No backups found.",
+  "downloadTooltip": "Download",
+  "restoreTooltip": "Restore",
+  "deleteTooltip": "Delete",
+  "protectBackupTitle": "Protect your backup",
+  "unlockBackupTitle": "Unlock backup",
+  "protectBackupDesc": "This password encrypts your library and stored logins. It cannot be recovered if you forget it.",
+  "unlockBackupDesc": "Enter the password used when this backup was created.",
+  "backupPasswordLabel": "Backup password",
+  "confirmPasswordLabel": "Confirm password",
+  "createBackupAction": "Create backup",
+  "unlockAction": "Unlock",
+  "scrapperLoginsTitle": "Scrapper Logins",
+  "loginWithTitle": "Login — {sourceName}",
+  "@loginWithTitle": {
+    "placeholders": {
+      "sourceName": { "type": "String" }
+    }
+  },
+  "emailAndPassword": "Email and password",
+  "googleOrDiscord": "Google or Discord",
+  "emailLabel": "Email",
+  "passwordLabel": "Password",
+  "loginAction": "Login",
+  "logoutTitle": "Logout from {sourceName}",
+  "@logoutTitle": {
+    "placeholders": {
+      "sourceName": { "type": "String" }
+    }
+  },
+  "logoutConfirmMessage": "This will remove the saved session for this scrapper. Are you sure you want to logout?",
+  "logoutAction": "Logout",
+  "scrapperLoginsInfo": "Manage the logins for sites that require authentication. Tokens are stored locally on the device. Logout to remove an expired or compromised token.",
+  "noAuthScrappers": "No scrappers with authentication configured.",
+  "completeLogin": "Complete Login",
+  "renewSession": "Renew Session",
+  "discoveryAndTrackingTitle": "Discovery and tracking",
+  "discoveryAndTrackingDesc": "Discover anime and manga with tracker metadata, then match titles against your enabled sources.",
+  "aniListSubtitle": "Public catalog, dynamic tags and airing calendar",
+  "aniListOptionalLoginNote": "Login is optional for discovery and required only for future personal-list synchronization.",
+  "configuredByBuild": "Configured by this build",
+  "aniListClientIdLabel": "AniList Client ID",
+  "malSubtitle": "Rankings, seasonal catalogs and account lists",
+  "malClientIdRequiredNote": "MAL requires a Client ID even for public requests.",
+  "malClientIdLabel": "MAL Client ID",
+  "includeAdultContentTitle": "Include adult content",
+  "includeAdultContentDesc": "Works with public tracker data; login is not required.",
+  "preferEnglishTitlesTitle": "Prefer English titles",
+  "preferEnglishTitlesDesc": "Off by default. Romaji titles are used whenever available.",
+  "trackerConfigSaved": "Tracker configuration saved.",
+  "trackerAccountConnected": "{provider} account connected.",
+  "@trackerAccountConnected": {
+    "placeholders": {
+      "provider": { "type": "String" }
+    }
+  },
+  "registeredRedirectUriLabel": "Registered redirect URI",
+  "disconnectAction": "Disconnect",
+  "connectAction": "Connect",
+  "notConnected": "Not connected",
+  "connectedAs": "Connected as {username}",
+  "@connectedAs": {
+    "placeholders": {
+      "username": { "type": "String" }
+    }
+  },
+  "trackerSecurityNote": "Register StarsLibrary in each tracker and use the exact redirect URI shown here. Tokens are kept in secure device storage; passwords and client secrets are never stored.",
+  "searchingSourceInline": "{sourceTitle} · Searching…",
+  "@searchingSourceInline": {
+    "placeholders": {
+      "sourceTitle": { "type": "String" }
+    }
+  },
+  "moreAction": "More",
+  "searchingThisSource": "Searching this source…",
+  "unpinSourceTooltip": "Unpin source",
+  "pinSourceTooltip": "Pin source",
+  "latestLabel": "Latest",
+  "trendingLabel": "Trending",
+  "sourceCountLabel": "{count} {count, plural, =1{source} other{sources}}",
+  "@sourceCountLabel": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "noActiveAnimeSources": "No active anime sources.",
+  "noActiveMangaSources": "No active manga sources.",
+  "enableAnimeSourceHint": "Enable an anime source in the Manage tab.",
+  "enableMangaSourceHint": "Enable a source in the Manage tab.",
+  "pinnedSourcesTitle": "Pinned sources",
+  "savedCountLabel": "{count} saved",
+  "@savedCountLabel": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "enableProvidersToPlay": "Enable providers to browse and play episodes.",
+  "animeSourcesFutureUpdate": "Anime sources will be added in a future update.",
+  "activeSourcesTitle": "Active Sources",
+  "inactiveSourcesTitle": "Inactive Sources",
+  "lastChapterReadSummary": "Last: Ch. {chapterTitle} • {readCount} read",
+  "@lastChapterReadSummary": {
+    "placeholders": {
+      "chapterTitle": { "type": "String" },
+      "readCount": { "type": "int" }
+    }
+  },
+  "chapterShort": "Ch. {title}",
+  "@chapterShort": {
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "noWatchedAnimeYet": "No watched anime yet.",
+  "howDiscoverWorksTooltip": "How Discover works",
+  "browseSeasonArchive": "Browse season archive",
+  "searchTrackerTitlesHint": "Search tracker titles",
+  "filtersTooltip": "Filters",
+  "notNow": "Not now",
+  "discoverStep1Title": "Choose what to explore",
+  "discoverStep1Desc": "Switch between Anime and Manga. Discover combines the trackers enabled in Account Settings.",
+  "discoverStep2Desc": "Type a title or use filters to browse by popularity, rating, genres, and tags.",
+  "discoverStep3Desc": "Tap a title for tracker details. Touch and hold it to search your enabled sources for that same title.",
+  "noTrackerResultsFound": "No tracker results found.",
+  "tryLoadingMoreAgain": "Try loading more again",
+  "youReachedTheEnd": "You reached the end.",
+  "episodeNumber": "Episode {number}",
+  "@episodeNumber": {
+    "placeholders": {
+      "number": { "type": "int" }
+    }
+  },
+  "orderByLabel": "Order by",
+  "sortPopularity": "Popularity",
+  "sortMostRecent": "Most recent",
+  "sortHighestRated": "Highest rated",
+  "findGenresOrTagsLabel": "Find genres or tags",
+  "applyAction": "Apply",
+  "couldNotLoadGenresAndTags": "Could not load genres and tags: {error}",
+  "@couldNotLoadGenresAndTags": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "noMatchingGenresOrTags": "No matching genres or tags.",
+  "genresLabel": "Genres",
+  "genresSelectedLabel": "Genres ({count} selected)",
+  "@genresSelectedLabel": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "tagsLabel": "Tags",
+  "tagsSelectedLabel": "Tags ({count} selected)",
+  "@tagsSelectedLabel": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "tryAgain": "Try again",
+  "couldNotLoadTrackerData": "Could not load tracker data.",
+  "enableTrackerToDiscover": "Enable a tracker to start discovering titles.",
+  "openSettings": "Open settings",
+  "searchSources": "Search sources",
+  "episodesCount": "{count} episodes",
+  "@episodesCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "chaptersCount": "{count} chapters",
+  "@chaptersCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "volumesCount": "{count} volumes",
+  "@volumesCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "minutesPerEpisode": "{minutes} min / episode",
+  "@minutesPerEpisode": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "scorePercentLabel": "{score}% score",
+  "@scorePercentLabel": {
+    "placeholders": {
+      "score": { "type": "int" }
+    }
+  },
+  "synopsisTitle": "Synopsis",
+  "genresSectionTitle": "Genres",
+  "tagsSectionTitle": "Tags",
+  "studiosSectionTitle": "Studios",
+  "openOnTracker": "Open on tracker",
+  "reviewsSectionTitle": "Reviews",
+  "readFullReview": "Read full review",
+  "seasonArchiveTitle": "Season archive",
+  "browseAnyAnimeSeason": "Browse any anime season",
+  "browseAnyAnimeSeasonDesc": "Choose a season and year, then scroll to load more titles.",
+  "seasonLabel": "Season",
+  "yearLabel": "Year",
+  "seasonWinter": "Winter",
+  "seasonSpring": "Spring",
+  "seasonSummer": "Summer",
+  "seasonFall": "Fall",
+  "noTitlesForSeason": "No titles found for this season.",
+  "enableAnimeSourceBeforeSearching": "Enable an anime source before searching.",
+  "noAnimeSourceAvailableYet": "No anime source is available yet.",
+  "enableMangaSourceBeforeSearching": "Enable a manga source before searching.",
+  "animeShelfReady": "Your anime shelf is ready",
+  "animeShelfSubtitle": "Open an anime source and tap the heart to save a title.",
+  "exploreAnimeSources": "Explore anime sources",
+  "moveAnimeTo": "Move anime to",
+  "watchedLabel": "Watched",
+  "lastEpisodeLabel": "Last: {episodeTitle}",
+  "@lastEpisodeLabel": {
+    "placeholders": {
+      "episodeTitle": { "type": "String" }
+    }
+  },
+  "searchSourceHint": "Search {sourceName}",
+  "@searchSourceHint": {
+    "placeholders": {
+      "sourceName": { "type": "String" }
+    }
+  },
+  "advancedFilters": "Advanced filters",
+  "resetAction": "Reset",
+  "applyFilters": "Apply filters",
+  "anyOption": "Any",
+  "couldNotOpenEpisode": "Could not open this episode: {error}",
+  "@couldNotOpenEpisode": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "chooseVideoServer": "Choose a video server",
+  "chooseVideoServerSubtitle": "You can try another server if playback fails.",
+  "renameAnimeTitle": "Rename anime",
+  "libraryTitleLabel": "Library title",
+  "manageAnimeTabsTitle": "Manage anime tabs",
+  "enableAnotherAnimeSourceBeforeMigrating": "Enable another anime source before migrating.",
+  "noMatchingTitleInEnabledSources": "No matching title was found in enabled sources.",
+  "migrateAnimeTo": "Migrate anime to",
+  "addToConnectedTrackersTooltip": "Add to connected trackers",
+  "removeFromLibraryTooltip": "Remove from library",
+  "addToLibraryTooltip": "Add to library",
+  "animeOptionsTooltip": "Anime options",
+  "migrateAnimeTitle": "Migrate anime",
+  "manageTabsTitle": "Manage tabs",
+  "noEpisodesAvailable": "No episodes available.",
+  "playbackSettingsTooltip": "Playback settings",
+  "seekBackwardTooltip": "Back {seconds}s",
+  "@seekBackwardTooltip": {
+    "placeholders": {
+      "seconds": { "type": "int" }
+    }
+  },
+  "seekForwardTooltip": "Forward {seconds}s",
+  "@seekForwardTooltip": {
+    "placeholders": {
+      "seconds": { "type": "int" }
+    }
+  },
+  "embeddedAndSourceTracks": "Embedded and source-provided tracks",
+  "offLabel": "Off",
+  "embeddedLabel": "Embedded",
+  "videoDecoderTitle": "Video decoder",
+  "paginatedMode": "Paginated mode",
+  "reverseReadingDirection": "Reverse reading direction",
+  "saveStoryReminderTitle": "Save story reminder",
+  "whatHappenedHereLabel": "What happened here?",
+  "addShortNoteHint": "Add a short note about this key moment",
+  "saveReminderAction": "Save reminder",
+  "imageOptionsTitle": "Image Options",
+  "saveImageAction": "Save Image",
+  "saveAsStoryReminderAction": "Save as Story Reminder",
+  "saveAsStoryReminderDesc": "Keep this image with a chapter note",
+  "shareImageAction": "Share Image",
+  "webViewNotSupported": "Web view not supported on this platform.",
+  "openExternally": "Open externally",
+  "unsupportedPlatform": "Unsupported platform",
+  "readingProgressSaved": "Reading progress saved",
+  "combineTagsTitle": "Combine tags",
+  "searchCountAction": "Search ({count})",
+  "@searchCountAction": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "couldNotLoadStoryReminders": "Could not load story reminders",
+  "deleteReminderQuestion": "Delete reminder?",
+  "updatingBookDetails": "Updating book details...",
+  "bookDetailsUpdatedSuccess": "Book details updated successfully!",
+  "failedToUpdateBookDetails": "Failed to update book details: {error}",
+  "@failedToUpdateBookDetails": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "tabsLabel": "Tabs",
+  "renameBookAction": "Rename book",
+  "migrateBookAction": "Migrate book",
+  "readingProgressLabel": "Reading progress",
+  "markChapterRead": "Mark chapter as read",
+  "markThisAndPreviousRead": "Mark this and previous chapters as read",
+  "markChapterUnread": "Mark chapter as unread",
+  "removeReadMarksThroughHere": "Remove read marks through this chapter",
+  "loadingChapter": "Loading chapter...",
+  "failedToLoadChapter": "Failed to load chapter: {error}",
+  "@failedToLoadChapter": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "loginWithEmailPassword": "Login with email and password",
+  "loginViaBrowser": "Login via browser",
+  "fillEmailAndPassword": "Please fill in both email and password.",
+  "noDataAvailable": "No data available",
+  "loginToSource": "Login to {sourceName}",
+  "@loginToSource": {
+    "placeholders": {
+      "sourceName": { "type": "String" }
+    }
+  },
+  "loadingBookDetails": "Loading book details...",
+  "failedToLoadBookDetails": "Failed to load book details: {error}",
+  "@failedToLoadBookDetails": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "couldNotLoadFilters": "Could not load filters: {error}",
+  "@couldNotLoadFilters": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "couldNotLoadGenres": "Could not load genres: {error}",
+  "@couldNotLoadGenres": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "filterTitle": "Filter",
+  "filterByLabel": "Filter by:",
+  "genreLabel": "Genre",
+  "authorLabel": "Author",
+  "ratingLabel": "Rating"
+}

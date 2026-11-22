@@ -6,6 +6,7 @@ import 'package:star_scrapper_app/classes/app_state.dart';
 import 'package:star_scrapper_app/classes/static/fonts_provider.dart';
 import 'package:star_scrapper_app/components/search/source_results_carousel.dart';
 import 'package:star_scrapper_app/domain/sources/source.dart';
+import 'package:star_scrapper_app/l10n/l10n.dart';
 import 'package:star_scrapper_app/pages/library_books_pages/book_details_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -222,7 +223,7 @@ class _SearchScreenState extends State<SearchScreen> {
         icon: Icons.library_books_rounded,
         resultCount: _libraryResults.length,
         previewCount: _libraryResults.length,
-        emptyState: const Center(child: Text('No results in your library.')),
+        emptyState: Center(child: Text(context.l10n.noResultsInLibrary)),
         itemBuilder: (context, index) {
           final book = _libraryResults[index];
           return _BookListTile(
@@ -268,8 +269,8 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                   ),
           emptyState: failed
-              ? const Center(child: Text('Could not search this source.'))
-              : const Center(child: Text('No results in this source.')),
+              ? Center(child: Text(context.l10n.couldNotSearchSource))
+              : Center(child: Text(context.l10n.noResultsInSource)),
           itemBuilder: (context, index) {
             final book = results[index];
             return _BookListTile(
@@ -294,7 +295,7 @@ class _SearchScreenState extends State<SearchScreen> {
       appBar: AppBar(
         backgroundColor: theme.selectedTheme.appBarTheme.backgroundColor,
         title: Text(
-          'Search',
+          context.l10n.searchTitle,
           style: TextStyle(
             color: theme.selectedTheme.textTheme.titleLarge?.color,
             fontWeight: FontWeight.bold,
@@ -318,7 +319,7 @@ class _SearchScreenState extends State<SearchScreen> {
               decoration: InputDecoration(
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                labelText: 'Search titles...',
+                labelText: context.l10n.searchTitlesHint,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: ValueListenableBuilder<TextEditingValue>(
                   valueListenable: _searchController,
@@ -345,7 +346,7 @@ class _SearchScreenState extends State<SearchScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Search enabled sources',
+                  context.l10n.searchEnabledSources,
                   style: TextStyle(
                       color: theme.selectedTheme.textTheme.displaySmall?.color),
                 ),
@@ -376,7 +377,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         const Icon(Icons.search, size: 64, color: Colors.grey),
                         const SizedBox(height: 12),
                         Text(
-                          'Type to search your library',
+                          context.l10n.typeToSearchLibrary,
                           style: TextStyle(
                               color: theme
                                   .selectedTheme.textTheme.displaySmall?.color),
@@ -580,7 +581,7 @@ class _MangaSourceSearchResultsScreenState
                           ),
                         )
                       : _results.isEmpty
-                          ? const Center(child: Text('No titles found.'))
+                          ? Center(child: Text(context.l10n.noTitlesFound))
                           : ListView.builder(
                               itemCount: _results.length,
                               itemBuilder: (context, index) {
