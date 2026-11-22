@@ -1230,7 +1230,7 @@ class MainActivity: FlutterFragmentActivity() {
     }
 
     /**
-     * Drives the HDoujin SPA reader inside an offscreen WebView (which clears
+     * Drives protected comic readers inside an offscreen WebView (which clears
      * Cloudflare) and streams each page image as it becomes available.
      *
      * A JS "driver" accumulates each page as a data URL into `window.__hd`,
@@ -1321,6 +1321,33 @@ class MainActivity: FlutterFragmentActivity() {
                     } catch (e) { return null; }
                   });
               }
+              function blobData(blob){
+                return new Promise(function(res, rej){
+                  var fr = new FileReader();
+                  fr.onload = function(){ res(fr.result); };
+                  fr.onerror = function(){ rej(fr.error); };
+                  fr.readAsDataURL(blob);
+                });
+              }
+              function fsiData(img){
+                var source = img.getAttribute('data-safe-src');
+                return fetch(source, {credentials:'include'})
+                  .then(function(r){
+                    if (!r.ok) throw new Error('FSI image HTTP '+r.status);
+                    return r.blob();
+                  })
+                  .then(blobData)
+                  .catch(function(){
+                    try {
+                      var canvas = img.parentElement &&
+                        img.parentElement.querySelector('canvas');
+                      if (canvas && canvas.width > 0 && canvas.height > 0) {
+                        return canvas.toDataURL('image/webp', 0.94);
+                      }
+                    } catch (e) {}
+                    return null;
+                  });
+              }
               function waitFor(get, timeoutMs){
                 var start = Date.now();
                 return (function loop(){
@@ -1331,6 +1358,22 @@ class MainActivity: FlutterFragmentActivity() {
                 })();
               }
               function run(){
+                var fsi = document.querySelectorAll(
+                  '.entry-content .wp-block-gallery img[data-safe-src], '+
+                  '.entry-content img[data-safe-src]'
+                );
+                if (fsi.length) {
+                  window.__hd.mode = 'fsi';
+                  var fsiIndex = 0;
+                  return (function fsiStep(){
+                    if (fsiIndex >= fsi.length) return;
+                    var image = fsi[fsiIndex++];
+                    return fsiData(image).then(function(data){
+                      if (data) window.__hd.pages.push(data);
+                      return fsiStep();
+                    });
+                  })();
+                }
                 return waitFor(function(){
                   var el = document.querySelector('#reader img[src^="blob:"]');
                   return ready(el) ? el : null;

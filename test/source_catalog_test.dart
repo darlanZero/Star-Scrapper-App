@@ -350,4 +350,22 @@ void main() {
       'Most views',
     );
   });
+
+  test('FSI Comics is an adult English variant and taxonomy manga source', () {
+    final source = SourceCatalog.createAll().singleWhere(
+      (source) => source.id == 'fsi_comics',
+    );
+
+    expect(source.languagePrefix, 'EN-US');
+    expect(source.contentType, SourceContentType.manga);
+    expect(source.isRRated, isTrue);
+    expect(source.api, isA<VariantCatalogMangaSource>());
+    expect(source.api, isA<TaxonomyBrowsableMangaSource>());
+    expect(source.api, isA<BrowserImageMangaSource>());
+    expect(source.api, isA<WebViewChapterMangaSource>());
+    expect(
+      source.api.catalogFilterLabel(MangaCatalogFilter.recent),
+      'Comics',
+    );
+  });
 }

@@ -37,6 +37,7 @@ import 'package:star_scrapper_app/data/sources/manga/bato_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/eahentai_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/rawkuma_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/apcomics_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/fsi_comics_source.dart';
 import 'package:star_scrapper_app/infrastructure/webview/browser_html_loader.dart';
 
 /// Single registry for the sources bundled with the application.
@@ -149,6 +150,21 @@ abstract final class SourceCatalog {
         EAHentaiSource(),
         RawkumaSource(),
         APComicsSource(),
+        FsiComicsSource(
+          browserHtmlLoader: (uri, userAgent) => BrowserHtmlLoader.loadRawWhen(
+            uri,
+            userAgent,
+            uri.path == '/' && uri.queryParameters.containsKey('s')
+                ? '.search-content, .blog-content, main'
+                : uri.path.startsWith('/all-porn-comics') ||
+                        uri.path.startsWith('/ai-generated') ||
+                        uri.path.startsWith('/tag/')
+                    ? '.blog-content'
+                    : '.entry-content',
+          ),
+          browserImageLoader: BrowserHtmlLoader.loadImage,
+          readerPageLoader: BrowserHtmlLoader.readerPages,
+        ),
       ];
 
   static List<Fonte> createAll() => [
@@ -451,6 +467,34 @@ abstract final class SourceCatalog {
             'https://cdn.countryflags.com/thumbs/united-states-of-america/flag-3d-250.png',
           ],
           api: APComicsSource(),
+          contentType: SourceContentType.manga,
+          isRRated: true,
+        ),
+        Fonte(
+          id: 'fsi_comics',
+          image:
+              'https://fsicomics.com/wp-content/uploads/2022/10/metroui-fsicomics-144x144-1.png',
+          name: 'FSI Comics',
+          languagePrefix: 'EN-US',
+          flags: [
+            'https://cdn.countryflags.com/thumbs/united-states-of-america/flag-3d-250.png',
+          ],
+          api: FsiComicsSource(
+            browserHtmlLoader: (uri, userAgent) =>
+                BrowserHtmlLoader.loadRawWhen(
+              uri,
+              userAgent,
+              uri.path == '/' && uri.queryParameters.containsKey('s')
+                  ? '.search-content, .blog-content, main'
+                  : uri.path.startsWith('/all-porn-comics') ||
+                          uri.path.startsWith('/ai-generated') ||
+                          uri.path.startsWith('/tag/')
+                      ? '.blog-content'
+                      : '.entry-content',
+            ),
+            browserImageLoader: BrowserHtmlLoader.loadImage,
+            readerPageLoader: BrowserHtmlLoader.readerPages,
+          ),
           contentType: SourceContentType.manga,
           isRRated: true,
         ),
