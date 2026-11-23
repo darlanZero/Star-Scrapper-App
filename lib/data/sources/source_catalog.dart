@@ -15,6 +15,8 @@ import 'package:star_scrapper_app/data/sources/anime/hentai_img_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/anikage_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/animefire_source.dart';
 import 'package:star_scrapper_app/data/sources/anime/animes_online_source.dart';
+import 'package:star_scrapper_app/data/sources/anime/cartoon_porn_video_source.dart';
+import 'package:star_scrapper_app/data/sources/anime/hentai18_video_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/mangadex_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/seita_celestial_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/luratoons_source.dart';
@@ -38,6 +40,10 @@ import 'package:star_scrapper_app/data/sources/manga/eahentai_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/rawkuma_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/apcomics_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/fsi_comics_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/adult_gallery_sources.dart';
+import 'package:star_scrapper_app/data/sources/manga/hentai20_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/madara_adult_sources.dart';
+import 'package:star_scrapper_app/data/sources/manga/toonlook_source.dart';
 import 'package:star_scrapper_app/infrastructure/webview/browser_html_loader.dart';
 
 /// Single registry for the sources bundled with the application.
@@ -90,6 +96,8 @@ abstract final class SourceCatalog {
         AnikageSource(),
         AnimeFireSource(),
         AnimesOnlineSource(),
+        CartoonPornVideoSource(),
+        Hentai18VideoSource(),
       ];
 
   /// Manga/comic providers using the typed [MangaSource] contract (replaces the
@@ -165,6 +173,30 @@ abstract final class SourceCatalog {
           browserImageLoader: BrowserHtmlLoader.loadImage,
           readerPageLoader: BrowserHtmlLoader.readerPages,
         ),
+        HentaiVoxSource(),
+        HentaiEnvySource(),
+        HentaiEraSource(),
+        HentaiEraSource(
+          sourceId: 'hentaiera_to',
+          sourceName: 'HentaiEra.to',
+          baseUri: Uri.parse('https://hentaiera.to/'),
+        ),
+        ThreeHentaiSource(),
+        ToonLookSource(
+          binaryLoader: BrowserHtmlLoader.loadBytes,
+          imageDescrambler: BrowserHtmlLoader.descrambleToonLookImage,
+        ),
+        CartoonPornMangaSource(
+          browserHtmlLoader: (uri, userAgent) =>
+              BrowserHtmlLoader.loadRawRenderedWhen(
+            uri,
+            userAgent,
+            '#chapters li',
+          ),
+        ),
+        Hentai20Source(),
+        Hentai18MangaSource(),
+        PornhwazSource(),
       ];
 
   static List<Fonte> createAll() => [
@@ -495,6 +527,126 @@ abstract final class SourceCatalog {
             browserImageLoader: BrowserHtmlLoader.loadImage,
             readerPageLoader: BrowserHtmlLoader.readerPages,
           ),
+          contentType: SourceContentType.manga,
+          isRRated: true,
+        ),
+        Fonte(
+          id: 'hentaivox',
+          image: 'https://hentaivox.com/favicon.ico',
+          name: 'HentaiVox',
+          languagePrefix: 'All',
+          flags: ['https://cdn-icons-png.flaticon.com/512/44/44386.png'],
+          api: HentaiVoxSource(),
+          contentType: SourceContentType.manga,
+          isRRated: true,
+        ),
+        Fonte(
+          id: 'hentaienvy',
+          image: 'https://hentaienvy.com/favicon.ico',
+          name: 'HentaiEnvy',
+          languagePrefix: 'All',
+          flags: ['https://cdn-icons-png.flaticon.com/512/44/44386.png'],
+          api: HentaiEnvySource(),
+          contentType: SourceContentType.manga,
+          isRRated: true,
+        ),
+        Fonte(
+          id: 'hentaiera_com',
+          image: 'https://hentaiera.com/favicon.ico',
+          name: 'HentaiEra.com',
+          languagePrefix: 'All',
+          flags: ['https://cdn-icons-png.flaticon.com/512/44/44386.png'],
+          api: HentaiEraSource(),
+          contentType: SourceContentType.manga,
+          isRRated: true,
+        ),
+        Fonte(
+          id: 'hentaiera_to',
+          image: 'https://hentaiera.to/favicon.ico',
+          name: 'HentaiEra.to',
+          languagePrefix: 'All',
+          flags: ['https://cdn-icons-png.flaticon.com/512/44/44386.png'],
+          api: HentaiEraSource(
+            sourceId: 'hentaiera_to',
+            sourceName: 'HentaiEra.to',
+            baseUri: Uri.parse('https://hentaiera.to/'),
+          ),
+          contentType: SourceContentType.manga,
+          isRRated: true,
+        ),
+        Fonte(
+          id: 'three_hentai',
+          image: 'https://3hentai.to/favicon.ico',
+          name: '3Hentai',
+          languagePrefix: 'All',
+          flags: ['https://cdn-icons-png.flaticon.com/512/44/44386.png'],
+          api: ThreeHentaiSource(),
+          contentType: SourceContentType.manga,
+          isRRated: true,
+        ),
+        Fonte(
+          id: 'toonlook',
+          image: 'https://toonlook.com/favicon.ico',
+          name: 'ToonLook',
+          languagePrefix: 'All',
+          flags: ['https://cdn-icons-png.flaticon.com/512/44/44386.png'],
+          api: ToonLookSource(
+            binaryLoader: BrowserHtmlLoader.loadBytes,
+            imageDescrambler: BrowserHtmlLoader.descrambleToonLookImage,
+          ),
+          contentType: SourceContentType.manga,
+          isRRated: true,
+        ),
+        Fonte(
+          id: 'cartoon_porn_manga',
+          image: 'https://cartoonporn.to/favicon.ico',
+          name: 'Cartoon Porn Comics',
+          languagePrefix: 'EN-US',
+          flags: [
+            'https://cdn.countryflags.com/thumbs/united-states-of-america/flag-3d-250.png',
+          ],
+          api: CartoonPornMangaSource(
+            browserHtmlLoader: (uri, userAgent) =>
+                BrowserHtmlLoader.loadRawRenderedWhen(
+              uri,
+              userAgent,
+              '#chapters li',
+            ),
+          ),
+          contentType: SourceContentType.manga,
+          isRRated: true,
+        ),
+        Fonte(
+          id: 'hentai20',
+          image: 'https://hentai20.lol/favicon.ico',
+          name: 'Hentai20',
+          languagePrefix: 'EN-US',
+          flags: [
+            'https://cdn.countryflags.com/thumbs/united-states-of-america/flag-3d-250.png',
+          ],
+          api: Hentai20Source(),
+          contentType: SourceContentType.manga,
+          isRRated: true,
+        ),
+        Fonte(
+          id: 'hentai18_manga',
+          image: 'https://hentai18.net/favicon.ico',
+          name: 'Hentai18',
+          languagePrefix: 'All',
+          flags: ['https://cdn-icons-png.flaticon.com/512/44/44386.png'],
+          api: Hentai18MangaSource(),
+          contentType: SourceContentType.manga,
+          isRRated: true,
+        ),
+        Fonte(
+          id: 'pornhwaz',
+          image: 'https://www.pornhwaz.com/favicon.ico',
+          name: 'Pornhwaz',
+          languagePrefix: 'EN-US',
+          flags: [
+            'https://cdn.countryflags.com/thumbs/united-states-of-america/flag-3d-250.png',
+          ],
+          api: PornhwazSource(),
           contentType: SourceContentType.manga,
           isRRated: true,
         ),

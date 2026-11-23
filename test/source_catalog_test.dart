@@ -46,6 +46,8 @@ void main() {
     expect(ids, contains('animefire'));
     expect(ids, contains('jable'));
     expect(ids, contains('hentai_img'));
+    expect(ids, contains('cartoon_porn_video'));
+    expect(ids, contains('hentai18_video'));
   });
 
   test('anime source presentation localizes audio labels by language', () {
@@ -102,6 +104,16 @@ void main() {
     expect(hentaiImg.isRRated, isTrue);
     expect(hentaiImg.languageLabel, 'English');
     expect(hentaiImg.capabilityLabel, contains('Images/HLS'));
+    final cartoonPorn =
+        sources.singleWhere((source) => source.id == 'cartoon_porn_video');
+    expect(cartoonPorn.isRRated, isTrue);
+    expect(cartoonPorn.languageLabel, 'English (US)');
+    expect(cartoonPorn.capabilityLabel, contains('MP4/GIF'));
+    final hentai18 =
+        sources.singleWhere((source) => source.id == 'hentai18_video');
+    expect(hentai18.isRRated, isTrue);
+    expect(hentai18.languageLabel, 'All languages');
+    expect(hentai18.capabilityLabel, contains('HLS'));
   });
 
   test('anime sources are grouped by language in display order', () {
@@ -113,7 +125,13 @@ void main() {
     );
     expect(
       groups['All Languages']!.map((source) => source.id),
-      ['anitube', 'aniwave', 'hentai_haven', 'porn_comic_video'],
+      [
+        'anitube',
+        'aniwave',
+        'hentai_haven',
+        'porn_comic_video',
+        'hentai18_video',
+      ],
     );
     expect(
       groups['PT-BR']!.map((source) => source.id),
@@ -128,7 +146,7 @@ void main() {
     );
     expect(
       groups['English']!.map((source) => source.id),
-      ['hentai_img', 'anikage'],
+      ['hentai_img', 'anikage', 'cartoon_porn_video'],
     );
     expect(groups['Chinese']!.map((source) => source.id), ['hanime1']);
     expect(groups['Japanese']!.map((source) => source.id), ['jable']);
@@ -163,6 +181,21 @@ void main() {
     expect(ids, contains('bato'));
     expect(ids, contains('rawkuma'));
     expect(ids, contains('apcomics'));
+    expect(
+      ids,
+      containsAll([
+        'hentaivox',
+        'hentaienvy',
+        'hentaiera_com',
+        'hentaiera_to',
+        'three_hentai',
+        'toonlook',
+        'cartoon_porn_manga',
+        'hentai20',
+        'hentai18_manga',
+        'pornhwaz',
+      ]),
+    );
   });
 
   test('Leitura Manga is a mixed PT-BR source, not an adult-only source', () {
