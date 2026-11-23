@@ -1033,7 +1033,33 @@ class _FontBooksGalleryScreenState extends State<FontBooksGalleryScreen> {
 
   Future<void> _showFilterPopup() async {
     final api = widget.selectedFont.api;
-    if (api is FilterableMangaSource) {
+    var useAdvancedFilters = api is FilterableMangaSource;
+    if (api is FilterableMangaSource && api is TaxonomyBrowsableMangaSource) {
+      final selectedMode = await showModalBottomSheet<bool>(
+        context: context,
+        useSafeArea: true,
+        builder: (sheetContext) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.tune),
+                title: const Text('Advanced filters'),
+                onTap: () => Navigator.of(sheetContext).pop(true),
+              ),
+              ListTile(
+                leading: const Icon(Icons.sell_outlined),
+                title: const Text('Tags, artists and categories'),
+                onTap: () => Navigator.of(sheetContext).pop(false),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (!mounted || selectedMode == null) return;
+      useAdvancedFilters = selectedMode;
+    }
+    if (useAdvancedFilters && api is FilterableMangaSource) {
       try {
         final options = await (api as FilterableMangaSource).getSearchOptions();
         if (!mounted) return;

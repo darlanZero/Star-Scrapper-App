@@ -60,6 +60,28 @@ abstract final class BrowserHtmlLoader {
     return operation;
   }
 
+  /// Loads the complete DOM with a real screen-sized viewport.
+  ///
+  /// Some JavaScript catalogs defer hydration when the WebView is effectively
+  /// 1x1. This keeps the source HTML intact while still enabling viewport-based
+  /// rendering.
+  static Future<String> loadRawRenderedWhen(
+    Uri uri,
+    String userAgent,
+    String readySelector,
+  ) {
+    final operation = _pending.then(
+      (_) => _loadNow(
+        uri,
+        userAgent,
+        readySelector: readySelector,
+        renderedViewport: true,
+      ),
+    );
+    _pending = operation.then<void>((_) {}, onError: (_) {});
+    return operation;
+  }
+
   /// Loads a JavaScript-rendered page after walking through its lazy content.
   ///
   /// Readers such as Yomu only attach page image URLs when each page slot
@@ -158,6 +180,31 @@ abstract final class BrowserHtmlLoader {
     Map<String, String> headers,
   ) {
     return requestBytes(uri, headers);
+  }
+
+  /// Reverses ToonLook's deterministic vertical-strip shuffle and returns a
+  /// cache file that Flutter's ordinary reader can display and download.
+  static Future<String> descrambleToonLookImage(
+    Uint8List bytes,
+    Uri imageUri,
+    String language,
+    int stripHeight,
+    String salt,
+  ) async {
+    final path = await _channel.invokeMethod<String>(
+      'descrambleToonLookImage',
+      {
+        'bytes': bytes,
+        'url': imageUri.toString(),
+        'language': language,
+        'stripHeight': stripHeight,
+        'salt': salt,
+      },
+    );
+    if (path == null || path.isEmpty) {
+      throw StateError('Android did not return the descrambled image.');
+    }
+    return path;
   }
 
   /// Performs a same-origin browser request using the authenticated WebView

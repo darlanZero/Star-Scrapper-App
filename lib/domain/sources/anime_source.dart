@@ -508,7 +508,9 @@ extension AnimeSourcePresentation on AnimeSource {
       id == 'porn_comic_video' ||
       id == 'hanime1' ||
       id == 'jable' ||
-      id == 'hentai_img';
+      id == 'hentai_img' ||
+      id == 'cartoon_porn_video' ||
+      id == 'hentai18_video';
 
   Uri get iconUri => baseUri.resolve('/favicon.ico');
 
@@ -521,7 +523,7 @@ extension AnimeSourcePresentation on AnimeSource {
         'animefire' ||
         'animes_online' =>
           'PT-BR',
-        'anikage' || 'hentai_img' => 'English',
+        'anikage' || 'hentai_img' || 'cartoon_porn_video' => 'English',
         'hanime1' => 'Chinese',
         'jable' => 'Japanese',
         _ => 'All Languages',
@@ -539,6 +541,7 @@ extension AnimeSourcePresentation on AnimeSource {
         'jable' => 'Japanese',
         'anikage' => 'English (US)',
         'hentai_img' => 'English',
+        'cartoon_porn_video' => 'English (US)',
         _ => 'All languages',
       };
 
@@ -569,6 +572,8 @@ extension AnimeSourcePresentation on AnimeSource {
           'R-rated · Chinese (Traditional) · MP4 · Static English opt-in',
         'jable' => 'R-rated · Japanese · HLS · Static English opt-in',
         'hentai_img' => 'R-rated · English · Images/HLS',
+        'cartoon_porn_video' => 'R-rated · English (US) · MP4/GIF',
+        'hentai18_video' => 'R-rated · All languages · HLS',
         _ => '$languageLabel · $audioLabel · HLS · Subtitles',
       };
 }

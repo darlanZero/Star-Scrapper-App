@@ -901,6 +901,26 @@ extension MangaSourcePresentation on MangaSource {
         MangaCatalogFilter.added => 'New',
       };
     }
+    if (id == 'hentaiera_com' || id == 'hentaiera_to') {
+      return switch (filter) {
+        MangaCatalogFilter.updated => 'Downloaded',
+        MangaCatalogFilter.recent => 'Recent',
+        MangaCatalogFilter.popular => 'Popular',
+        MangaCatalogFilter.trending => 'Trending',
+        MangaCatalogFilter.added => 'Recently added',
+        MangaCatalogFilter.alphabetical => 'Alphabetical',
+      };
+    }
+    if (id == 'hentai20' || id == 'pornhwaz') {
+      return switch (filter) {
+        MangaCatalogFilter.updated => 'Most viewed',
+        MangaCatalogFilter.recent => 'Recent',
+        MangaCatalogFilter.popular => 'Popular',
+        MangaCatalogFilter.trending => 'Trending',
+        MangaCatalogFilter.added => 'Recently added',
+        MangaCatalogFilter.alphabetical => 'Alphabetical',
+      };
+    }
     return switch (filter) {
       MangaCatalogFilter.updated => 'Latest',
       MangaCatalogFilter.added => 'Recently added',

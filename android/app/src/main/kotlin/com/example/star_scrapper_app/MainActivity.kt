@@ -36,6 +36,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
 import java.nio.ByteBuffer
+import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity: FlutterFragmentActivity() {
@@ -135,6 +136,14 @@ class MainActivity: FlutterFragmentActivity() {
                 "composeReaderImage" -> composeReaderImage(
                     slices = call.argument<List<ByteArray>>("slices"),
                     outputPath = call.argument<String>("outputPath"),
+                    result = result,
+                )
+                "descrambleToonLookImage" -> descrambleToonLookImage(
+                    bytes = call.argument<ByteArray>("bytes"),
+                    imageUrl = call.argument<String>("url"),
+                    language = call.argument<String>("language"),
+                    stripHeight = call.argument<Int>("stripHeight") ?: 500,
+                    salt = call.argument<String>("salt"),
                     result = result,
                 )
                 "loadBytes" -> loadBytesInWebView(
@@ -657,6 +666,124 @@ class MainActivity: FlutterFragmentActivity() {
             } finally {
                 bitmaps.forEach { it.recycle() }
                 joined?.recycle()
+            }
+        }.start()
+    }
+
+    private fun descrambleToonLookImage(
+        bytes: ByteArray?,
+        imageUrl: String?,
+        language: String?,
+        stripHeight: Int,
+        salt: String?,
+        result: MethodChannel.Result,
+    ) {
+        if (
+            bytes == null || bytes.isEmpty() || imageUrl.isNullOrBlank() ||
+            language.isNullOrBlank() || salt.isNullOrBlank() || stripHeight <= 0
+        ) {
+            result.error("invalid_scramble", "Invalid ToonLook image data.", null)
+            return
+        }
+        val imageBytes = bytes
+        Thread {
+            var source: Bitmap? = null
+            var output: Bitmap? = null
+            try {
+                val cacheKey = MessageDigest.getInstance("SHA-256")
+                    .digest("$imageUrl|$language|$stripHeight|$salt".toByteArray())
+                    .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+                val directory = File(cacheDir, "toonlook_reader").apply { mkdirs() }
+                val destination = File(directory, "$cacheKey.png")
+                if (destination.isFile && destination.length() > 0) {
+                    runOnUiThread { result.success(destination.absolutePath) }
+                    return@Thread
+                }
+
+                source = decodeReaderSlice(imageBytes)
+                    ?: error("Android could not decode the ToonLook image.")
+                val strips = source!!.height / stripHeight
+                if (strips <= 1) {
+                    FileOutputStream(destination).use { stream ->
+                        check(source!!.compress(Bitmap.CompressFormat.PNG, 100, stream))
+                    }
+                    runOnUiThread { result.success(destination.absolutePath) }
+                    return@Thread
+                }
+
+                val urlPath = URL(imageUrl).path.split('/').filter { it.isNotEmpty() }
+                val languageIndex = urlPath.indexOfFirst {
+                    it.equals(language, ignoreCase = true)
+                }
+                val seedSegments = if (
+                    languageIndex >= 0 && urlPath.size >= languageIndex + 4
+                ) {
+                    urlPath.subList(languageIndex, languageIndex + 4)
+                } else {
+                    urlPath.takeLast(4)
+                }
+                val seedKey = "$salt|$stripHeight|${seedSegments.joinToString("/").lowercase()}"
+                val digest = MessageDigest.getInstance("SHA-256")
+                    .digest(seedKey.toByteArray())
+                var randomState =
+                    ((digest[0].toUInt() and 0xffu) shl 24) or
+                    ((digest[1].toUInt() and 0xffu) shl 16) or
+                    ((digest[2].toUInt() and 0xffu) shl 8) or
+                    (digest[3].toUInt() and 0xffu)
+                val order = IntArray(strips) { it }
+                for (index in strips - 1 downTo 1) {
+                    randomState += 0x6d2b79f5u
+                    var value = randomState
+                    value = (value xor (value shr 15)) * (value or 1u)
+                    value = value xor (value + ((value xor (value shr 7)) * (value or 61u)))
+                    value = value xor (value shr 14)
+                    val random = value.toDouble() / 4294967296.0
+                    val swapIndex = (random * (index + 1)).toInt()
+                    val previous = order[index]
+                    order[index] = order[swapIndex]
+                    order[swapIndex] = previous
+                }
+
+                output = Bitmap.createBitmap(
+                    source!!.width,
+                    source!!.height,
+                    source!!.config ?: Bitmap.Config.ARGB_8888,
+                )
+                val canvas = Canvas(output!!)
+                val sourceRect = Rect()
+                val destinationRect = Rect()
+                for (index in 0 until strips) {
+                    sourceRect.set(
+                        0,
+                        index * stripHeight,
+                        source!!.width,
+                        (index + 1) * stripHeight,
+                    )
+                    destinationRect.set(
+                        0,
+                        order[index] * stripHeight,
+                        source!!.width,
+                        (order[index] + 1) * stripHeight,
+                    )
+                    canvas.drawBitmap(source!!, sourceRect, destinationRect, null)
+                }
+                val processedHeight = strips * stripHeight
+                if (processedHeight < source!!.height) {
+                    sourceRect.set(0, processedHeight, source!!.width, source!!.height)
+                    destinationRect.set(0, processedHeight, source!!.width, source!!.height)
+                    canvas.drawBitmap(source!!, sourceRect, destinationRect, null)
+                }
+                FileOutputStream(destination).use { stream ->
+                    check(output!!.compress(Bitmap.CompressFormat.PNG, 100, stream))
+                }
+                runOnUiThread { result.success(destination.absolutePath) }
+            } catch (error: Throwable) {
+                runOnUiThread {
+                    result.error("toonlook_descramble_failed", error.message, null)
+                }
+            } finally {
+                source?.recycle()
+                output?.recycle()
             }
         }.start()
     }
