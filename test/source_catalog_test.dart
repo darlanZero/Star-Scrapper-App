@@ -189,6 +189,7 @@ void main() {
         'hentaiera_com',
         'hentaiera_to',
         'three_hentai',
+        'hitomi',
         'toonlook',
         'cartoon_porn_manga',
         'hentai20',

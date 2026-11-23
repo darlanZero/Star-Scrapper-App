@@ -42,6 +42,7 @@ import 'package:star_scrapper_app/data/sources/manga/apcomics_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/fsi_comics_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/adult_gallery_sources.dart';
 import 'package:star_scrapper_app/data/sources/manga/hentai20_source.dart';
+import 'package:star_scrapper_app/data/sources/manga/hitomi_source.dart';
 import 'package:star_scrapper_app/data/sources/manga/madara_adult_sources.dart';
 import 'package:star_scrapper_app/data/sources/manga/toonlook_source.dart';
 import 'package:star_scrapper_app/infrastructure/webview/browser_html_loader.dart';
@@ -182,6 +183,14 @@ abstract final class SourceCatalog {
           baseUri: Uri.parse('https://hentaiera.to/'),
         ),
         ThreeHentaiSource(),
+        HitomiSource(
+          browserHtmlLoader: (uri, userAgent) =>
+              BrowserHtmlLoader.loadRawRenderedWhen(
+            uri,
+            userAgent,
+            HitomiSource.browserReadySelector(uri),
+          ),
+        ),
         ToonLookSource(
           binaryLoader: BrowserHtmlLoader.loadBytes,
           imageDescrambler: BrowserHtmlLoader.descrambleToonLookImage,
@@ -581,6 +590,23 @@ abstract final class SourceCatalog {
           languagePrefix: 'All',
           flags: ['https://cdn-icons-png.flaticon.com/512/44/44386.png'],
           api: ThreeHentaiSource(),
+          contentType: SourceContentType.manga,
+          isRRated: true,
+        ),
+        Fonte(
+          id: 'hitomi',
+          image: 'https://hitomi.la/favicon.ico',
+          name: 'Hitomi',
+          languagePrefix: 'All',
+          flags: ['https://cdn-icons-png.flaticon.com/512/44/44386.png'],
+          api: HitomiSource(
+            browserHtmlLoader: (uri, userAgent) =>
+                BrowserHtmlLoader.loadRawRenderedWhen(
+              uri,
+              userAgent,
+              HitomiSource.browserReadySelector(uri),
+            ),
+          ),
           contentType: SourceContentType.manga,
           isRRated: true,
         ),
