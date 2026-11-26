@@ -72,6 +72,53 @@ void main() {
     );
   });
 
+  test('HentaiEra.com resolves real webp pages from the view reader', () async {
+    final requests = <http.Request>[];
+    final source = HentaiEraSource(
+      baseUri: Uri.parse('https://era.test/'),
+      client: MockClient((request) async {
+        requests.add(request);
+        final page = RegExp(r'/view/1780728/(\d+)/$')
+            .firstMatch(request.url.path)
+            ?.group(1);
+        if (page != null) {
+          return _html('''
+            <img id="gimg"
+                 src="data:image/svg+xml,placeholder"
+                 data-src="https://cdn.era.test/gallery/$page.webp">
+          ''');
+        }
+        return _html('''
+          <h1>Era work</h1>
+          <a href="/view/1780728/1/"><img src="https://cdn.era.test/cover.webp"></a>
+          <a href="/view/1780728/2/"></a>
+          <p>2 Pages</p>
+        ''');
+      }),
+    );
+
+    final pages = await source
+        .readChapter(mangaId: '1780728', chapterId: '1780728')
+        .toList();
+
+    expect(pages.map((page) => page.uri), [
+      Uri.parse('https://cdn.era.test/gallery/1.webp'),
+      Uri.parse('https://cdn.era.test/gallery/2.webp'),
+    ]);
+    expect(
+      requests.map((request) => request.url.path),
+      containsAll([
+        '/gallery/1780728/',
+        '/view/1780728/1/',
+        '/view/1780728/2/',
+      ]),
+    );
+    expect(
+      pages.first.headers['Referer'],
+      'https://era.test/view/1780728/1/',
+    );
+  });
+
   test('HentaiVox resolves every real reader image instead of guessing names',
       () async {
     final source = HentaiVoxSource(

@@ -469,11 +469,18 @@ abstract class AdultGallerySource
     }
     final count = detailCount;
     if (count <= 0) return;
-    if (_kind == _GallerySiteKind.era && _baseUri.host.endsWith('.to')) {
+    if (_kind == _GallerySiteKind.era) {
+      final usesGalleryReader = _baseUri.host.endsWith('.to');
       for (var page = 1; page <= count; page++) {
-        final readerUri = _baseUri.resolve('/gallery/$mangaId/$page/');
+        final readerUri = _baseUri.resolve(
+          usesGalleryReader
+              ? '/gallery/$mangaId/$page/'
+              : '/view/$mangaId/$page/',
+        );
         final document = await _document(readerUri);
-        final pageUri = _imageUri(document.querySelector('#reader_img'));
+        final pageUri = _imageUri(
+          document.querySelector(usesGalleryReader ? '#reader_img' : '#gimg'),
+        );
         if (pageUri != null) {
           yield MangaReaderPage.network(pageUri, headers: {
             ...coverImageHeaders,
