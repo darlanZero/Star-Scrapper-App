@@ -18,6 +18,26 @@ The project combines native readers and video playback with source-specific WebV
 - Versioned backup and restore for library data and settings.
 - Authentication-aware sources with browser verification and persistent sessions where supported.
 
+## What is new in 1.5.0
+
+### Expanded source library
+
+- Added new manga and comics sources including MangaLivre, Nexus Toons, Yomu, OniSaga, nHentai, nHentai.xxx, xComic, MangaFlix, ComicK, Bato, EAHentai, Rawkuma, APComics, FSI Comics, ToonLook, Hentai20, Hitomi, HentaiVox, HentaiEnvy, HentaiEra, 3Hentai, CartoonPorn, and Pornhwaz.
+- Added new video and mixed sources including Hanime1, AniKage, AnimeFire, Animes Online, Jable, Hentai-Img, CartoonPorn, and Hentai18.
+- Added browser-rendered catalog and reader support for JavaScript-driven providers, protected media, and descrambled chapter images.
+
+### Reader, search, and library improvements
+
+- Added precise reader progress restoration, image actions, story reminders, and improved scroll stability while pages reload.
+- Added AniList manga tracking and improved matching between tracker titles and enabled sources.
+- Debounced global source search and improved progressive multi-source result loading.
+- Added English, Brazilian Portuguese, and Spanish application locales.
+
+### Backup and compatibility
+
+- Added complete encrypted backup and restore, including stored sessions, with native file-picker import.
+- Fixed reader resolution across HentaiEra, Hitomi, CartoonPorn, ToonLook, HentaiEnvy, and other changing upstream providers.
+
 ## What is new in 1.4.0
 
 ### Anime support
